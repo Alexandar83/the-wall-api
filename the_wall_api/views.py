@@ -38,7 +38,7 @@ class BaseWallProfileView(APIView):
             wall_profiles_config = load_wall_profiles_from_config()
         except (WallConstructionError, FileNotFoundError) as tech_error:
             return WallProfileResponse(
-                self.create_technical_error_response(tech_error), *default_response_tuple
+                self.create_technical_error_response({}, tech_error), *default_response_tuple
             )
 
         # Profile number validation
@@ -49,11 +49,9 @@ class BaseWallProfileView(APIView):
             )
 
         # Simulation parameters
-        simulation_type, config_hash, profile_id_list, error_response = self.evaluate_simulation_params(
+        simulation_type, config_hash, profile_id_list = self.evaluate_simulation_params(
             num_crews, wall_profiles_config, profile_id, max_profile_number
         )
-        if error_response:
-            return WallProfileResponse(error_response, *default_response_tuple)
                 
         # Collect cached data
         wall_profile_items = self.collect_cached_wall_profiles(config_hash, profile_id_list, num_crews)
@@ -81,7 +79,7 @@ class BaseWallProfileView(APIView):
 
     def evaluate_simulation_params(
             self, num_crews: int | None, wall_profiles_config: list, profile_id: int | None, max_profile_number: int
-    ) -> tuple[str, str, list[int], Response | None]:
+    ) -> tuple[str, str, list[int]]:
         # Determine the simulation type based on num_crews
         
         simulation_type = MULTI_THREADED if num_crews else SINGLE_THREADED
@@ -95,7 +93,7 @@ class BaseWallProfileView(APIView):
             # total cost overview - all profiles are requred
             profile_id_list = list(range(1, max_profile_number + 1))
 
-        return simulation_type, config_hash, profile_id_list, None
+        return simulation_type, config_hash, profile_id_list
 
     def collect_cached_wall_profiles(self, config_hash: str, profile_id_list: list, num_crews: int | None) -> QuerySet[WallProfile]:
         """
@@ -127,10 +125,12 @@ class BaseWallProfileView(APIView):
         Runs a wall profile build simulation for each profile
         in profile_id_listand commits the results to the DB
         """
+        request_data = {'profile_id_list': profile_id_list, 'day': day, 'num_crews': num_crews}
+
         try:
             wall_construction = WallConstruction(wall_profiles_config, num_crews, simulation_type)
         except WallConstructionError as tech_error:
-            return self.create_technical_error_response(tech_error), []
+            return self.create_technical_error_response(request_data, tech_error), []
 
         # Calculate the max day for request data validation and caching purposes
         max_day = 0
@@ -142,7 +142,7 @@ class BaseWallProfileView(APIView):
             for profile_index in profile_id_list:
                 created_wall_profiles.append(self.create_and_save_wall_profile(profile_index, config_hash, num_crews, wall_construction, simulation_type, max_day))
         except KeyError as key_err:
-            return self.create_technical_error_response(key_err), []
+            return self.create_technical_error_response(request_data, key_err), []
                 
         # The simulation is valid and remains cached for the next valid day input
         if day is not None and day > max_day:
@@ -150,18 +150,23 @@ class BaseWallProfileView(APIView):
                 
         return None, created_wall_profiles
     
-    def create_technical_error_response(self, tech_error: Exception) -> Response:
-        error_details = 'Wall Construction simulation failed. Please contact support.'
-        technical_error_details = f'{str(tech_error.args[0])}'
-        return Response({'error': error_details, 'error_details': technical_error_details}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def create_technical_error_response(self, request_data, tech_error: Exception) -> Response:
+        tech_error_msg = f'{str(tech_error.args[0])}'
+        error_details = {
+            'error_msg': tech_error_msg
+        }
+        if request_data:
+            error_details['request_data'] = request_data
+        error_msg = 'Wall Construction simulation failed. Please contact support.'
+        return Response({'error': error_msg, 'error_details': error_details}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def create_and_save_wall_profile(
         self, profile_index: int, config_hash: str, num_crews: int, wall_construction: WallConstruction, simulation_type: str, max_day: int
     ) -> WallProfile:
         try:
             profile_data = wall_construction.wall_profile_data[profile_index]
-        except KeyError:
-            raise
+        except KeyError as key_err:
+            raise KeyError(f'Wall Construction simulation failed. {profile_index}') from key_err
         wall_profile = WallProfile.objects.create(
             wall_config_profile_id=profile_index,
             config_hash=config_hash,
@@ -230,7 +235,8 @@ class DailyIceUsageView(BaseWallProfileView):
         error_response, wall_profile_items, simulation_type = self.get_wall_profiles(profile_id, day, num_crews)
         if error_response:
             return error_response
-
+        
+        request_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
         # Always one profile
         # wall_profile_items: Iterable[WallProfile] - for is used here for unpacking
         inconsistency_error_msg = 'Simulation data inconsistency detected. Please contact support.'
@@ -243,9 +249,15 @@ class DailyIceUsageView(BaseWallProfileView):
                 )
                 return self.build_daily_usage_valid_response(profile_id, day, simulation_result)
             except SimulationResult.DoesNotExist:
-                return Response({'error': inconsistency_error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {'error': inconsistency_error_msg, 'error_details': request_data},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
-        return Response({'error': inconsistency_error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {'error': inconsistency_error_msg, 'error_details': request_data},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
     def build_daily_usage_valid_response(self, profile_id: int, day: int, simulation_result: SimulationResult) -> Response:
         response_data = {

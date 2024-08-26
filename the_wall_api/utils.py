@@ -176,13 +176,21 @@ daily_ice_usage_responses = {
         response=error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name='Simulation Data Inconsistency 1',
                 value={
-                    'error': 'Simulation data inconsistency detected. Please contact support.',
+                    'error': 'Wall Construction simulation failed. Please contact support.',
+                    'error_details': {
+                        'request_data': {
+                            'profile_id': 1,
+                            'day': 14,
+                            'num_crews': 5
+                        },
+                        'error_msg': 'FileNotFoundError'
+                    }
                 },
             ),
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name='Simulation Data Inconsistency 2',
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
                     'error_details': 'Invalid wall configuration file.'
@@ -233,7 +241,7 @@ cost_overview_responses = {
         response=error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name='Simulation Data Inconsistency 1',
                 value={
                     'error': 'Simulation data inconsistency detected.',
                     'error_details': 'Please contact support.'
@@ -241,7 +249,7 @@ cost_overview_responses = {
                 
             ),
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name='Simulation Data Inconsistency 2',
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
                     'error_details': 'Invalid wall configuration file.'
