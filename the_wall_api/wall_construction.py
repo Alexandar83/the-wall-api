@@ -42,6 +42,7 @@ class WallConstruction:
             self.sections_queue = Queue()
             self.filename = f'logs/wall_construction_{uuid.uuid4().hex}.log'
             self.logger = self._setup_logger()
+            self.thread_days = {}
 
             # Initialize the queue with sections
             for profile_id, profile in enumerate(self.wall_profiles_config):
@@ -64,7 +65,7 @@ class WallConstruction:
         file_handler.setLevel(logging.INFO)
 
         # Formatter
-        formatter = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(levelname)s [%(threadName)s] %(message)s')
         file_handler.setFormatter(formatter)
 
         # Handler to the logger
@@ -126,49 +127,51 @@ class WallConstruction:
         thread = current_thread()
         try:
             with self.counter_lock:
-                if not thread.name.startswith('Team-'):
-                    thread.name = f'Team-{next(self.thread_counter)}'
+                if not thread.name.startswith('Crew-'):
+                    thread.name = f'Crew-{next(self.thread_counter)}'
             
             # Create a lock for this thread if it doesn't already exist
-            if thread.name not in self.thread_locks:
-                self.thread_locks[thread.name] = Lock()
+            # if thread.name not in self.thread_locks:
+            #     self.thread_locks[thread.name] = Lock()
             
             total_ice_used = 0
             total_cost = 0
-            current_day = 0
+            if current_thread().name not in self.thread_days:
+                self.thread_days[current_thread().name] = 0
+            current_day = self.thread_days[current_thread().name]
             height = initial_height
 
             while height < MAX_HEIGHT:
                 height += 1
-                current_day += 1
+                self.thread_days[current_thread().name] += 1
                 total_ice_used += ICE_PER_FOOT
                 total_cost += self.daily_cost_section
 
-                self.log_section_progress(profile_id, section_id, current_day, height, thread.name)
+                self.log_section_progress(profile_id, section_id, self.thread_days[current_thread().name], height)
                 self.testing_wall_profiles_config[profile_id - 1][section_id - 1] = height
             
-            self.log_section_completion(profile_id, section_id, current_day, total_ice_used, total_cost, thread.name)
+            self.log_section_completion(profile_id, section_id, current_day, total_ice_used, total_cost)
         except Exception as e:
             self.logger.error(f'Error in thread {thread.name}: {e}')
 
-    def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int, thread_name: str):
+    def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int):
         message = (
             f'HGHT_INCRS: Section ID: {profile_id}-{section_id} - DAY_{day} - '
             f'New height: {height} ft - Ice used: {ICE_PER_FOOT} cbc. yrds. - '
             f'Cost: {self.daily_cost_section} gold drgns.'
         )
         # Thread-specific lock for logging
-        with self.thread_locks[thread_name]:
-            self.logger.info(message)
+        # with self.thread_locks[thread_name]:
+        self.logger.info(message)
 
-    def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int, thread_name: str):
+    def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int):
         message = (
             f'FNSH_SCTN: Section ID: {profile_id}-{section_id} - DAY_{day} - finished. '
             f'Ice used: {total_ice_used} cbc. yrds. - Cost: {total_cost} gold drgns.'
         )
         # Thread-specific lock for logging
-        with self.thread_locks[thread_name]:
-            self.logger.info(message)
+        # with self.thread_locks[thread_name]:
+        self.logger.info(message)
 
     def extract_log_data(self):
         try:

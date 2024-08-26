@@ -69,7 +69,7 @@ The Wall is a massive fortification being built along the northern border of the
    
    PROD_DB_NAME='db.sqlite3'
    
-   TEST_LOGGING_LEVEL='NO-LOGGING'
+   PROD_TEST_LOGGING_LEVEL='FAILED'
    
    # Dev. Settings
    DEV_SECRET_KEY='DEV_SECRET_KEY'
@@ -81,6 +81,8 @@ The Wall is a massive fortification being built along the northern border of the
    DEV_DB_ENGINE='django.db.backends.sqlite3'
    
    DEV_DB_NAME='db.sqlite3'
+
+   DEV_TEST_LOGGING_LEVEL='FAILED'
    
    # Wall configuration
    WALL_CONFIG_PATH=config/wall_config.json
