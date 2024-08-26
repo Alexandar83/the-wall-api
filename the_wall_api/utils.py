@@ -172,6 +172,19 @@ daily_ice_usage_responses = {
             )
         ]
     ),
+    404: OpenApiResponse(
+        response=error_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='No work on profile',
+                value={
+                    "profile_id": 2,
+                    "day": 14,
+                    "details": "No crew has worked on profile 2 on day 14."
+                },
+            )
+        ]
+    ),
     500: OpenApiResponse(
         response=error_response_serializer,
         examples=[

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Iterable
+from typing import Any, Dict, Iterable
 
 from django.conf import settings
 from django.db.models import QuerySet
@@ -60,7 +60,7 @@ class BaseWallProfileView(APIView):
         if wall_profile_items.count() != len(profile_id_list):
             # No cached data - run a simulation
             error_response, wall_profile_items = self.run_simulation_and_save(
-                wall_profiles_config, simulation_type, num_crews, profile_id_list, day, config_hash
+                wall_profiles_config, simulation_type, num_crews, day, config_hash
             )
         elif day is not None:
             # If a 'day' is provided in the request, validate its consistency against the cached simulation data
@@ -119,13 +119,13 @@ class BaseWallProfileView(APIView):
         return None
 
     def run_simulation_and_save(
-        self, wall_profiles_config: list, simulation_type: str, num_crews: int, profile_id_list: list, day: int | None, config_hash: str
+        self, wall_profiles_config: list, simulation_type: str, num_crews: int, day: int | None, config_hash: str
     ) -> tuple[Response | None, list[WallProfile]]:
         """
         Runs a wall profile build simulation for each profile
         in profile_id_listand commits the results to the DB
         """
-        request_data = {'profile_id_list': profile_id_list, 'day': day, 'num_crews': num_crews}
+        request_data = {'day': day, 'num_crews': num_crews}
 
         try:
             wall_construction = WallConstruction(wall_profiles_config, num_crews, simulation_type)
@@ -139,8 +139,10 @@ class BaseWallProfileView(APIView):
         
         created_wall_profiles = []
         try:
-            for profile_index in profile_id_list:
-                created_wall_profiles.append(self.create_and_save_wall_profile(profile_index, config_hash, num_crews, wall_construction, simulation_type, max_day))
+            for profile_index in wall_construction.wall_profile_data:
+                created_wall_profiles.append(self.create_and_save_wall_profile(
+                    profile_index, config_hash, num_crews, wall_construction, simulation_type, max_day
+                ))
         except KeyError as key_err:
             return self.create_technical_error_response(request_data, key_err), []
                 
@@ -166,7 +168,7 @@ class BaseWallProfileView(APIView):
         try:
             profile_data = wall_construction.wall_profile_data[profile_index]
         except KeyError as key_err:
-            raise KeyError(f'Wall Construction simulation failed. {profile_index}') from key_err
+            raise KeyError(f'Wall Construction simulation failed. Profile_id: {profile_index}: ') from key_err
         wall_profile = WallProfile.objects.create(
             wall_config_profile_id=profile_index,
             config_hash=config_hash,
@@ -220,6 +222,7 @@ class DailyIceUsageView(BaseWallProfileView):
         Responses:
             - 200 OK: Ice usage data for a day.
             - 400 BAD REQUEST: Invalid input.
+            - 404 NOT FOUND: Wall profile not found.
             - 500 INTERNAL SERVER ERROR: Simulation data inconsistency.
         """
         num_crews = request.GET.get('num_crews')
@@ -237,9 +240,9 @@ class DailyIceUsageView(BaseWallProfileView):
             return error_response
         
         request_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+        inconsistency_error_msg = 'Simulation data inconsistency detected. Please contact support.'
         # Always one profile
         # wall_profile_items: Iterable[WallProfile] - for is used here for unpacking
-        inconsistency_error_msg = 'Simulation data inconsistency detected. Please contact support.'
         for wall_profile in wall_profile_items:
             try:
                 simulation_result = SimulationResult.objects.get(
@@ -247,26 +250,52 @@ class DailyIceUsageView(BaseWallProfileView):
                     day=int(day),
                     simulation_type=simulation_type
                 )
-                return self.build_daily_usage_valid_response(profile_id, day, simulation_result)
+                # Wall profile simulation found
+                return self.build_daily_usage_response(profile_id, day, simulation_result.ice_used, status.HTTP_200_OK)
             except SimulationResult.DoesNotExist:
+                # Wall profile simulation not found for this day
+                # Check if there is a simulation for another day for this profile
+                simulation_result = SimulationResult.objects.filter(
+                    wall_profile=wall_profile,
+                    simulation_type=simulation_type
+                ).first()
+                # If sim. for another day is found -> No work on this profile for this day
+                if simulation_result:
+                    return self.build_daily_usage_response(
+                        profile_id, day, 0, status.HTTP_404_NOT_FOUND
+                    )
+                # If no sim. for another day is found -> data inconsistency
+                else:
+                    return self.build_daily_usage_response(
+                        profile_id, day, 0, status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            except SimulationResult.MultipleObjectsReturned:
+                # Unique constraint fail -> data inconsistency
                 return Response(
                     {'error': inconsistency_error_msg, 'error_details': request_data},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         
         return Response(
             {'error': inconsistency_error_msg, 'error_details': request_data},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    def build_daily_usage_valid_response(self, profile_id: int, day: int, simulation_result: SimulationResult) -> Response:
-        response_data = {
-            'profile_id': profile_id,
-            'day': day,
-            'ice_amount': simulation_result.ice_used,
-            'details': f'Volume of ice used for profile {profile_id} on day {day}: {simulation_result.ice_used} cubic yards.',
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
+    def build_daily_usage_response(
+        self, profile_id: int, day: int, ice_used: int, response_status: int
+    ) -> Response:
+        response_data: Dict[str, Any] = {'profile_id': profile_id, 'day': day}
+        # 200
+        if response_status == status.HTTP_200_OK:
+            response_data['ice_used'] = ice_used
+            response_data['details'] = f'Volume of ice used for profile {profile_id} on day {day}: {ice_used} cubic yards.'
+        # 404
+        elif response_status == status.HTTP_404_NOT_FOUND:
+            response_data['details'] = f'No crew has worked on profile {profile_id} on day {day}.'
+        # 500
+        elif response_status == status.HTTP_500_INTERNAL_SERVER_ERROR:
+            response_data['error'] = 'Simulation data inconsistency detected. Please contact support.'
+        return Response(response_data, status=response_status)
 
 
 class CostOverviewView(BaseWallProfileView):
