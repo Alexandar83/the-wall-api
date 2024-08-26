@@ -33,9 +33,15 @@ if PROJECT_MODE == 'prod':
     DATABASES = {
         'default': {
             'ENGINE': os.getenv('PROD_DB_ENGINE', 'django.db.backends.sqlite3'),
-            'NAME': os.getenv('PROD_DB_NAME', BASE_DIR / 'db.sqlite3')
+            'NAME': os.getenv('PROD_DB_NAME', BASE_DIR / 'db.sqlite3'),
         }
     }
+    # Verbosity of unit tests
+    # FAILED - only log failed tests
+    # PASSED - only log passed tests
+    # ALL - log all tests
+    # NO-LOGGING - disable logging
+    TEST_LOGGING_LEVEL = os.getenv('PROD_TEST_LOGGING_LEVEL', 'NO-LOGGING')
 else:
     SECRET_KEY = os.getenv('DEV_SECRET_KEY')
     DEBUG = os.getenv('DEV_DEBUG', 'False') == 'True'
@@ -46,6 +52,7 @@ else:
             'NAME': os.getenv('DEV_DB_NAME', BASE_DIR / 'db.sqlite3')
         }
     }
+    TEST_LOGGING_LEVEL = os.getenv('DEV_TEST_LOGGING_LEVEL', 'NO-LOGGING')
 
 # Application definition
 
@@ -158,10 +165,3 @@ ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))       
 
 # Common settings
 API_VERSION = os.getenv('API_VERSION', 'v1')
-
-# Verbosity of unit tests
-# FAILED - only log failed tests
-# PASSED - only log passed tests
-# ALL - log all tests
-# NO-LOGGING - disable logging
-TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
