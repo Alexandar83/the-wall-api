@@ -60,32 +60,43 @@ The Wall is a massive fortification being built along the northern border of the
 
    # Prod settings
    PROD_SECRET_KEY='PROD_SECRET_KEY'
+   
    PROD_DEBUG=False
+   
    PROD_ALLOWED_HOSTS=localhost,127.0.0.1
+   
    PROD_DB_ENGINE='django.db.backends.sqlite3'
+   
    PROD_DB_NAME='db.sqlite3'
+   
    TEST_LOGGING_LEVEL='NO-LOGGING'
-
+   
    # Dev. Settings
    DEV_SECRET_KEY='DEV_SECRET_KEY'
+   
    DEV_DEBUG=True
+   
    DEV_ALLOWED_HOSTS=localhost,127.0.0.1
+   
    DEV_DB_ENGINE='django.db.backends.sqlite3'
+   
    DEV_DB_NAME='db.sqlite3'
-
+   
    # Wall configuration
    WALL_CONFIG_PATH=config/wall_config.json
+   
    MAX_HEIGHT=30
+   
    ICE_PER_FOOT=195
+   
    ICE_COST_PER_CUBIC_YARD=1900
+   
    MAX_LENGTH=2000
 
    # Common
    API_VERSION='v1'
 
-
 ## Usage Instructions
-
 
 ### Start a Virtual Environment
 
