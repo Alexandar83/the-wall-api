@@ -1,12 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
 import copy
 import logging
+from itertools import count
 import os
 import re
 import uuid
-from concurrent.futures import ThreadPoolExecutor
-from itertools import count
 from queue import Queue
 from threading import Lock, current_thread
+from typing import Dict, Any
 
 from django.conf import settings
 
@@ -37,8 +38,6 @@ class WallConstruction:
                 raise WallConstructionError('WallConstruction.__init__(): num_crews cannot be None when using MULTI_THREADED simulation type.')
             self.thread_counter = count(1)
             self.counter_lock = Lock()
-            self.wall_profile_data_lock = Lock()
-            self.thread_locks = {}
             self.sections_queue = Queue()
             self.filename = f'logs/wall_construction_{uuid.uuid4().hex}.log'
             self.logger = self._setup_logger()
@@ -130,10 +129,6 @@ class WallConstruction:
                 if not thread.name.startswith('Crew-'):
                     thread.name = f'Crew-{next(self.thread_counter)}'
             
-            # Create a lock for this thread if it doesn't already exist
-            # if thread.name not in self.thread_locks:
-            #     self.thread_locks[thread.name] = Lock()
-            
             total_ice_used = 0
             total_cost = 0
             if current_thread().name not in self.thread_days:
@@ -160,8 +155,6 @@ class WallConstruction:
             f'New height: {height} ft - Ice used: {ICE_PER_FOOT} cbc. yrds. - '
             f'Cost: {self.daily_cost_section} gold drgns.'
         )
-        # Thread-specific lock for logging
-        # with self.thread_locks[thread_name]:
         self.logger.info(message)
 
     def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int):
@@ -169,8 +162,6 @@ class WallConstruction:
             f'FNSH_SCTN: Section ID: {profile_id}-{section_id} - DAY_{day} - finished. '
             f'Ice used: {total_ice_used} cbc. yrds. - Cost: {total_cost} gold drgns.'
         )
-        # Thread-specific lock for logging
-        # with self.thread_locks[thread_name]:
         self.logger.info(message)
 
     def extract_log_data(self):
@@ -199,21 +190,38 @@ class WallConstruction:
         """
         return self.wall_profile_data.get(profile_id, {}).get(day, {}).get('ice_used', 0)
 
-    def _cost_overview(self, profile_id: int | None = None) -> int:
+    def _sim_calc_details(self) -> Dict[str, Any]:
         """
-        For internal testing purposes only.
+        Calculate and return a detailed cost overview including:
+        - Total cost for the whole wall.
+        - Cost per profile.
+        - Ice usage per profile per day.
+        - Detailed breakdown of cost and ice usage per profile per day.
+        - Maximum day across all profiles.
         """
-        total_cost = 0
+        overview = {
+            'total_cost': 0,
+            'profile_costs': {},
+            'profile_daily_details': {},
+        }
 
-        # Total cost for a profile
-        if profile_id:
-            if profile_id in self.wall_profile_data:
-                for day in self.wall_profile_data[profile_id]:
-                    total_cost += self.wall_profile_data[profile_id][day]['ice_used'] * ICE_COST_PER_CUBIC_YARD
-        # Total cost across for all profiles
-        elif profile_id is None:
-            for profile_id_iter in self.wall_profile_data:
-                for day in self.wall_profile_data[profile_id_iter]:
-                    total_cost += self.wall_profile_data[profile_id_iter][day]['ice_used'] * ICE_COST_PER_CUBIC_YARD
+        for profile_id, daily_data in self.wall_profile_data.items():
+            profile_total_cost = 0
 
-        return total_cost
+            profile_daily_details = {
+                day: {
+                    'ice_used': day_data['ice_used'],
+                    'cost': day_data['ice_used'] * ICE_COST_PER_CUBIC_YARD
+                }
+                for day, day_data in daily_data.items()
+            }
+
+            # Update profile total cost
+            profile_total_cost = sum(details['cost'] for details in profile_daily_details.values())
+
+            # Update the overview dictionary
+            overview['total_cost'] += profile_total_cost
+            overview['profile_costs'][profile_id] = profile_total_cost
+            overview['profile_daily_details'][profile_id] = profile_daily_details
+
+        return overview

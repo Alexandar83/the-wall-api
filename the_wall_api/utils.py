@@ -1,13 +1,11 @@
 import hashlib
 import json
-from typing import Iterable, NamedTuple
+from typing import Dict, Any
 
 from django.conf import settings
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_serializer, OpenApiResponse
 from rest_framework import serializers
-from rest_framework.response import Response
 
-from the_wall_api.models import WallProfile
 from the_wall_api.serializers import DailyIceUsageRequestSerializer, CostOverviewRequestSerializer
 
 SINGLE_THREADED = 'single_threaded'
@@ -74,26 +72,27 @@ def load_wall_profiles_from_config() -> list:
     return result
 
 
-def generate_config_hash(wall_profiles: list, num_crews: int | None = None) -> str:
+def generate_config_hash_details(wall_construction_config: list) -> dict:
     """
     Generates a unique hash for the entire wall configuration,
     taking into account the number of crews.
     """
-    data_to_hash = {
-        'wall_profiles': wall_profiles,
-        'num_crews': num_crews
-    }
+    # Hash of the whole config
+    result: Dict[str, Any] = {'profile_config_hash_list': []}
+
+    wall_config_data_to_hash = {'wall_config': wall_construction_config}
+    result['wall_config_hash'] = _hash_calc(wall_config_data_to_hash)
+
+    for profile_config in wall_construction_config:
+        config_data_to_hash = {'profile_config': profile_config}
+        result['profile_config_hash_list'].append(_hash_calc(config_data_to_hash))
+    
+    return result
+
+
+def _hash_calc(data_to_hash: Dict[str, Any]) -> str:
     config_str = json.dumps(data_to_hash, sort_keys=True)
     return hashlib.sha256(config_str.encode('utf-8')).hexdigest()
-
-
-class WallProfileResponse(NamedTuple):
-    """
-    NamedTuple for easier maintenance of the typed annotation of the get_wall_profiles method
-    """
-    error_response: Response | None
-    wall_profiles: Iterable[WallProfile]
-    simulation_type: str | None
 
 
 # **Externalized parameters for extend_schema**

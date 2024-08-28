@@ -23,10 +23,18 @@ class WallConstructionTests(BaseTestcase):
                 for profile in wall_construction.testing_wall_profiles_config:
                     for section in profile:
                         self.assertEqual(section, settings.MAX_HEIGHT)
-
+            
+            # Avoid printing big data
+            if test_case_source in [
+                'test_maximum_length_profile', 'test_compare_mono_and_multi_threaded_various_cases'
+            ]:
+                config_ok = ''
+            else:
+                config_ok = config
+                
             self.log_test_result(
                 passed=True,
-                input_data=config,
+                input_data=config_ok,
                 expected_message=expected_message,
                 actual_message=expected_message,
                 test_case_source=test_case_source
@@ -230,10 +238,15 @@ class WallConstructionTests(BaseTestcase):
 
     def _compare_cost_overview(self, mono_thread_wall, multi_thread_wall):
         """Helper method to compare internal method outputs for mono and multi-threaded constructions."""
-        mono_cost_overview = mono_thread_wall._cost_overview()
-        multi_cost_overview = multi_thread_wall._cost_overview()
+        mono_cost_overview = mono_thread_wall._sim_calc_details()
+        multi_cost_overview = multi_thread_wall._sim_calc_details()
+
+        # Set maxDiff to None to view full diff when assertions fail
+        self.maxDiff = None
+
         self.assertEqual(
-            mono_cost_overview, multi_cost_overview,
-            msg='Cost overview should be the same for mono and multi threaded simulations.'
+            mono_cost_overview['total_cost'], multi_cost_overview['total_cost'],
+            msg=f'Difference in cost overview: Mono-threaded: {mono_cost_overview} | Multi-threaded: {multi_cost_overview}'
         )
-        return f'Mono cost calculation: {mono_cost_overview} | Multi cost calculation: {mono_cost_overview}'
+
+        return f'Mono cost calculation: {mono_cost_overview} | Multi cost calculation: {multi_cost_overview}'

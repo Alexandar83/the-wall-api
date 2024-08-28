@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator
-from the_wall_api.models import WallProfile, SimulationResult
+from the_wall_api.models import WallProfile, WallProfileProgress
 
 
 class DailyIceUsageRequestSerializer(serializers.ModelSerializer):
@@ -25,10 +25,17 @@ class CostOverviewRequestSerializer(serializers.ModelSerializer):
 class WallProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = WallProfile
-        fields = ['wall_config_profile_id', 'config_hash', 'num_crews', 'max_day']
+        fields = '__all__'
+
+    def validate_wall_profile_config_hash(self, value):
+        if len(value) < 64:
+            raise serializers.ValidationError('wall_profile_config_hash must be exactly 64 characters long.')
+        return value
 
 
-class SimulationResultSerializer(serializers.ModelSerializer):
+class WallProfileProgressSerializer(serializers.ModelSerializer):
+    wall_profile = serializers.PrimaryKeyRelatedField(queryset=WallProfile.objects.all())
+
     class Meta:
-        model = SimulationResult
-        fields = ['wall_profile', 'day', 'ice_used', 'cost', 'simulation_type']
+        model = WallProfileProgress
+        fields = ['wall_profile', 'day', 'ice_used', 'cost']
