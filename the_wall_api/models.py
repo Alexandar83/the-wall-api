@@ -10,6 +10,7 @@ class Wall(models.Model):
     wall_config_hash = models.CharField(max_length=64)
     num_crews = models.IntegerField(validators=[MinValueValidator(0)])
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    construction_days = models.IntegerField()
     date_created = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -25,7 +26,6 @@ class WallProfile(models.Model):
     wall_profile_config_hash = models.CharField(max_length=64)
     profile_id = models.IntegerField(validators=[MinValueValidator(1)], null=True, blank=True)
     cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
-    max_day = models.IntegerField()
     date_created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
