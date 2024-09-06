@@ -50,6 +50,7 @@ class WallConstruction:
         
         self.wall_profile_data = {}
         self.calc_wall_profile_data()
+        self.sim_calc_details = self._calc_sim_details()
 
     def _setup_logger(self):
         # Ensure the directory exists
@@ -190,7 +191,7 @@ class WallConstruction:
         """
         return self.wall_profile_data.get(profile_id, {}).get(day, {}).get('ice_used', 0)
 
-    def _sim_calc_details(self) -> Dict[str, Any]:
+    def _calc_sim_details(self) -> Dict[str, Any]:
         """
         Calculate and return a detailed cost overview including:
         - Total cost for the whole wall.
@@ -203,21 +204,21 @@ class WallConstruction:
             'total_cost': 0,
             'profile_costs': {},
             'profile_daily_details': {},
+            'max_day': 0
         }
 
         for profile_id, daily_data in self.wall_profile_data.items():
             profile_total_cost = 0
-
-            profile_daily_details = {
-                day: {
+            profile_daily_details = {}
+            
+            for day, day_data in daily_data.items():
+                cost = day_data['ice_used'] * ICE_COST_PER_CUBIC_YARD
+                profile_total_cost += cost
+                profile_daily_details[day] = {
                     'ice_used': day_data['ice_used'],
-                    'cost': day_data['ice_used'] * ICE_COST_PER_CUBIC_YARD
+                    'cost': cost
                 }
-                for day, day_data in daily_data.items()
-            }
-
-            # Update profile total cost
-            profile_total_cost = sum(details['cost'] for details in profile_daily_details.values())
+                overview['max_day'] = max(overview['max_day'], day)
 
             # Update the overview dictionary
             overview['total_cost'] += profile_total_cost
