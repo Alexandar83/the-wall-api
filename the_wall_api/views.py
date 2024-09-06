@@ -33,7 +33,7 @@ class BaseWallProfileView(APIView):
         """
         return {
             'request_profile_id': profile_id,
-            'day': day,
+            'request_day': day,
             'num_crews': num_crews,
             'error_response': None,
             'wall_construction': None,
@@ -87,24 +87,14 @@ class BaseWallProfileView(APIView):
         if wall_data.get('cached_result') or wall_data['error_response']:
             return
         
-        self.validate_day_within_range(wall_data)
-        if wall_data['error_response']:
-            return
-
         # If no cached data is found, run the simulation
         self.run_simulation_and_create_cache(wall_data)
 
     def validate_day_within_range(self, wall_data: Dict[str, Any]) -> None:
-        """Validate the provided day against the (cached) simulation data."""
-        max_day = None
-        cached_wall_profile = wall_data.get('cached_result', {}).get('wall_profile')
-        simulation_is_processed = wall_data.get('wall_construction', False)
-        if cached_wall_profile:
-            max_day = cached_wall_profile.max_day
-        elif simulation_is_processed:
-            max_day = wall_data['sim_calc_details']['max_day']
-        if None not in [max_day, wall_data['day']] and wall_data['day'] > max_day:
-            wall_data['error_response'] = self.create_out_of_range_response('day', max_day, status.HTTP_400_BAD_REQUEST)
+        """Compare the day from the request (if provided and the max day in the simulation)."""
+        construction_days = wall_data['sim_calc_details']['construction_days']
+        if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
+            wall_data['error_response'] = self.create_out_of_range_response('day', construction_days, status.HTTP_400_BAD_REQUEST)
 
     def evaluate_simulation_params(
         self, num_crews: int | None, wall_construction_config: list, profile_id: int | None
@@ -130,34 +120,45 @@ class BaseWallProfileView(APIView):
         
         try:
             if request_type == 'costoverview':
-                # Fetch a Wall - both simulation types store the same cost
+                # Fetch cached Wall - both simulation types store the same cost
                 wall = Wall.objects.filter(wall_config_hash=wall_data['wall_config_hash']).first()
                 if wall:
                     cached_result['wall_total_cost'] = wall.total_cost
             elif request_type == 'costoverview/profile_id':
-                # Fetch a WallProfile
+                # Fetch cached WallProfile
                 wall_profile_query = Q(
                     wall__wall_config_hash=wall_data['wall_config_hash'],
                     wall__num_crews=wall_data['num_crews'],
                     wall_profile_config_hash=wall_profile_config_hash,
                 )
-                if wall_data['num_crews'] != 0:
+                if wall_data['simulation_type'] == MULTI_THREADED:
                     wall_profile_query &= Q(profile_id=profile_id)
                 wall_profile = WallProfile.objects.get(wall_profile_query)
                 cached_result['wall_profile_cost'] = wall_profile.cost
-                cached_result['wall_profile'] = wall_profile
             elif request_type == 'daily-ice-usage':
-                # Fetch a WallProfileProgress
-                wall_progress_query = Q(
+                # Fetch cached WallProfileProgress
+                wall_progress_query_no_day = Q(
                     wall_profile__wall__wall_config_hash=wall_data['wall_config_hash'],
                     wall_profile__wall__num_crews=wall_data['num_crews'],
                     wall_profile__wall_profile_config_hash=wall_profile_config_hash,
-                    day=wall_data['day']
                 )
-                if wall_data['num_crews'] != 0:
-                    wall_progress_query &= Q(wall_profile__profile_id=profile_id)
-                wall_profile_progress = WallProfileProgress.objects.get(wall_progress_query)
-                cached_result['profile_daily_ice_used'] = wall_profile_progress.ice_used
+                if wall_data['simulation_type'] == MULTI_THREADED:
+                    wall_progress_query_no_day &= Q(wall_profile__profile_id=profile_id)
+                wall_progress_query_final = wall_progress_query_no_day & Q(day=wall_data['request_day'])
+                try:
+                    wall_profile_progress = WallProfileProgress.objects.get(wall_progress_query_final)
+                    cached_result['profile_daily_ice_used'] = wall_profile_progress.ice_used
+                except WallProfileProgress.DoesNotExist:
+                    cached_on_another_day = WallProfileProgress.objects.filter(wall_progress_query_no_day).first()
+                    if cached_on_another_day:
+                        construction_days = cached_on_another_day.wall_profile.wall.construction_days
+                        if wall_data['request_day'] <= construction_days:
+                            response_details = f'No crew has worked on profile {profile_id} on day {wall_data["request_day"]}.'
+                            wall_data['error_response'] = Response(response_details, status=status.HTTP_404_NOT_FOUND)
+                        else:
+                            wall_data['error_response'] = self.create_out_of_range_response('day', construction_days, status.HTTP_400_BAD_REQUEST)
+                    else:
+                        raise WallProfileProgress.DoesNotExist
         except (Wall.DoesNotExist, WallProfile.DoesNotExist, WallProfileProgress.DoesNotExist):
             return
 
@@ -194,10 +195,10 @@ class BaseWallProfileView(APIView):
             simulation_result['wall_profile_cost'] = wall_data['sim_calc_details']['profile_costs'][request_profile_id]
 
         # Used in the daily-ice-usage response
-        request_day = wall_data['day']
+        request_day = wall_data['request_day']
         if request_day:
             profile_daily_progress_data = wall_data['sim_calc_details']['profile_daily_details'][request_profile_id]
-            profile_day_data = profile_daily_progress_data.get(wall_data['day'], {})
+            profile_day_data = profile_daily_progress_data.get(wall_data['request_day'], {})
             simulation_result['profile_daily_ice_used'] = profile_day_data.get('ice_used', 0)
 
     def cache_wall(self, wall_data: Dict[str, Any]) -> None:
@@ -211,6 +212,7 @@ class BaseWallProfileView(APIView):
                 wall_config_hash=wall_data['wall_config_hash'],
                 num_crews=wall_data['num_crews'],
                 total_cost=total_cost,
+                construction_days=wall_data['sim_calc_details']['construction_days'],
             )
             self.process_wall_profiles(wall_data, wall, wall_data['simulation_type'])
         except IntegrityError as wall_crtn_hash_col_err:
@@ -260,7 +262,6 @@ class BaseWallProfileView(APIView):
             'wall': wall,
             'wall_profile_config_hash': wall_profile_config_hash,
             'cost': wall_data['sim_calc_details']['profile_costs'][profile_id],
-            'max_day': wall_data['sim_calc_details']['max_day'],
         }
 
         # Set profile_id only for multi-threaded cases
