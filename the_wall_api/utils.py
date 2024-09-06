@@ -77,15 +77,16 @@ def generate_config_hash_details(wall_construction_config: list) -> dict:
     Generates a unique hash for the entire wall configuration,
     taking into account the number of crews.
     """
-    # Hash of the whole config
-    result: Dict[str, Any] = {'profile_config_hash_list': []}
+    result: Dict[str, Any] = {'profile_config_hash_data': {}}
 
+    # Hash of the whole config
     wall_config_data_to_hash = {'wall_config': wall_construction_config}
     result['wall_config_hash'] = _hash_calc(wall_config_data_to_hash)
-
-    for profile_config in wall_construction_config:
+    
+    for profile_index, profile_config in enumerate(wall_construction_config):
+        # Hash each profile config
         config_data_to_hash = {'profile_config': profile_config}
-        result['profile_config_hash_list'].append(_hash_calc(config_data_to_hash))
+        result['profile_config_hash_data'][profile_index + 1] = _hash_calc(config_data_to_hash)
     
     return result
 
@@ -144,7 +145,7 @@ daily_ice_usage_examples = [
         value={
             'profile_id': 1,
             'day': 2,
-            'ice_amount': 585,
+            'ice_used': 585,
             'details': 'Volume of ice used for profile 1 on day 2: 585 cubic yards.'
         },
         description='Response example when retrieving a profile cost overview.',
@@ -160,13 +161,13 @@ daily_ice_usage_responses = {
             OpenApiExample(
                 name='Profile ID Out of Range',
                 value={
-                    'error': 'The profile number is out of range. The maximum value is 10.',
+                    'error': 'The profile number is out of range. The wall has 5 profiles.',
                 },
             ),
             OpenApiExample(
                 name='Day Out of Range',
                 value={
-                    'error': 'The day is out of range. The maximum value is 30.',
+                    'error': 'The day is out of range. The wall has been finished for 10 days.',
                 },
             )
         ]
@@ -222,6 +223,20 @@ cost_overview_examples = [
             'details': 'Total construction cost: 32233500 Gold Dragon coins'
         },
         description='Response example when retrieving wall construction total cost overview.',
+        response_only=True,
+    ),
+]
+
+cost_overview_profile_id_examples = [
+    OpenApiExample(
+        'Example response',
+        summary='Profile construction cost (Response)',
+        value={
+            'profile_id': 'profile_id',
+            'profile_cost': '8058375',
+            'details': 'Profile <profile_id> construction cost: 8058375 Gold Dragon coins'
+        },
+        description='Response example when retrieving wall profile cost overview.',
         response_only=True,
     ),
 ]
