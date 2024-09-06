@@ -6,7 +6,7 @@ from the_wall_api.models import WallProfile, WallProfileProgress
 class DailyIceUsageRequestSerializer(serializers.ModelSerializer):
     profile_id = serializers.IntegerField(allow_null=False, validators=[MinValueValidator(1)])
     day = serializers.IntegerField(validators=[MinValueValidator(1)])
-    num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
+    num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
 
     class Meta:
         model = WallProfile
@@ -15,7 +15,7 @@ class DailyIceUsageRequestSerializer(serializers.ModelSerializer):
 
 class CostOverviewRequestSerializer(serializers.ModelSerializer):
     profile_id = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
-    num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
+    num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
 
     class Meta:
         model = WallProfile
