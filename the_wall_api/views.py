@@ -26,7 +26,7 @@ from the_wall_api.wall_construction import WallConstruction
 
 class BaseWallProfileView(APIView):
     
-    def initialize_wall_data(self, profile_id: int | None = None, day: int | None = None, num_crews: int = 0) -> Dict[str, Any]:
+    def initialize_wall_data(self, profile_id: int | None = None, day: int | None = None) -> Dict[str, Any]:
         """
         Initialize the wall_data dictionary to hold various control data
         throughout the wall construction simulation process.
@@ -34,13 +34,13 @@ class BaseWallProfileView(APIView):
         return {
             'request_profile_id': profile_id,
             'request_day': day,
-            'num_crews': num_crews,
             'error_response': None,
+            'multi_threaded_not_needed': None,
             'wall_construction': None,
         }
 
     def fetch_wall_data(
-        self, wall_data: Dict[str, Any], profile_id: int | None = None, day: int | None = None, num_crews: int = 0, request_type: str = ''
+        self, wall_data: Dict[str, Any], num_crews: int, profile_id: int | None = None, request_type: str = ''
     ):
         wall_construction_config = self.get_wall_construction_config(wall_data)
         if wall_data['error_response']:
@@ -49,7 +49,7 @@ class BaseWallProfileView(APIView):
         if self.is_invalid_profile_number(profile_id, wall_construction_config, wall_data):
             return
 
-        self.set_simulation_params(wall_data, num_crews, wall_construction_config, profile_id, day, request_type)
+        self.set_simulation_params(wall_data, num_crews, wall_construction_config, request_type)
         
         self.get_or_create_cache(wall_data, request_type)
 
@@ -68,20 +68,49 @@ class BaseWallProfileView(APIView):
         return False
 
     def set_simulation_params(
-            self, wall_data: Dict[str, Any], num_crews: int, wall_construction_config: list,
-            profile_id: int | None, day: int | None, request_type: str
-    ):
+            self, wall_data: Dict[str, Any], num_crews: int,
+            wall_construction_config: list, request_type: str
+    ) -> None:
         """
         Set the simulation parameters for the wall_data dictionary.
         """
-        simulation_type, wall_config_hash_details = self.evaluate_simulation_params(
-            num_crews, wall_construction_config, profile_id
+        sections_count = sum(len(profile) for profile in wall_construction_config)
+        wall_data['sections_count'] = sections_count
+
+        simulation_type, wall_config_hash_details, num_crews_final = self.evaluate_simulation_params(
+            num_crews, sections_count, wall_construction_config, wall_data
         )
+        wall_data['num_crews'] = num_crews_final
         wall_data['wall_construction_config'] = copy.deepcopy(wall_construction_config)
         wall_data['simulation_type'] = simulation_type
         wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
         wall_data['profile_config_hash_data'] = wall_config_hash_details['profile_config_hash_data']
         wall_data['request_type'] = request_type
+
+    def evaluate_simulation_params(
+            self, num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
+    ) -> tuple[str, dict, int]:
+        # num_crews
+        if num_crews == 0:
+            # No num_crews provided - single-threaded mode
+            simulation_type = SINGLE_THREADED
+            num_crews_final = 0
+        elif num_crews >= sections_count:
+            # There's a crew for each section at the beginning
+            # which is the same as the single-threaded mode
+            simulation_type = SINGLE_THREADED
+            num_crews_final = 0
+            # For eventual future response message
+            wall_data['multi_threaded_not_needed'] = True
+        else:
+            # The crews are less than the number of sections
+            simulation_type = MULTI_THREADED
+            num_crews_final = num_crews
+
+        # configuration hashes
+        wall_config_hash_details = generate_config_hash_details(wall_construction_config)
+
+        return simulation_type, wall_config_hash_details, num_crews_final
         
     def get_or_create_cache(self, wall_data, request_type) -> None:
         # Check for cached data
@@ -99,15 +128,6 @@ class BaseWallProfileView(APIView):
         construction_days = wall_data['sim_calc_details']['construction_days']
         if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
             wall_data['error_response'] = self.create_out_of_range_response('day', construction_days, status.HTTP_400_BAD_REQUEST)
-
-    def evaluate_simulation_params(
-        self, num_crews: int | None, wall_construction_config: list, profile_id: int | None
-    ) -> tuple[str, dict]:
-        simulation_type = MULTI_THREADED if num_crews else SINGLE_THREADED
-
-        wall_config_hash_details = generate_config_hash_details(wall_construction_config)
-
-        return simulation_type, wall_config_hash_details
 
     def collect_cached_data(self, wall_data: Dict[str, Any], request_type: str) -> None:
         """
@@ -169,7 +189,12 @@ class BaseWallProfileView(APIView):
         Runs simulation, creates and saves the wall and its elements.
         """
         try:
-            wall_construction = WallConstruction(wall_data['wall_construction_config'], wall_data['num_crews'], wall_data['simulation_type'])
+            wall_construction = WallConstruction(
+                wall_construction_config=wall_data['wall_construction_config'],
+                sections_count=wall_data['sections_count'],
+                num_crews=wall_data['num_crews'],
+                simulation_type=wall_data['simulation_type']
+            )
         except WallConstructionError as tech_error:
             wall_data['error_response'] = self.create_technical_error_response({}, tech_error)
             return
@@ -328,8 +353,8 @@ class DailyIceUsageView(BaseWallProfileView):
         day = serializer.validated_data['day']                  # type: ignore
         num_crews = serializer.validated_data['num_crews']      # type: ignore
 
-        wall_data = self.initialize_wall_data(profile_id, day, num_crews)
-        self.fetch_wall_data(wall_data, profile_id, day, num_crews, request_type='daily-ice-usage')
+        wall_data = self.initialize_wall_data(profile_id, day)
+        self.fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
         if wall_data['error_response']:
             return wall_data['error_response']
 
@@ -375,8 +400,8 @@ class CostOverviewView(BaseWallProfileView):
 
         request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
 
-        wall_data = self.initialize_wall_data(profile_id, None, num_crews)
-        self.fetch_wall_data(wall_data, profile_id=profile_id, num_crews=num_crews, request_type=request_type)
+        wall_data = self.initialize_wall_data(profile_id, None)
+        self.fetch_wall_data(wall_data, num_crews, profile_id, request_type)
         if wall_data['error_response']:
             return wall_data['error_response']
         
