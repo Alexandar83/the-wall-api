@@ -6,7 +6,7 @@ import os
 import re
 import uuid
 from queue import Empty, Queue
-from threading import Condition, current_thread, Lock
+from threading import Condition, current_thread, Lock, Thread
 from typing import Dict, Any
 
 from django.conf import settings
@@ -89,7 +89,7 @@ class WallConstruction:
         else:
             self.calc_wall_profile_data_single_threaded()
     
-    def calc_wall_profile_data_single_threaded(self):
+    def calc_wall_profile_data_single_threaded(self) -> None:
         """
         Sequential construction process simulation.
         All unfinished sections have their designated crew assigned.
@@ -112,7 +112,7 @@ class WallConstruction:
             # Store the results
             self.wall_profile_data[profile_index + 1] = daily_ice_usage
 
-    def calc_wall_profile_data_multi_threaded(self):
+    def calc_wall_profile_data_multi_threaded(self) -> None:
         """
         Concurrent construction process simulation.
         Using a limited number of crews.
@@ -124,7 +124,7 @@ class WallConstruction:
 
         self.extract_log_data()
 
-    def build_section(self):
+    def build_section(self) -> None:
         """
         Single wall section construction simulation.
         Logs the progress and the completion details in a log file.
@@ -137,7 +137,7 @@ class WallConstruction:
         except Exception as bld_sctn_err:
             self.logger.error(f'Error in thread {thread.name}: {bld_sctn_err}')
 
-    def assign_thread_name(self, thread):
+    def assign_thread_name(self, thread: Thread) -> None:
         """
         Assigns a shorter thread name for better readability in the logs.
         """
@@ -145,7 +145,7 @@ class WallConstruction:
             if not thread.name.startswith('Crew-'):
                 thread.name = f'Crew-{next(self.thread_counter)}'
 
-    def process_sections(self, thread):
+    def process_sections(self, thread: Thread) -> None:
         """
         Processes the sections for the crew until there are no more sections available.
         """
@@ -163,14 +163,14 @@ class WallConstruction:
         with self.active_crews_lock:
             self.active_crews -= 1
 
-    def initialize_thread_days(self, thread):
+    def initialize_thread_days(self, thread: Thread) -> None:
         """
         Initialize the tracking for the number of days worked by the thread.
         """
         if thread.name not in self.thread_days:
             self.thread_days[thread.name] = 0
 
-    def process_section(self, profile_id, section_id, height, thread):
+    def process_section(self, profile_id: int, section_id: int, height: int, thread: Thread) -> None:
         """
         Processes a single section until the required height is reached.
         """
@@ -195,7 +195,7 @@ class WallConstruction:
             # Synchronize with the other crews at the end of the day
             self.end_of_day_synchronization()
 
-    def end_of_day_synchronization(self):
+    def end_of_day_synchronization(self) -> None:
         """
         Synchronize threads at the end of the day.
         """
@@ -209,7 +209,7 @@ class WallConstruction:
                 # Wait until all other crews are done with the current day
                 self.day_condition.wait()
 
-    def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int):
+    def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int) -> None:
         message = (
             f'HGHT_INCRS: Section ID: {profile_id}-{section_id} - DAY_{day} - '
             f'New height: {height} ft - Ice used: {ICE_PER_FOOT} cbc. yrds. - '
@@ -217,14 +217,14 @@ class WallConstruction:
         )
         self.logger.info(message)
 
-    def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int):
+    def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int) -> None:
         message = (
             f'FNSH_SCTN: Section ID: {profile_id}-{section_id} - DAY_{day} - finished. '
             f'Ice used: {total_ice_used} cbc. yrds. - Cost: {total_cost} gold drgns.'
         )
         self.logger.info(message)
 
-    def extract_log_data(self):
+    def extract_log_data(self) -> None:
         try:
             with open(self.filename, 'r') as log_file:
                 for line in log_file:
