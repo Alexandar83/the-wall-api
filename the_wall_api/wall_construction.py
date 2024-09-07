@@ -27,7 +27,7 @@ class WallConstruction:
     """
     def __init__(self, wall_profiles_config: list, num_crews: int | None, simulation_type: str = SINGLE_THREADED):
         self.wall_profiles_config = wall_profiles_config
-        self.testing_wall_profiles_config = copy.deepcopy(wall_profiles_config)
+        self.testing_wall_profiles_config = copy.deepcopy(wall_profiles_config)     # For unit testing purposes
         self.simulation_type = simulation_type
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
         sections_count = sum(len(profile) for profile in wall_profiles_config)
@@ -203,7 +203,7 @@ class WallConstruction:
             'total_cost': 0,
             'profile_costs': {},
             'profile_daily_details': {},
-            'max_day': 0
+            'construction_days': 0
         }
 
         for profile_id, daily_data in self.wall_profile_data.items():
@@ -217,7 +217,7 @@ class WallConstruction:
                     'ice_used': day_data['ice_used'],
                     'cost': cost
                 }
-                overview['max_day'] = max(overview['max_day'], day)
+                overview['construction_days'] = max(overview['construction_days'], day)
 
             # Update the overview dictionary
             overview['total_cost'] += profile_total_cost
