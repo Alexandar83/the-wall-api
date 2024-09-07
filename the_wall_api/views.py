@@ -71,7 +71,9 @@ class BaseWallProfileView(APIView):
             self, wall_data: Dict[str, Any], num_crews: int, wall_construction_config: list,
             profile_id: int | None, day: int | None, request_type: str
     ):
-        """Set the simulation parameters for the wall_data dictionary."""
+        """
+        Set the simulation parameters for the wall_data dictionary.
+        """
         simulation_type, wall_config_hash_details = self.evaluate_simulation_params(
             num_crews, wall_construction_config, profile_id
         )
@@ -91,7 +93,9 @@ class BaseWallProfileView(APIView):
         self.run_simulation_and_create_cache(wall_data)
 
     def validate_day_within_range(self, wall_data: Dict[str, Any]) -> None:
-        """Compare the day from the request (if provided and the max day in the simulation)."""
+        """
+        Compare the day from the request (if provided and the max day in the simulation).
+        """
         construction_days = wall_data['sim_calc_details']['construction_days']
         if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
             wall_data['error_response'] = self.create_out_of_range_response('day', construction_days, status.HTTP_400_BAD_REQUEST)
@@ -106,7 +110,9 @@ class BaseWallProfileView(APIView):
         return simulation_type, wall_config_hash_details
 
     def collect_cached_data(self, wall_data: Dict[str, Any], request_type: str) -> None:
-        """Checks for different type of cached data, based on the request type."""
+        """
+        Checks for different type of cached data, based on the request type.
+        """
         cached_result = wall_data['cached_result'] = {}
         # No profile_id is sent for costoverview
         profile_id = None
@@ -120,23 +126,17 @@ class BaseWallProfileView(APIView):
         
         try:
             if request_type == 'costoverview':
-                # Fetch cached Wall - both simulation types store the same cost
+                # Fetch a cached Wall - both simulation types store the same cost
                 wall = Wall.objects.filter(wall_config_hash=wall_data['wall_config_hash']).first()
                 if wall:
                     cached_result['wall_total_cost'] = wall.total_cost
             elif request_type == 'costoverview/profile_id':
-                # Fetch cached WallProfile
-                wall_profile_query = Q(
-                    wall__wall_config_hash=wall_data['wall_config_hash'],
-                    wall__num_crews=wall_data['num_crews'],
-                    wall_profile_config_hash=wall_profile_config_hash,
-                )
-                if wall_data['simulation_type'] == MULTI_THREADED:
-                    wall_profile_query &= Q(profile_id=profile_id)
-                wall_profile = WallProfile.objects.get(wall_profile_query)
-                cached_result['wall_profile_cost'] = wall_profile.cost
+                # Fetch a cached WallProfile - both simulation types store the same cost
+                wall_profile = WallProfile.objects.filter(wall_profile_config_hash=wall_profile_config_hash).first()
+                if wall_profile:
+                    cached_result['wall_profile_cost'] = wall_profile.cost
             elif request_type == 'daily-ice-usage':
-                # Fetch cached WallProfileProgress
+                # Fetch a cached WallProfileProgress
                 wall_progress_query_no_day = Q(
                     wall_profile__wall__wall_config_hash=wall_data['wall_config_hash'],
                     wall_profile__wall__num_crews=wall_data['num_crews'],
@@ -165,7 +165,9 @@ class BaseWallProfileView(APIView):
         return
 
     def run_simulation_and_create_cache(self, wall_data: Dict[str, Any]) -> None:
-        """Runs simulation, creates and saves the wall and its elements."""
+        """
+        Runs simulation, creates and saves the wall and its elements.
+        """
         try:
             wall_construction = WallConstruction(wall_data['wall_construction_config'], wall_data['num_crews'], wall_data['simulation_type'])
         except WallConstructionError as tech_error:
@@ -275,7 +277,9 @@ class BaseWallProfileView(APIView):
         self.cache_wall_profile_progress(wall_data, wall_profile, profile_id, profile_data)
 
     def cache_wall_profile_progress(self, wall_data: Dict[str, Any], wall_profile: WallProfile, profile_id: int, profile_data: dict) -> None:
-        """Creates a new WallProfileProgress object and saves it to the database."""
+        """
+        Creates a new WallProfileProgress object and saves it to the database.
+        """
         for day_index, data in profile_data.items():
             WallProfileProgress.objects.create(
                 wall_profile=wall_profile,
