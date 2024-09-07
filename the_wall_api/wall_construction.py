@@ -5,8 +5,8 @@ from itertools import count
 import os
 import re
 import uuid
-from queue import Queue
-from threading import Lock, current_thread
+from queue import Empty, Queue
+from threading import Condition, current_thread, Lock
 from typing import Dict, Any
 
 from django.conf import settings
@@ -38,15 +38,22 @@ class WallConstruction:
                 raise WallConstructionError('WallConstruction.__init__(): num_crews cannot be None when using MULTI_THREADED simulation type.')
             self.thread_counter = count(1)
             self.counter_lock = Lock()
-            self.sections_queue = Queue()
+            self.thread_days = {}
+            self.thread_days_lock = Lock()
             self.filename = f'logs/wall_construction_{uuid.uuid4().hex}.log'
             self.logger = self._setup_logger()
-            self.thread_days = {}
 
             # Initialize the queue with sections
+            self.sections_queue = Queue()
             for profile_id, profile in enumerate(self.wall_profiles_config):
                 for section_id, height in enumerate(profile):
                     self.sections_queue.put((profile_id + 1, section_id + 1, height))
+            
+            # Init a condition for crew threads synchronization
+            self.active_crews = self.max_crews
+            self.active_crews_lock = Lock()
+            self.day_condition = Condition(self.active_crews_lock)
+            self.finished_crews_for_the_day = 0
         
         self.wall_profile_data = {}
         self.calc_wall_profile_data()
@@ -90,7 +97,7 @@ class WallConstruction:
         for profile_index, profile in enumerate(self.wall_profiles_config):
             day = 1
             daily_ice_usage = {}
-            # Increent the heights of all sections until they reach MAX_HEIGHT
+            # Increment the heights of all sections until they reach MAX_HEIGHT
             while any(height < MAX_HEIGHT for height in profile):
                 ice_used = 0
                 for i, height in enumerate(profile):
@@ -111,43 +118,96 @@ class WallConstruction:
         Using a limited number of crews.
         """
         with ThreadPoolExecutor(max_workers=self.max_crews) as executor:
-            while not self.sections_queue.empty():
-                profile_id, section_id, height = self.sections_queue.get()
-                executor.submit(self.build_section, profile_id, section_id, height)
-        executor.shutdown(wait=True)  # Ensure all threads are finished before proceeding
+            for _ in range(self.max_crews):  # Start with the available crews
+                executor.submit(self.build_section)
+        executor.shutdown(wait=True)  # Ensure all threads finish
 
         self.extract_log_data()
 
-    def build_section(self, profile_id: int, section_id: int, initial_height: int):
+    def build_section(self):
         """
         Single wall section construction simulation.
         Logs the progress and the completion details in a log file.
         """
-        # Shorter thread name to be used in the logs to showcase the concurrent nature of the simulation
         thread = current_thread()
+        
         try:
-            with self.counter_lock:
-                if not thread.name.startswith('Crew-'):
-                    thread.name = f'Crew-{next(self.thread_counter)}'
-            
-            total_ice_used = 0
-            total_cost = 0
-            if current_thread().name not in self.thread_days:
-                self.thread_days[current_thread().name] = 0
-            height = initial_height
+            self.assign_thread_name(thread)
+            self.process_sections(thread)
+        except Exception as bld_sctn_err:
+            self.logger.error(f'Error in thread {thread.name}: {bld_sctn_err}')
 
-            while height < MAX_HEIGHT:
-                height += 1
-                self.thread_days[current_thread().name] += 1
-                total_ice_used += ICE_PER_FOOT
-                total_cost += self.daily_cost_section
+    def assign_thread_name(self, thread):
+        """
+        Assigns a shorter thread name for better readability in the logs.
+        """
+        with self.counter_lock:
+            if not thread.name.startswith('Crew-'):
+                thread.name = f'Crew-{next(self.thread_counter)}'
 
-                self.log_section_progress(profile_id, section_id, self.thread_days[current_thread().name], height)
-                self.testing_wall_profiles_config[profile_id - 1][section_id - 1] = height
+    def process_sections(self, thread):
+        """
+        Processes the sections for the crew until there are no more sections available.
+        """
+        while not self.sections_queue.empty():
+            try:
+                profile_id, section_id, height = self.sections_queue.get_nowait()
+            except Empty:
+                # No more sections to process
+                break
             
-            self.log_section_completion(profile_id, section_id, self.thread_days[current_thread().name], total_ice_used, total_cost)
-        except Exception as e:
-            self.logger.error(f'Error in thread {thread.name}: {e}')
+            self.initialize_thread_days(thread)
+            self.process_section(profile_id, section_id, height, thread)
+
+        # When there are no more sections available for the crew, relieve it
+        with self.active_crews_lock:
+            self.active_crews -= 1
+
+    def initialize_thread_days(self, thread):
+        """
+        Initialize the tracking for the number of days worked by the thread.
+        """
+        if thread.name not in self.thread_days:
+            self.thread_days[thread.name] = 0
+
+    def process_section(self, profile_id, section_id, height, thread):
+        """
+        Processes a single section until the required height is reached.
+        """
+        total_ice_used = 0
+        total_cost = 0
+
+        while height < MAX_HEIGHT:
+            # Perform daily increment
+            height += 1
+            self.thread_days[thread.name] += 1
+            total_ice_used += ICE_PER_FOOT
+            total_cost += self.daily_cost_section
+
+            # Log the daily progress
+            self.log_section_progress(profile_id, section_id, self.thread_days[thread.name], height)
+            self.testing_wall_profiles_config[profile_id - 1][section_id - 1] = height
+
+            # Log the section finalization
+            if height == MAX_HEIGHT:
+                self.log_section_completion(profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost)
+            
+            # Synchronize with the other crews at the end of the day
+            self.end_of_day_synchronization()
+
+    def end_of_day_synchronization(self):
+        """
+        Synchronize threads at the end of the day.
+        """
+        with self.day_condition:
+            self.finished_crews_for_the_day += 1
+            if self.finished_crews_for_the_day == self.active_crews:
+                # Last crew to reach this point resets the counter and notifies all others
+                self.finished_crews_for_the_day = 0
+                self.day_condition.notify_all()  # Wake up all waiting threads
+            else:
+                # Wait until all other crews are done with the current day
+                self.day_condition.wait()
 
     def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int):
         message = (
