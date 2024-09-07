@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 from django.conf import settings
 
-from the_wall_api.utils import MULTI_THREADED, SINGLE_THREADED, WallConstructionError
+from the_wall_api.utils import MULTI_THREADED, SINGLE_THREADED
 
 MAX_HEIGHT = settings.MAX_HEIGHT                                        # Maximum height of a wall section
 ICE_PER_FOOT = settings.ICE_PER_FOOT                                    # Cubic yards of ice used per 1 foot height increase
@@ -25,17 +25,14 @@ class WallConstruction:
     The multi-threaded implementation is done explicitly with a file (and not in the memory)
     to follow the task requirements
     """
-    def __init__(self, wall_profiles_config: list, num_crews: int | None, simulation_type: str = SINGLE_THREADED):
-        self.wall_profiles_config = wall_profiles_config
-        self.testing_wall_profiles_config = copy.deepcopy(wall_profiles_config)     # For unit testing purposes
+    def __init__(self, wall_construction_config: list, sections_count: int, num_crews: int, simulation_type: str = SINGLE_THREADED):
+        self.wall_construction_config = wall_construction_config
+        self.testing_wall_construction_config = copy.deepcopy(wall_construction_config)     # For unit testing purposes
         self.simulation_type = simulation_type
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
-        sections_count = sum(len(profile) for profile in wall_profiles_config)
-        self.max_crews = min(sections_count, num_crews) if num_crews else sections_count
         
         if simulation_type == MULTI_THREADED:
-            if num_crews is None:
-                raise WallConstructionError('WallConstruction.__init__(): num_crews cannot be None when using MULTI_THREADED simulation type.')
+            self.max_crews = min(sections_count, num_crews)
             self.thread_counter = count(1)
             self.counter_lock = Lock()
             self.thread_days = {}
@@ -45,7 +42,7 @@ class WallConstruction:
 
             # Initialize the queue with sections
             self.sections_queue = Queue()
-            for profile_id, profile in enumerate(self.wall_profiles_config):
+            for profile_id, profile in enumerate(self.wall_construction_config):
                 for section_id, height in enumerate(profile):
                     self.sections_queue.put((profile_id + 1, section_id + 1, height))
             
@@ -94,7 +91,7 @@ class WallConstruction:
         Sequential construction process simulation.
         All unfinished sections have their designated crew assigned.
         """
-        for profile_index, profile in enumerate(self.wall_profiles_config):
+        for profile_index, profile in enumerate(self.wall_construction_config):
             day = 1
             daily_ice_usage = {}
             # Increment the heights of all sections until they reach MAX_HEIGHT
@@ -104,7 +101,7 @@ class WallConstruction:
                     if height < MAX_HEIGHT:
                         ice_used += ICE_PER_FOOT
                         profile[i] += 1  # Increment the height of the section
-                        self.testing_wall_profiles_config[profile_index][i] = profile[i]
+                        self.testing_wall_construction_config[profile_index][i] = profile[i]
                 
                 # Keep track of daily ice usage
                 daily_ice_usage[day] = {'ice_used': ice_used}
@@ -186,7 +183,7 @@ class WallConstruction:
 
             # Log the daily progress
             self.log_section_progress(profile_id, section_id, self.thread_days[thread.name], height)
-            self.testing_wall_profiles_config[profile_id - 1][section_id - 1] = height
+            self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
 
             # Log the section finalization
             if height == MAX_HEIGHT:

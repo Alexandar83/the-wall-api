@@ -10,9 +10,9 @@ class BaseWallProfileTest(BaseTestcase):
 
     def setUp(self):
         # Load the wall profiles configuration to determine the maximum valid profile_id
-        self.wall_profiles_config = load_wall_profiles_from_config()
-        self.max_profile_id = len(self.wall_profiles_config)
-        self.max_days_per_profile = {index + 1: len(profile) for index, profile in enumerate(self.wall_profiles_config)}
+        self.wall_construction_config = load_wall_profiles_from_config()
+        self.max_profile_id = len(self.wall_construction_config)
+        self.max_days_per_profile = {index + 1: len(profile) for index, profile in enumerate(self.wall_construction_config)}
 
     def get_valid_profile_ids(self):
         return [int(pid) for pid in generate_valid_values() if int(pid) <= self.max_profile_id]
