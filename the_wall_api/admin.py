@@ -13,7 +13,7 @@ class WallProfileAdmin(admin.ModelAdmin):
 
 
 class WallProfileProgressAdmin(admin.ModelAdmin):
-    list_filter = ('wall_profile__wall', 'wall_profile', 'day')
+    list_filter = ('wall_profile', 'day')
     search_fields = ('id', 'day')
 
 
