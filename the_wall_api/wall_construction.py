@@ -134,7 +134,6 @@ class WallConstruction:
             total_cost = 0
             if current_thread().name not in self.thread_days:
                 self.thread_days[current_thread().name] = 0
-            current_day = self.thread_days[current_thread().name]
             height = initial_height
 
             while height < MAX_HEIGHT:
@@ -146,7 +145,7 @@ class WallConstruction:
                 self.log_section_progress(profile_id, section_id, self.thread_days[current_thread().name], height)
                 self.testing_wall_profiles_config[profile_id - 1][section_id - 1] = height
             
-            self.log_section_completion(profile_id, section_id, current_day, total_ice_used, total_cost)
+            self.log_section_completion(profile_id, section_id, self.thread_days[current_thread().name], total_ice_used, total_cost)
         except Exception as e:
             self.logger.error(f'Error in thread {thread.name}: {e}')
 
