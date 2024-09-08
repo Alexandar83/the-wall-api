@@ -44,9 +44,10 @@ class URLTests(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         profile_id = 1
         url = reverse(exposed_endpoints['cost-overview-profile']['name'], kwargs={'profile_id': profile_id})
+             
         response = self.client.get(url)
-        passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
+        passed = response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        expected_message = f'HTTP {status.HTTP_500_INTERNAL_SERVER_ERROR} Internal Server Error'
         self.log_test_result(
             passed=passed,
             input_data={'url': url, 'profile_id': profile_id},

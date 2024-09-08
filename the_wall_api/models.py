@@ -1,29 +1,58 @@
 from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.db.models import Q
+
+
+class Wall(models.Model):
+    """The whole wall"""
+    # Hash the whole wall config with all profiles
+    wall_config_hash = models.CharField(max_length=64)
+    num_crews = models.IntegerField(validators=[MinValueValidator(0)])
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    construction_days = models.IntegerField()
+    date_created = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('wall_config_hash', 'num_crews')
 
 
 class WallProfile(models.Model):
-    id = models.AutoField(primary_key=True)
-    wall_config_profile_id = models.IntegerField(validators=[MinValueValidator(1)])
-    config_hash = models.CharField(max_length=64)
-    num_crews = models.IntegerField(null=True, validators=[MinValueValidator(0)])
+    """
+    A single profile from the wall with one or multiple sections
+    """
+    wall = models.ForeignKey(Wall, on_delete=models.CASCADE)
+    # Hash the profile with all its sections
+    wall_profile_config_hash = models.CharField(max_length=64)
+    profile_id = models.IntegerField(validators=[MinValueValidator(1)], null=True, blank=True)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     date_created = models.DateTimeField(auto_now_add=True)
-    max_day = models.IntegerField()
 
     class Meta:
-        unique_together = ('config_hash', 'wall_config_profile_id', 'num_crews')
+        constraints = [
+            # Sufficient for single-threaded mode
+            models.UniqueConstraint(
+                fields=['wall', 'wall_profile_config_hash'],
+                name='unique_wall_profile_no_profile_id',
+                condition=Q(profile_id__isnull=True)
+            ),
+            # Required for multi-threaded mode
+            models.UniqueConstraint(
+                fields=['wall', 'wall_profile_config_hash', 'profile_id'],
+                name='unique_wall_profile',
+                condition=Q(profile_id__isnull=False)
+            ),
+        ]
+        
 
-
-class SimulationResult(models.Model):
-    wall_profile = models.ForeignKey(WallProfile, related_name='simulation_results', on_delete=models.CASCADE)
+class WallProfileProgress(models.Model):
+    """
+    The result for each simulated day of the wall construction
+    """
+    wall_profile = models.ForeignKey(WallProfile, on_delete=models.CASCADE)
     day = models.IntegerField(validators=[MinValueValidator(1)])
     ice_used = models.IntegerField(validators=[MinValueValidator(0)])
-    # Allows flexibility for cost value format
-    cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
-    # 'single_threaded' or 'multi_threaded'
-    simulation_type = models.CharField(max_length=20)
-    date_simulated = models.DateTimeField(auto_now_add=True)
+    date_created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('wall_profile', 'day', 'simulation_type')
+        unique_together = ('wall_profile', 'day')

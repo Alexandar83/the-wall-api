@@ -1,18 +1,22 @@
 from django.contrib import admin
+from the_wall_api.models import Wall, WallProfile, WallProfileProgress
 
-# Register your models here.
-from the_wall_api.models import WallProfile, SimulationResult
+
+class WallAdmin(admin.ModelAdmin):
+    list_filter = ('id', 'wall_config_hash')
+    search_fields = ('id', 'wall_config_hash', 'num_crews', 'total_cost', 'construction_days', 'date_created')
 
 
 class WallProfileAdmin(admin.ModelAdmin):
-    list_filter = ('id', 'config_hash', 'wall_config_profile_id', 'num_crews')
-    search_fields = ('id', 'config_hash', 'wall_config_profile_id', 'num_crews')
+    list_filter = ('id', 'wall', 'wall_profile_config_hash')
+    search_fields = ('id', 'wall_profile_config_hash', 'profile_id', 'cost', 'date_created')
 
 
-class SimulationResultAdmin(admin.ModelAdmin):
-    list_filter = ('id', 'day', 'simulation_type')
-    search_fields = ('id', 'day', 'simulation_type')
+class WallProfileProgressAdmin(admin.ModelAdmin):
+    list_filter = ('wall_profile', 'day')
+    search_fields = ('id', 'day', 'ice_used', 'date_created')
 
 
+admin.site.register(Wall, WallAdmin)
 admin.site.register(WallProfile, WallProfileAdmin)
-admin.site.register(SimulationResult, SimulationResultAdmin)
+admin.site.register(WallProfileProgress, WallProfileProgressAdmin)
