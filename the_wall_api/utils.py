@@ -6,7 +6,7 @@ from django.conf import settings
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_serializer, OpenApiResponse
 from rest_framework import serializers
 
-from the_wall_api.serializers import DailyIceUsageRequestSerializer, CostOverviewRequestSerializer
+from the_wall_api.serializers import DailyIceUsageSerializer, CostOverviewSerializer
 
 SINGLE_THREADED = 'single_threaded'
 MULTI_THREADED = 'multi_threaded'
@@ -154,7 +154,7 @@ daily_ice_usage_examples = [
 ]
 
 daily_ice_usage_responses = {
-    200: DailyIceUsageRequestSerializer,
+    200: DailyIceUsageSerializer,
     400: OpenApiResponse(
         response=error_response_serializer,
         examples=[
@@ -252,7 +252,7 @@ cost_overview_parameters = [
 ]
 
 cost_overview_responses = {
-    200: CostOverviewRequestSerializer,
+    200: CostOverviewSerializer,
     400: OpenApiResponse(
         response=error_response_serializer,
         examples=[

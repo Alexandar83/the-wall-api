@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from the_wall_api.models import WallProfileProgress, WallProfile, Wall
-from the_wall_api.serializers import CostOverviewRequestSerializer, DailyIceUsageRequestSerializer
+from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
 from the_wall_api.utils import (
     MULTI_THREADED, SINGLE_THREADED, WallConstructionError,
     exposed_endpoints, generate_config_hash_details, load_wall_profiles_from_config,
@@ -369,7 +369,7 @@ class DailyIceUsageView(BaseWallProfileView):
     )
     def get(self, request: HttpRequest, profile_id: int, day: int) -> Response:
         num_crews = request.GET.get('num_crews', 0)
-        serializer = DailyIceUsageRequestSerializer(data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews})
+        serializer = DailyIceUsageSerializer(data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -415,7 +415,7 @@ class CostOverviewView(BaseWallProfileView):
     def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
         num_crews = request.GET.get('num_crews', 0)
         request_data = {'profile_id': profile_id, 'num_crews': num_crews}
-        cost_serializer = CostOverviewRequestSerializer(data=request_data)
+        cost_serializer = CostOverviewSerializer(data=request_data)
         if not cost_serializer.is_valid():
             return Response(cost_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
