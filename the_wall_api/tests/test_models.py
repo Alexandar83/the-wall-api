@@ -1,170 +1,323 @@
 from decimal import Decimal
 from inspect import currentframe
 
-from the_wall_api.models import Wall, WallProfile
-from the_wall_api.serializers import WallProfileSerializer, WallProfileProgressSerializer
+from the_wall_api.models import Wall, WallProfile, WallProfileProgress
 from the_wall_api.tests.test_utils import BaseTestcase
-from rest_framework import serializers
+from django.core.exceptions import ValidationError
 
 
-class WallProfileModelEdgeCaseTest(BaseTestcase):
+class WallProfileUniqueConstraintTest(BaseTestcase):
+    description = 'Unique constraint tests for Wall profile objects'
 
     def setUp(self):
+        # Set up the wall instance
         self.wall = Wall.objects.create(
             wall_config_hash='some_unique_hash',
+            num_crews=5,
             total_cost=Decimal('10000.00'),
+            construction_days=10,
         )
-        self.base_data = {
+        self.wall_profile_data = {
             'wall_profile_config_hash': 'some_hash_value',
             'cost': Decimal('1000.00'),
-            'max_day': 10
+            'wall': self.wall,
         }
 
-    def test_invalid_wall_profile_config_hash(self):
-        # Adding a test case for invalid hash values
-        edge_cases = [None, '', 'short_hash', ' ' * 65]  # None, empty, too short, too long
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+    def test_unique_wall_profile_no_profile_id(self):
+        """Test that multiple profiles with the same config_hash can exist if profile_id is NULL."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        
+        # First profile with profile_id NULL (single-threaded mode)
+        WallProfile.objects.create(**self.wall_profile_data)
+
+        # Attempting to create another profile with the same wall_profile_config_hash and NULL profile_id should raise an error
+        input_data = self.wall_profile_data.copy()
+        input_data['profile_id'] = None
+        passed = False
+
+        try:
+            duplicate_profile = WallProfile(**input_data)
+            duplicate_profile.full_clean()
+        except ValidationError as e:
+            passed = True
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'None'
+
+        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source)
+
+    def test_wall_profile_with_different_profile_id(self):
+        """Test that profiles with the same wall and config_hash can exist as long as profile_id is different."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        # First profile with profile_id set
+        WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
+
+        # A second profile with a different profile_id should succeed
+        input_data = self.wall_profile_data.copy()
+        input_data['profile_id'] = 2
+        passed = False
+
+        try:
+            WallProfile.objects.create(**input_data)
+            actual_error = 'Validation passed'
+        except ValidationError as e:
             passed = False
-            expected_error = 'ValidationError'
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
 
-            input_data = self.base_data.copy()
-            input_data['wall_profile_config_hash'] = case
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
 
-            try:
-                serializer = WallProfileSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
+    def test_wall_profile_with_same_profile_id(self):
+        """Test that profiles with the same wall, config_hash, and profile_id raise a ValidationError."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
+        # First profile with profile_id set
+        WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
 
-    def test_invalid_max_day(self):
-        edge_cases = [-1, 0, 'string']
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        # A second profile with the same profile_id should raise a ValidationError
+        input_data = self.wall_profile_data.copy()
+        input_data['profile_id'] = 1
+        passed = False
+
+        try:
+            duplicate_profile = WallProfile(**input_data)
+            duplicate_profile.full_clean()
+        except ValidationError as e:
+            passed = True
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'None'
+
+        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source)
+
+    def test_wall_profile_with_different_hash_same_profile_id(self):
+        """Test that profiles with different wall_profile_config_hash but same profile_id are allowed."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        # First profile with profile_id 1
+        WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
+
+        # A second profile with a different wall_profile_config_hash but same profile_id should succeed
+        input_data = self.wall_profile_data.copy()
+        input_data['wall_profile_config_hash'] = 'different_hash_value'
+        input_data['profile_id'] = 1
+        passed = False
+
+        try:
+            WallProfile.objects.create(**input_data)
+        except ValidationError as e:
             passed = False
-            expected_error = 'ValidationError'
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'Validation passed'
 
-            input_data = self.base_data.copy()
-            input_data['max_day'] = case
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
 
-            try:
-                serializer = WallProfileSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
+    def test_wall_profile_with_same_wall_but_different_hash(self):
+        """Test that profiles with the same wall but different config_hash are allowed."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
+        # First profile with a specific config_hash
+        WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
+
+        # A second profile with a different config_hash but same profile_id should succeed
+        input_data = self.wall_profile_data.copy()
+        input_data['wall_profile_config_hash'] = 'another_unique_hash'
+        input_data['profile_id'] = 1
+        passed = True
+
+        try:
+            WallProfile.objects.create(**input_data)
+        except ValidationError as e:
+            passed = False
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'Validation passed'
+
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
 
 
-class WallProfileProgressModelEdgeCaseTest(BaseTestcase):
+class WallUniqueConstraintTest(BaseTestcase):
+    description = 'Unique constraint tests for Wall objects'
 
     def setUp(self):
+        # Set up the wall instance
+        self.wall_data = {
+            'wall_config_hash': 'unique_hash',
+            'num_crews': 5,
+            'total_cost': Decimal('10000.00'),
+            'construction_days': 10,
+        }
+
+    def test_wall_unique_together(self):
+        """Test that a duplicate wall with the same wall_config_hash and num_crews raises a ValidationError."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        
+        # First Wall creation should succeed
+        Wall.objects.create(**self.wall_data)
+
+        # Attempt to create another Wall with the same wall_config_hash and num_crews should raise a ValidationError
+        passed = False
+        try:
+            duplicate_wall = Wall(**self.wall_data)
+            duplicate_wall.full_clean()
+        except ValidationError as e:
+            passed = True
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'None'
+
+        self.log_test_result(passed, self.wall_data, 'ValidationError', actual_error, test_case_source)
+
+
+class WallProfileProgressUniqueConstraintTest(BaseTestcase):
+    description = 'Unique constraint tests for wall profile progress objects'
+
+    def setUp(self):
+        # Set up the wall and wall profile
         self.wall = Wall.objects.create(
             wall_config_hash='some_unique_hash',
+            num_crews=5,
             total_cost=Decimal('10000.00'),
+            construction_days=10,
         )
-        
         self.wall_profile = WallProfile.objects.create(
-            wall_profile_config_hash='test_hash_simulation',
+            wall=self.wall,
+            wall_profile_config_hash='profile_hash',
             cost=Decimal('1000.00'),
-            max_day=10
         )
-        
-        self.base_data = {
+        self.progress_data = {
             'wall_profile': self.wall_profile,
             'day': 1,
             'ice_used': 100,
-            'cost': Decimal('500.00'),
         }
 
-    def test_invalid_wall_profile(self):
-        edge_cases = [None, 9999]  # None and a non-existent profile ID
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+    def test_wall_profile_progress_unique_together(self):
+        """Test that a duplicate WallProfileProgress with the same wall_profile and day raises a ValidationError."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        
+        # First WallProfileProgress creation should succeed
+        WallProfileProgress.objects.create(**self.progress_data)
+
+        # Attempt to create another WallProfileProgress with the same wall_profile and day should raise a ValidationError
+        passed = False
+        try:
+            duplicate_progress = WallProfileProgress(**self.progress_data)
+            duplicate_progress.full_clean()
+        except ValidationError as e:
+            passed = True
+            actual_error = f"{e.__class__.__name__}: {str(e)}"
+        else:
+            actual_error = 'None'
+
+        self.log_test_result(passed, self.progress_data, 'ValidationError', actual_error, test_case_source)
+
+
+class CascadeDeletionTest(BaseTestcase):
+    description = 'Cascade deletion tests'
+
+    def setUp(self):
+        # Set up a wall instance with related profiles and progress, using unique identifiers
+        self.wall = Wall.objects.create(
+            wall_config_hash='test_wall_hash_12345',  # Unique hash for filtering
+            num_crews=3,
+            total_cost=Decimal('5000.00'),
+            construction_days=7,
+        )
+        self.wall_profile = WallProfile.objects.create(
+            wall=self.wall,
+            wall_profile_config_hash='test_profile_hash_12345',  # Unique hash for filtering
+            cost=Decimal('1500.00'),
+        )
+        self.wall_profile_progress = WallProfileProgress.objects.create(
+            wall_profile=self.wall_profile,
+            day=1,
+            ice_used=200,
+        )
+
+    def test_cascade_deletion_of_wall(self):
+        """Test that deleting a Wall deletes related WallProfiles and WallProfileProgress records."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        input_data = {
+            'wall': str(self.wall),
+            'wall_profile': str(self.wall_profile),
+            'wall_profile_progress': str(self.wall_profile_progress),
+        }
+        passed = True
+        actual_error = 'Validation passed'
+
+        try:
+            # Ensure that only the specific objects created for this test exist
+            wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
+            wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+
+            self.assertTrue(wall_exists)
+            self.assertTrue(wall_profile_exists)
+            self.assertTrue(wall_profile_progress_exists)
+
+            # Delete the wall and test cascade deletion
+            self.wall.delete()
+
+            # Check that the specific related objects are deleted
+            wall_exists_after_delete = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
+            wall_profile_exists_after_delete = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists_after_delete = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+
+            if wall_exists_after_delete or wall_profile_exists_after_delete or wall_profile_progress_exists_after_delete:
+                passed = False
+                actual_error = 'Cascade deletion failed'
+        except Exception as e:
             passed = False
-            expected_error = 'ValidationError'
+            actual_error = f'{e.__class__.__name__}: {str(e)}'
 
-            input_data = self.base_data.copy()
-            input_data['wall_profile'] = case
+        self.log_test_result(
+            passed=passed,
+            input_data=input_data,
+            expected_message='Validation passed',
+            actual_message=actual_error,
+            test_case_source=test_case_source
+        )
 
-            try:
-                serializer = WallProfileProgressSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
+    def test_cascade_deletion_of_wall_profile(self):
+        """Test that deleting a WallProfile deletes related WallProfileProgress records."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        input_data = {
+            'wall': str(self.wall),
+            'wall_profile': str(self.wall_profile),
+            'wall_profile_progress': str(self.wall_profile_progress),
+        }
+        passed = True
+        actual_error = 'Validation passed'
 
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
+        try:
+            # Ensure that only the specific objects created for this test exist
+            wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
 
-    def test_invalid_day(self):
-        edge_cases = [-1, 0, 'string']
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+            self.assertTrue(wall_profile_exists)
+            self.assertTrue(wall_profile_progress_exists)
+
+            # Delete the wall profile and test cascade deletion
+            self.wall_profile.delete()
+
+            # Check that the specific related progress objects are deleted
+            wall_profile_exists_after_delete = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists_after_delete = WallProfileProgress.objects.filter(
+                wall_profile__wall_profile_config_hash=self.wall_profile.wall_profile_config_hash,
+            ).exists()
+
+            if wall_profile_exists_after_delete or wall_profile_progress_exists_after_delete:
+                passed = False
+                actual_error = 'Cascade deletion failed'
+        except Exception as e:
             passed = False
-            expected_error = 'ValidationError'
+            actual_error = f'{e.__class__.__name__}: {str(e)}'
 
-            input_data = self.base_data.copy()
-            input_data['day'] = case
-
-            try:
-                serializer = WallProfileProgressSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
-
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
-
-    def test_invalid_ice_used(self):
-        edge_cases = [-1, 'string']
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
-            passed = False
-            expected_error = 'ValidationError'
-
-            input_data = self.base_data.copy()
-            input_data['ice_used'] = case
-
-            try:
-                serializer = WallProfileProgressSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
-
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
-
-    def test_invalid_cost(self):
-        edge_cases = [Decimal('-100.00'), 'string', Decimal('100.001')]
-        for case in edge_cases:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
-            passed = False
-            expected_error = 'ValidationError'
-
-            input_data = self.base_data.copy()
-            input_data['cost'] = case
-
-            try:
-                serializer = WallProfileProgressSerializer(data=input_data)
-                serializer.is_valid(raise_exception=True)
-            except serializers.ValidationError as e:
-                passed = True
-                actual_error = f"{e.__class__.__name__}: {str(e)}"
-            else:
-                actual_error = 'None'
-
-            self.log_test_result(passed, input_data, expected_error, actual_error, test_case_source)
+        self.log_test_result(
+            passed=passed,
+            input_data=input_data,
+            expected_message='Validation passed',
+            actual_message=actual_error,
+            test_case_source=test_case_source
+        )
