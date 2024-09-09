@@ -41,6 +41,7 @@ if PROJECT_MODE == 'prod':
     # PASSED - only log passed tests
     # ALL - log all tests
     # NO-LOGGING - disable logging
+    # SUMMARY - only log tests summary
     TEST_LOGGING_LEVEL = os.getenv('PROD_TEST_LOGGING_LEVEL', 'NO-LOGGING')
 else:
     SECRET_KEY = os.getenv('DEV_SECRET_KEY')
@@ -155,6 +156,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 APPEND_SLASH = True
+
+TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 
 # Wall Configuration Settings
 WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', BASE_DIR / 'wall_config.json')         # Location of the wall profile configuration

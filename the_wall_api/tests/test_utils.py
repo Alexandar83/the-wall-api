@@ -1,6 +1,7 @@
 import logging
 from django.conf import settings
 from django.test import TestCase
+from django.test.runner import DiscoverRunner
 from rest_framework import serializers
 from rest_framework.exceptions import ErrorDetail
 
@@ -65,7 +66,7 @@ def configure_test_logger():
 
     if not logger.hasHandlers():
         ch = logging.StreamHandler()
-        ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        ch.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(ch)
 
     return logger
@@ -76,40 +77,93 @@ def configure_test_logger():
 # PASSED - only log passed tests
 # ALL - log all tests
 # NO-LOGGING - disable logging
+# SUMMARY - only log tests summary
 TEST_LOGGING_LEVEL: str = settings.TEST_LOGGING_LEVEL
 logger = configure_test_logger()
 
 
+class CustomTestRunner(DiscoverRunner):
+    def teardown_test_environment(self, **kwargs):
+        """Called at the end of the entire test suite."""
+        super().teardown_test_environment(**kwargs)
+        # Log the total PASSED and FAILED across all modules
+        logger.info('--------------------------------------------')
+        logger.info(f'Total PASSED in all tests: {BaseTestcase.total_passed}')
+        logger.info(f'Total FAILED in all tests: {BaseTestcase.total_failed}')
+
+
 class BaseTestcase(TestCase):
-    test_counter: int = 1  # Class-level counter to track test numbers
+    # Class-level counter to track test numbers per test module
+    test_counter = 1
+    # Class-level counters to track passed/failed tests globally
+    total_passed = 0
+    total_failed = 0
+    # Class-level counter to track test groups
+    test_group_counter = 0
+    # Padding for output messages alignment
+    padding = 20
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Track passed/failed tests on module level
+        cls.module_passed = 0
+        cls.module_failed = 0
+        if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
+            logger.info(' ')
+            BaseTestcase.test_group_counter += 1
+            cls.test_case_group_description = getattr(cls, 'description', cls.__name__)
+            logger.info(f'{"=" * 14} START OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
+            logger.info(f'{cls.test_case_group_description.upper()}')
+            logger.info(' ')
+
+    @classmethod
+    def tearDownClass(cls):
+        # At the end of each module, log the results for that module
+        if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
+            logger.info(' ')
+            logger.info(f'Total PASSED: {cls.module_passed}')
+            logger.info(f'Total FAILED: {cls.module_failed}')
+            logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
+            # logger.info(f'{"TEST GROUP #" + str(cls.test_group_counter) + ":":<{cls.padding}}END')
+            logger.info(' ')
+
+        super().tearDownClass()
 
     def _get_test_case_source(self, method_name: str) -> str:
         return f'{self.__class__.__name__} -> {method_name}'
 
-    def log_test_result(self, passed: bool, input_data, expected_message: str, actual_message: str,
-                        test_case_source: str, verbose_message: str = '', log_level: str = TEST_LOGGING_LEVEL):
+    def log_test_result(
+        self, passed: bool, input_data, expected_message: str, actual_message: str,
+        test_case_source: str, log_level: str = TEST_LOGGING_LEVEL
+    ) -> None:
         """Helper function to log the test result based on the TEST_LOGGING_LEVEL."""
         status = 'PASSED' if passed else 'FAILED'
+        
+        if passed:
+            self.__class__.module_passed += 1
+            BaseTestcase.total_passed += 1
+        else:
+            self.__class__.module_failed += 1
+            BaseTestcase.total_failed += 1
 
         if log_level == 'NO-LOGGING':
             return  # Skip logging entirely
 
         if log_level == 'ALL' or (log_level == 'FAILED' and not passed) or (log_level == 'PASSED' and passed):
+            logger.info('')
             test_number = BaseTestcase.test_counter
-            logger.info(f'Test #{test_number}: {test_case_source}')
-            logger.info(f'[{status}]')
-            logger.info(f'Input values: {input_data}')
-            logger.info(f'Expected result: {expected_message}')
-            logger.info(f'Actual result: {actual_message}')
-            if verbose_message:
-                logger.info(f'Details: {verbose_message}')
+            logger.info(f'{"TEST #" + str(test_number) + ":":<{self.padding}}{status}')
+            logger.info(f'{"Test method:":<{self.padding}}{test_case_source}')
+            logger.info(f'{"Input values:":<{self.padding}}{input_data}')
+            logger.info(f'{"Expected result:":<{self.padding}}{expected_message}')
+            logger.info(f'{"Actual result:":<{self.padding}}{actual_message}')
 
             BaseTestcase.test_counter += 1
-            logger.info('')  # Divider
             for handler in logger.handlers:
                 handler.flush()
 
-    def validate_and_log(self, serializer_class, input_data, expected_errors, test_case_source: str):
+    def validate_and_log(self, serializer_class, input_data, expected_errors, test_case_source: str) -> None:
         """Handles validation and logging of results."""
         actual_errors = None
         expect_errors = bool(expected_errors)
@@ -156,6 +210,5 @@ class BaseTestcase(TestCase):
                 input_data=input_data,
                 expected_message=', '.join(expected_errors.values()) if expected_errors else 'No errors expected, validation passed',
                 actual_message=str(e),
-                verbose_message=str(e),
                 test_case_source=test_case_source
             )
