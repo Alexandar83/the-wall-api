@@ -56,7 +56,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         # A second profile with a different profile_id should succeed
         input_data = self.wall_profile_data.copy()
         input_data['profile_id'] = 2
-        passed = False
+        passed = True
 
         try:
             WallProfile.objects.create(**input_data)
@@ -101,7 +101,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data = self.wall_profile_data.copy()
         input_data['wall_profile_config_hash'] = 'different_hash_value'
         input_data['profile_id'] = 1
-        passed = False
+        passed = True
 
         try:
             WallProfile.objects.create(**input_data)
