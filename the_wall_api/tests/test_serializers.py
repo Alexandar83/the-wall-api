@@ -91,15 +91,15 @@ class CostOverviewSerializerTest(SerializerTest):
     def test_profile_id_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-        for error_message, values in invalid_input_groups['profile_id'].items():
-            for value in values:
+        for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
+            for profile_id in invalid_profile_ids:
                 # CostOverview: profile_id is optional and None is a properly handled value
                 # DailyIceUsage: profile_id is required, but:
                 #   -api/v1/daily-ice-usage/null/5/ -> is parsed as a 'null' in the GET method
                 #   -api/v1/daily-ice-usage/?day=5&profile_id=None -> leads to Page not found (404)
-                if value is None:
+                if profile_id is None:
                     continue
-                input_data = {'profile_id': value}
+                input_data = {'profile_id': profile_id}
                 expected_errors = {'profile_id': error_message}
                 self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
 
@@ -115,9 +115,9 @@ class CostOverviewSerializerTest(SerializerTest):
     def test_num_crews_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-        for error_message, values in invalid_input_groups['num_crews'].items():
-            for value in values:
-                input_data = {'num_crews': value}
+        for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
+            for num_crews in invalid_num_crews:
+                input_data = {'num_crews': num_crews}
                 expected_errors = {'num_crews': error_message}
                 self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
 
@@ -139,10 +139,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-        for error_message, values in invalid_input_groups['profile_id'].items():
-            for value in values:
+        for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
+            for profile_id in invalid_profile_ids:
                 for day in valid_values:
-                    input_data = {'profile_id': value, 'day': day}
+                    input_data = {'profile_id': profile_id, 'day': day}
                     expected_errors = {'profile_id': error_message}
                     self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
 
@@ -150,26 +150,38 @@ class DailyIceUsageSerializerTest(SerializerTest):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-        for error_message, values in invalid_input_groups['day'].items():
-            for value in values:
+        for error_message, invalid_days in invalid_input_groups['day'].items():
+            for day in invalid_days:
                 for profile_id in valid_values:
-                    input_data = {'profile_id': profile_id, 'day': value}
+                    input_data = {'profile_id': profile_id, 'day': day}
                     expected_errors = {'day': error_message}
                     self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
 
     def test_both_fields_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
 
-        for profile_error_message, profile_values in invalid_input_groups['profile_id'].items():
-            for day_error_message, day_values in invalid_input_groups['day'].items():
-                for profile_value in profile_values:
-                    for day_value in day_values:
-                        input_data = {'profile_id': profile_value, 'day': day_value}
-                        expected_errors = {
-                            'profile_id': profile_error_message,
-                            'day': day_error_message,
-                        }
-                        self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+        for profile_error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
+            for day_error_message, invalid_days in invalid_input_groups['day'].items():
+                self.both_fields_invalid_inner(
+                    invalid_profile_ids,
+                    invalid_days,
+                    profile_error_message,
+                    day_error_message,
+                    test_case_source
+                )
+
+    def both_fields_invalid_inner(
+        self, invalid_profile_ids, invalid_days, profile_error_message, day_error_message, test_case_source
+    ):
+        """Helper function to test all combinations of profile and day values."""
+        for profile_id in invalid_profile_ids:
+            for day in invalid_days:
+                input_data = {'profile_id': profile_id, 'day': day}
+                expected_errors = {
+                    'profile_id': profile_error_message,
+                    'day': day_error_message,
+                }
+                self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
 
     def test_num_crews_valid(self):
         valid_values = generate_valid_values()
@@ -187,8 +199,12 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
         for profile_id in generate_valid_values():
             for day in generate_valid_values():
-                for error_message, values in invalid_input_groups['num_crews'].items():
-                    for value in values:
-                        input_data = {'profile_id': profile_id, 'day': day, 'num_crews': value}
-                        expected_errors = {'num_crews': error_message}
-                        self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                self.num_crews_invalid_inner(profile_id, day, test_case_source)
+
+    def num_crews_invalid_inner(self, profile_id, day, test_case_source):
+        """Helper function to test all combinations of profile and day values."""
+        for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
+            for num_crews in invalid_num_crews:
+                input_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+                expected_errors = {'num_crews': error_message}
+                self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
