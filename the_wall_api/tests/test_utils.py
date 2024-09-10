@@ -2,7 +2,6 @@ import logging
 from django.conf import settings
 from django.test import TestCase
 from django.test.runner import DiscoverRunner
-from rest_framework import serializers
 from rest_framework.exceptions import ErrorDetail
 
 # Group all invalid input characters by serializer error message
@@ -30,8 +29,8 @@ invalid_input_groups = {
         ],
     },
     'num_crews': {
-        ErrorDetail(string='Ensure this value is greater than or equal to 1.', code='min_value'): [
-            0, -1, -100, '0', '-1', '-100',
+        ErrorDetail(string='Ensure this value is greater than or equal to 0.', code='min_value'): [
+            -1, -2, -100, '-1', '-2', '-100',
         ],
         ErrorDetail(string='A valid integer is required.', code='invalid'): [
             3.14, '3.14', 'string', '$', '@', '#', '!', '%', '^', '&', '*', '(', ')', '<', '>', '?', '[]', '{}', '\\', '|', ';', ':', ',', '.', '/', [], {}, '',
@@ -41,22 +40,11 @@ invalid_input_groups = {
 
 
 def generate_valid_values() -> list:
-    """Generate a range of valid values for both profile_id and day."""
+    """Generate a range of valid values for profile_id, day, and num_crews."""
     return [
         1, 5, 101, 999999, 2**31,  # Integers
         '1', '5', '101', '999999', str(2**31 - 1)  # String equivalents
     ]
-
-
-def extract_error_detail(actual_errors, field_name: str):
-    """Helper function to extract error details safely."""
-    if isinstance(actual_errors, dict):
-        error_detail = actual_errors.get(field_name, None)
-        if isinstance(error_detail, list):
-            return error_detail[0] if error_detail else None
-        return error_detail
-    else:
-        return str(actual_errors)  # Fallback to string representation if structure is unexpected
 
 
 def configure_test_logger():
@@ -162,53 +150,3 @@ class BaseTestcase(TestCase):
             BaseTestcase.test_counter += 1
             for handler in logger.handlers:
                 handler.flush()
-
-    def validate_and_log(self, serializer_class, input_data, expected_errors, test_case_source: str) -> None:
-        """Handles validation and logging of results."""
-        actual_errors = None
-        expect_errors = bool(expected_errors)
-
-        try:
-            if expect_errors:
-                # We expect validation to fail and raise a ValidationError
-                try:
-                    with self.assertRaises(serializers.ValidationError) as validation_error:
-                        serializer = serializer_class(data=input_data)
-                        serializer.is_valid(raise_exception=True)
-
-                    actual_errors = validation_error.exception.detail
-                except AssertionError:
-                    self.fail(f'Expected ValidationError was not raised for input data: {input_data}')
-
-                for field, expected_error in expected_errors.items():
-                    actual_error = extract_error_detail(actual_errors, field)
-                    
-                    # Check if the error details match the expected errors
-                    self.assertIn(field, actual_errors)
-                    if isinstance(expected_error, list):
-                        for expected_msg in expected_error:
-                            self.assertIn(expected_msg, actual_error if isinstance(actual_error, list) else [actual_error])
-                    else:
-                        self.assertIn(expected_error, actual_error if isinstance(actual_error, list) else [actual_error])
-            else:
-                # We expect no errors, validation should pass
-                serializer = serializer_class(data=input_data)
-                is_valid = serializer.is_valid()
-                self.assertTrue(is_valid)
-                actual_errors = None  # Explicitly setting actual_errors to None when valid
-
-            self.log_test_result(
-                passed=True,
-                input_data=input_data,
-                expected_message=', '.join(expected_errors.values()) if expected_errors else 'No errors expected, validation passed',
-                actual_message='Validation passed' if not expect_errors else ', '.join([str(extract_error_detail(actual_errors, field)) for field in expected_errors.keys()]),
-                test_case_source=test_case_source
-            )
-        except AssertionError as e:
-            self.log_test_result(
-                passed=False,
-                input_data=input_data,
-                expected_message=', '.join(expected_errors.values()) if expected_errors else 'No errors expected, validation passed',
-                actual_message=str(e),
-                test_case_source=test_case_source
-            )
