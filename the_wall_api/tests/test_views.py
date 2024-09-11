@@ -29,20 +29,11 @@ class BaseWallProfileTest(BaseTestcase):
         return [int(day) for day in generate_valid_values() if int(day) > max_day]
 
     def get_valid_num_crews(self):
-        """Filter out {} and [] values from valid num_crews."""
-        return [value for value in generate_valid_values() if value not in ({}, [])]
-
-    def get_status_name(self, status_code):
-        """Helper to convert status code to human-readable name."""
-        return {
-            200: 'OK',
-            400: 'BAD REQUEST',
-            500: 'INTERNAL SERVER ERROR',
-            # Add more status codes as needed
-        }.get(status_code, 'UNKNOWN STATUS')
+        return [value for value in generate_valid_values()]
 
 
 class DailyIceUsageViewTest(BaseWallProfileTest):
+    description = 'Daily Ice Usage View Tests'
 
     def test_daily_ice_usage_valid(self):
         valid_profile_ids = self.get_valid_profile_ids()
@@ -57,7 +48,7 @@ class DailyIceUsageViewTest(BaseWallProfileTest):
 
     def test_daily_ice_usage_invalid_profile_id(self):
         invalid_profile_ids = self.get_invalid_profile_ids()
-        valid_days = generate_valid_values()  # Use general valid day values, since profile_id itself is invalid
+        valid_days = generate_valid_values()
         valid_num_crews = self.get_valid_num_crews()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
 
@@ -70,17 +61,17 @@ class DailyIceUsageViewTest(BaseWallProfileTest):
         url = reverse('daily-ice-usage-v1', kwargs={'profile_id': profile_id, 'day': day})
         response = self.client.get(url, {'num_crews': num_crews})
         passed = response.status_code == expected_status
-        expected_message = f'HTTP {expected_status} {self.get_status_name(expected_status)}'
         self.log_test_result(
             passed=passed,
             input_data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews},
-            expected_message=expected_message,
+            expected_message=expected_status,
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
 
 
 class CostOverviewViewTest(BaseWallProfileTest):
+    description = 'Cost Overview View Tests'
 
     def test_cost_overview_valid(self):
         valid_num_crews = self.get_valid_num_crews()
@@ -102,17 +93,17 @@ class CostOverviewViewTest(BaseWallProfileTest):
         url = reverse('cost-overview-v1')
         response = self.client.get(url, {'num_crews': num_crews})
         passed = response.status_code == expected_status
-        expected_message = f'HTTP {expected_status} {self.get_status_name(expected_status)}'
         self.log_test_result(
             passed=passed,
             input_data={'profile_id': profile_id, 'num_crews': num_crews},
-            expected_message=expected_message,
+            expected_message=expected_status,
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
 
 
 class CostOverviewProfileidViewTest(CostOverviewViewTest):
+    description = 'Cost Overview Profileid View Tests'
 
     def test_cost_overview_profileid_valid(self):
         valid_profile_ids = self.get_valid_profile_ids()
@@ -136,11 +127,10 @@ class CostOverviewProfileidViewTest(CostOverviewViewTest):
         url = reverse('cost-overview-profile-v1', kwargs={'profile_id': profile_id})
         response = self.client.get(url, {'num_crews': num_crews})
         passed = response.status_code == expected_status
-        expected_message = f'HTTP {expected_status} {self.get_status_name(expected_status)}'
         self.log_test_result(
             passed=passed,
             input_data={'profile_id': profile_id, 'num_crews': num_crews},
-            expected_message=expected_message,
+            expected_message=expected_status,
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
