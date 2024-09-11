@@ -15,11 +15,10 @@ class URLTests(BaseTestcase):
         url = reverse('admin:index')
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_302_FOUND
-        expected_message = f'HTTP {status.HTTP_302_FOUND} Found'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_302_FOUND),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
@@ -32,11 +31,10 @@ class URLTests(BaseTestcase):
         url = reverse('admin:index')
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_200_OK),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
@@ -46,11 +44,10 @@ class URLTests(BaseTestcase):
         url = reverse(exposed_endpoints['schema']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_200_OK),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
@@ -60,11 +57,10 @@ class URLTests(BaseTestcase):
         url = reverse(exposed_endpoints['swagger-ui']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_200_OK),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
@@ -74,11 +70,10 @@ class URLTests(BaseTestcase):
         url = reverse(exposed_endpoints['redoc']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_200_OK),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
@@ -88,11 +83,10 @@ class URLTests(BaseTestcase):
         url = '/nonexistent-url/'
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_404_NOT_FOUND
-        expected_message = f'HTTP {status.HTTP_404_NOT_FOUND} Not Found'
         self.log_test_result(
             passed=passed,
             input_data={'url': url},
-            expected_message=expected_message,
+            expected_message=str(status.HTTP_404_NOT_FOUND),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
