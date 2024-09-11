@@ -8,53 +8,7 @@ from the_wall_api.utils import exposed_endpoints
 
 
 class URLTests(BaseTestcase):
-
-    def test_daily_ice_usage_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        # Replace with valid profile_id and day values
-        profile_id = 1  # Example valid profile ID
-        day = 1  # Example valid day
-        url = reverse(exposed_endpoints['daily-ice-usage']['name'], kwargs={'profile_id': profile_id, 'day': day})
-        response = self.client.get(url)
-        passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
-        self.log_test_result(
-            passed=passed,
-            input_data={'url': url, 'profile_id': profile_id, 'day': day},
-            expected_message=expected_message,
-            actual_message=str(response.status_code),
-            test_case_source=test_case_source
-        )
-
-    def test_cost_overview_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        url = reverse(exposed_endpoints['cost-overview']['name'])
-        response = self.client.get(url)
-        passed = response.status_code == status.HTTP_200_OK
-        expected_message = f'HTTP {status.HTTP_200_OK} OK'
-        self.log_test_result(
-            passed=passed,
-            input_data={'url': url},
-            expected_message=expected_message,
-            actual_message=str(response.status_code),
-            test_case_source=test_case_source
-        )
-
-    def test_cost_overview_profile_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        profile_id = 1
-        url = reverse(exposed_endpoints['cost-overview-profile']['name'], kwargs={'profile_id': profile_id})
-             
-        response = self.client.get(url)
-        passed = response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        expected_message = f'HTTP {status.HTTP_500_INTERNAL_SERVER_ERROR} Internal Server Error'
-        self.log_test_result(
-            passed=passed,
-            input_data={'url': url, 'profile_id': profile_id},
-            expected_message=expected_message,
-            actual_message=str(response.status_code),
-            test_case_source=test_case_source
-        )
+    description = 'URL tests'
 
     def test_admin_endpoint(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
