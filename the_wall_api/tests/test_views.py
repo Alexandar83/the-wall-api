@@ -44,7 +44,10 @@ class BaseWallProfileTest(BaseTestcase):
         return [day for day in generate_valid_values() if isinstance(day, int) and day < min(profile_days)]
 
     def get_valid_num_crews(self):
-        return [value for value in generate_valid_values()]
+        valid_num_crews = [value for value in generate_valid_values()]
+        # Add 0 to test single threaded mode
+        valid_num_crews.insert(0, 0)
+        return valid_num_crews
 
 
 class DailyIceUsageViewTest(BaseWallProfileTest):
@@ -84,11 +87,22 @@ class DailyIceUsageViewTest(BaseWallProfileTest):
         """Test with days on which the profile was not worked on."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         valid_profile_id = 2
-        valid_num_crews = self.get_valid_num_crews()[0]
+        valid_num_crews = 1
         invalid_days = self.get_invalid_days_for_profile_multi_threaded(valid_profile_id, valid_num_crews)
 
         for day in invalid_days:
             self._execute_test_case(valid_profile_id, day, valid_num_crews, status.HTTP_404_NOT_FOUND, test_case_source)
+    
+    def test_daily_ice_usage_invalid_num_crews(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        valid_profile_id = self.get_valid_profile_ids()[0]
+        valid_day = self.get_valid_days_for_profile(valid_profile_id)[0]
+
+        for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
+            for invalid_num_crews in invalid_num_crews_group:
+                if invalid_num_crews in ({}, []):  # Skip {} and [] in invalid checks - the serializer validates num_crews for them
+                    continue
+                self._execute_test_case(valid_profile_id, valid_day, invalid_num_crews, status.HTTP_400_BAD_REQUEST, test_case_source)
 
     def _execute_test_case(self, profile_id, day, num_crews, expected_status, test_case_source):
         url = reverse('daily-ice-usage-v1', kwargs={'profile_id': profile_id, 'day': day})
@@ -116,11 +130,11 @@ class CostOverviewViewTest(BaseWallProfileTest):
     def test_cost_overview_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
 
-        for _, invalid_num_crews in invalid_input_groups['num_crews'].items():
-            for num_crews in invalid_num_crews:
-                if num_crews in ({}, []):  # Skip {} and [] in invalid checks - the serializer validates num_crews for them
+        for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
+            for invalid_num_crews in invalid_num_crews_group:
+                if invalid_num_crews in ({}, []):  # Skip {} and [] in invalid checks - the serializer validates num_crews for them
                     continue
-                self._execute_test_case(None, num_crews, status.HTTP_400_BAD_REQUEST, test_case_source)
+                self._execute_test_case(None, invalid_num_crews, status.HTTP_400_BAD_REQUEST, test_case_source)
 
     def _execute_test_case(self, profile_id, num_crews, expected_status, test_case_source):
         url = reverse('cost-overview-v1')
@@ -155,6 +169,16 @@ class CostOverviewProfileidViewTest(CostOverviewViewTest):
         for profile_id in invalid_profile_ids:
             for num_crews in valid_num_crews:
                 self._execute_profileid_test_case(profile_id, num_crews, status.HTTP_400_BAD_REQUEST, test_case_source)
+    
+    def test_cost_overview_profileid_invalid_num_crews(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        valid_profile_id = self.get_valid_profile_ids()[0]
+
+        for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
+            for invalid_num_crews in invalid_num_crews_group:
+                if invalid_num_crews in ({}, []):  # Skip {} and [] in invalid checks - the serializer validates num_crews for them
+                    continue
+                self._execute_profileid_test_case(valid_profile_id, invalid_num_crews, status.HTTP_400_BAD_REQUEST, test_case_source)
 
     def _execute_profileid_test_case(self, profile_id, num_crews, expected_status, test_case_source):
         url = reverse('cost-overview-profile-v1', kwargs={'profile_id': profile_id})
