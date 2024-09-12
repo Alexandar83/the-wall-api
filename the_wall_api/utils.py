@@ -8,8 +8,8 @@ from rest_framework import serializers
 
 from the_wall_api.serializers import DailyIceUsageSerializer, CostOverviewSerializer
 
-SINGLE_THREADED = 'single_threaded'
-MULTI_THREADED = 'multi_threaded'
+SEQUENTIAL = 'sequential'
+CONCURRENT = 'concurrent'
 MAX_LENGTH = settings.MAX_LENGTH
 MAX_HEIGHT = settings.MAX_HEIGHT
 

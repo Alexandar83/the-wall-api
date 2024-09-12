@@ -2,7 +2,8 @@ import copy
 from inspect import currentframe
 from unittest.mock import patch
 
-from the_wall_api.wall_construction import WallConstruction, WallConstructionError
+from the_wall_api.utils import WallConstructionError
+from the_wall_api.wall_construction import WallConstruction
 from the_wall_api.tests.test_utils import BaseTestcase
 from django.conf import settings
 
@@ -19,14 +20,14 @@ class WallConstructionTests(BaseTestcase):
                 # Verify that all sections have been incremented correctly if the config is not empty
                 for day_data in profile_data[1].values():
                     self.assertGreater(day_data['ice_used'], 0)
-                # iterate over wall_construction.testing_wall_profiles_config
-                for profile in wall_construction.testing_wall_profiles_config:
+                # iterate over wall_construction.testing_wall_construction_config
+                for profile in wall_construction.testing_wall_construction_config:
                     for section in profile:
                         self.assertEqual(section, settings.MAX_HEIGHT)
             
             # Avoid printing big data
             if test_case_source in [
-                'test_maximum_length_profile', 'test_compare_mono_and_multi_threaded_various_cases'
+                'test_maximum_length_profile', 'test_compare_sqntl_and_cncrrnt_various_cases'
             ]:
                 config_ok = ''
             else:
@@ -45,7 +46,6 @@ class WallConstructionTests(BaseTestcase):
                 input_data=config,
                 expected_message=expected_message,
                 actual_message=str(assert_err),
-                verbose_message=str(assert_err),
                 test_case_source=test_case_source
             )
 
@@ -56,7 +56,7 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Empty profile list handled correctly',
             test_case_source=test_case_source
         )
@@ -68,7 +68,7 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Minimum section heights handled correctly',
             test_case_source=test_case_source
         )
@@ -80,7 +80,7 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Maximum section heights handled correctly',
             test_case_source=test_case_source
         )
@@ -92,7 +92,7 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Single section profile handled correctly',
             test_case_source=test_case_source
         )
@@ -104,44 +104,44 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Mixed profiles handled correctly',
             test_case_source=test_case_source
         )
 
     @patch('the_wall_api.utils.load_wall_profiles_from_config')
-    def test_multithreaded_simulation(self, mock_load_config):
+    def test_concurrent_simulation(self, mock_load_config):
         mock_load_config.return_value = [[0, 15, 30], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=2,
-            simulation_type='multi_threaded',
-            expected_message='Multithreaded simulation handled correctly',
+            simulation_type='concurrent',
+            expected_message='Concurrent simulation handled correctly',
             test_case_source=test_case_source
         )
 
-    def test_invalid_multithreaded_initialization(self):
+    def test_invalid_concurrent_initialization(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         config = [[0, 0, 0]]
+        output_msg = 'Initialization error handled correctly'
 
         try:
             with self.assertRaises(WallConstructionError):
-                WallConstruction(config, None, simulation_type='multi_threaded')
+                WallConstruction(config, None, simulation_type='concurrent')
             self.log_test_result(
                 passed=True,
                 input_data=config,
-                expected_message='Initialization error handled correctly',
-                actual_message='Initialization error handled correctly',
+                expected_message=output_msg,
+                actual_message=output_msg,
                 test_case_source=test_case_source
             )
         except AssertionError as assert_err:
             self.log_test_result(
                 passed=False,
                 input_data=config,
-                expected_message='Initialization error handled correctly',
+                expected_message=output_msg,
                 actual_message=str(assert_err),
-                verbose_message=str(assert_err),
                 test_case_source=test_case_source
             )
 
@@ -153,12 +153,12 @@ class WallConstructionTests(BaseTestcase):
         self._run_wall_construction_test(
             config=mock_load_config.return_value,
             num_crews=None,
-            simulation_type='single_threaded',
+            simulation_type='sequential',
             expected_message='Maximum length profile handled correctly',
             test_case_source=test_case_source
         )
 
-    def test_compare_mono_and_multi_threaded_various_cases(self):
+    def test_compare_sqntl_and_cncrrnt_various_cases(self):
         test_cases = [
             {
                 'description': 'Basic case with small profiles',
@@ -201,52 +201,51 @@ class WallConstructionTests(BaseTestcase):
 
         for case in test_cases:
             with self.subTest(case['description']):
-                self._compare_mono_and_multi_threaded_for_config(case['config'], case['description'])
+                self._compare_sqntl_and_cncrrnt_for_config(case['config'], case['description'])
 
-    def _compare_mono_and_multi_threaded_for_config(self, config, description):
+    def _compare_sqntl_and_cncrrnt_for_config(self, config, description):
         """Helper method to run comparison test for a given configuration."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
         try:
             # Deep copy to ensure independent simulations
-            mono_config = copy.deepcopy(config)
-            multi_config = copy.deepcopy(config)
+            sequential_config = copy.deepcopy(config)
+            concurrent_config = copy.deepcopy(config)
 
-            # Run both mono-threaded and multi-threaded simulations
-            mono_thread_wall = WallConstruction(mono_config, num_crews=None, simulation_type='single_threaded')
-            multi_thread_wall = WallConstruction(multi_config, num_crews=2, simulation_type='multi_threaded')
+            # Run both sequential and concurrent simulations
+            wall_sequential = WallConstruction(sequential_config, num_crews=None, simulation_type='sequential')
+            wall_concurrent = WallConstruction(concurrent_config, num_crews=2, simulation_type='concurrent')
 
             # Compare daily ice usage and cost overview results
-            result_msg = self._compare_cost_overview(mono_thread_wall, multi_thread_wall)
+            result_msg = self._compare_cost_overview(wall_sequential, wall_concurrent)
 
             self.log_test_result(
                 passed=True,
                 input_data=result_msg,
-                expected_message=f'{description}: Mono-threaded and multi-threaded results should be identical',
-                actual_message=f'{description}: Mono-threaded and multi-threaded results are identical',
+                expected_message=f'{description}: Sequential and concurrent results should be identical',
+                actual_message=f'{description}: Sequential and concurrent results are identical',
                 test_case_source=test_case_source
             )
         except AssertionError as assert_err:
             self.log_test_result(
                 passed=False,
                 input_data=config,
-                expected_message=f'{description}: Mono-threaded and multi-threaded results should be identical',
+                expected_message=f'{description}: Sequential and concurrent results should be identical',
                 actual_message=str(assert_err),
-                verbose_message=str(assert_err),
                 test_case_source=test_case_source
             )
 
-    def _compare_cost_overview(self, mono_thread_wall, multi_thread_wall):
-        """Helper method to compare internal method outputs for mono and multi-threaded constructions."""
-        mono_cost_overview = mono_thread_wall._sim_calc_details()
-        multi_cost_overview = multi_thread_wall._sim_calc_details()
+    def _compare_cost_overview(self, wall_sequential, wall_concurrent):
+        """Helper method to compare internal method outputs for sequential and concurrent constructions."""
+        sequential_cost_overview = wall_sequential._sim_calc_details()
+        concurrent_cost_overview = wall_concurrent._sim_calc_details()
 
         # Set maxDiff to None to view full diff when assertions fail
         self.maxDiff = None
 
         self.assertEqual(
-            mono_cost_overview['total_cost'], multi_cost_overview['total_cost'],
-            msg=f'Difference in cost overview: Mono-threaded: {mono_cost_overview} | Multi-threaded: {multi_cost_overview}'
+            sequential_cost_overview['total_cost'], concurrent_cost_overview['total_cost'],
+            msg=f'Difference in cost overview: Sequential: {sequential_cost_overview} | Concurrent: {concurrent_cost_overview}'
         )
 
-        return f'Mono cost calculation: {mono_cost_overview} | Multi cost calculation: {multi_cost_overview}'
+        return f'Sequential cost calculation: {sequential_cost_overview} | Concurrent cost calculation: {concurrent_cost_overview}'

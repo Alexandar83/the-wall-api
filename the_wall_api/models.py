@@ -30,13 +30,13 @@ class WallProfile(models.Model):
 
     class Meta:
         constraints = [
-            # Sufficient for single-threaded mode
+            # Sufficient for sequential mode
             models.UniqueConstraint(
                 fields=['wall', 'wall_profile_config_hash'],
                 name='unique_wall_profile_no_profile_id',
                 condition=Q(profile_id__isnull=True)
             ),
-            # Required for multi-threaded mode
+            # Required for concurrent mode
             models.UniqueConstraint(
                 fields=['wall', 'wall_profile_config_hash', 'profile_id'],
                 name='unique_wall_profile',

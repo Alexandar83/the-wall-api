@@ -27,7 +27,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         """Test that multiple profiles with the same config_hash can exist if profile_id is NULL."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         
-        # First profile with profile_id NULL (single-threaded mode)
+        # First profile with profile_id NULL (sequential mode)
         WallProfile.objects.create(**self.wall_profile_data)
 
         # Attempting to create another profile with the same wall_profile_config_hash and NULL profile_id should raise an error

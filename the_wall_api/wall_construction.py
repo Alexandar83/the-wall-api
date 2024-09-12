@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 from django.conf import settings
 
-from the_wall_api.utils import MULTI_THREADED, SINGLE_THREADED
+from the_wall_api.utils import CONCURRENT, SEQUENTIAL
 
 MAX_HEIGHT = settings.MAX_HEIGHT                                        # Maximum height of a wall section
 ICE_PER_FOOT = settings.ICE_PER_FOOT                                    # Cubic yards of ice used per 1 foot height increase
@@ -22,16 +22,16 @@ class WallConstruction:
     """
     A class to simulate the construction of a wall using crews,
     tracking the usage of ice and the associated costs.
-    The multi-threaded implementation is done explicitly with a file (and not in the memory)
+    The concurrent implementation is done explicitly with a file (and not in the memory)
     to follow the task requirements
     """
-    def __init__(self, wall_construction_config: list, sections_count: int, num_crews: int, simulation_type: str = SINGLE_THREADED):
+    def __init__(self, wall_construction_config: list, sections_count: int, num_crews: int, simulation_type: str = SEQUENTIAL):
         self.wall_construction_config = wall_construction_config
         self.testing_wall_construction_config = copy.deepcopy(wall_construction_config)     # For unit testing purposes
         self.simulation_type = simulation_type
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
         
-        if simulation_type == MULTI_THREADED:
+        if simulation_type == CONCURRENT:
             self.max_crews = min(sections_count, num_crews)
             self.thread_counter = count(1)
             self.counter_lock = Lock()
@@ -81,12 +81,12 @@ class WallConstruction:
         return logger
 
     def calc_wall_profile_data(self):
-        if self.simulation_type == MULTI_THREADED:
-            self.calc_wall_profile_data_multi_threaded()
+        if self.simulation_type == CONCURRENT:
+            self.calc_wall_profile_data_concurrent()
         else:
-            self.calc_wall_profile_data_single_threaded()
+            self.calc_wall_profile_data_sequential()
     
-    def calc_wall_profile_data_single_threaded(self) -> None:
+    def calc_wall_profile_data_sequential(self) -> None:
         """
         Sequential construction process simulation.
         All unfinished sections have their designated crew assigned.
@@ -109,7 +109,7 @@ class WallConstruction:
             # Store the results
             self.wall_profile_data[profile_index + 1] = daily_ice_usage
 
-    def calc_wall_profile_data_multi_threaded(self) -> None:
+    def calc_wall_profile_data_concurrent(self) -> None:
         """
         Concurrent construction process simulation.
         Using a limited number of crews.

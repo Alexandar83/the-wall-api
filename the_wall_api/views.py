@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from the_wall_api.models import WallProfileProgress, WallProfile, Wall
 from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
 from the_wall_api.utils import (
-    MULTI_THREADED, SINGLE_THREADED, WallConstructionError,
+    CONCURRENT, SEQUENTIAL, WallConstructionError,
     exposed_endpoints, generate_config_hash_details, load_wall_profiles_from_config,
     daily_ice_usage_parameters, daily_ice_usage_examples, daily_ice_usage_responses,
     cost_overview_parameters, cost_overview_examples, cost_overview_profile_id_examples,
@@ -35,7 +35,7 @@ class BaseWallProfileView(APIView):
             'request_profile_id': profile_id,
             'request_day': day,
             'error_response': None,
-            'multi_threaded_not_needed': None,
+            'concurrent_not_needed': None,
             'wall_construction': None,
         }
 
@@ -92,19 +92,19 @@ class BaseWallProfileView(APIView):
     ) -> tuple[str, dict, int]:
         # num_crews
         if num_crews == 0:
-            # No num_crews provided - single-threaded mode
-            simulation_type = SINGLE_THREADED
+            # No num_crews provided - sequential mode
+            simulation_type = SEQUENTIAL
             num_crews_final = 0
         elif num_crews >= sections_count:
             # There's a crew for each section at the beginning
-            # which is the same as the single-threaded mode
-            simulation_type = SINGLE_THREADED
+            # which is the same as the sequential mode
+            simulation_type = SEQUENTIAL
             num_crews_final = 0
             # For eventual future response message
-            wall_data['multi_threaded_not_needed'] = True
+            wall_data['concurrent_not_needed'] = True
         else:
             # The crews are less than the number of sections
-            simulation_type = MULTI_THREADED
+            simulation_type = CONCURRENT
             num_crews_final = num_crews
 
         # configuration hashes
@@ -181,7 +181,7 @@ class BaseWallProfileView(APIView):
             wall_profile__wall_profile_config_hash=wall_profile_config_hash,
         )
 
-        if wall_data['simulation_type'] == MULTI_THREADED:
+        if wall_data['simulation_type'] == CONCURRENT:
             wall_progress_query_no_day &= Q(wall_profile__profile_id=profile_id)
 
         wall_progress_query_final = wall_progress_query_no_day & Q(day=wall_data['request_day'])
@@ -281,17 +281,17 @@ class BaseWallProfileView(APIView):
             wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_err_unkwn)
             return
 
-    def process_wall_profiles(self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str = SINGLE_THREADED) -> None:
+    def process_wall_profiles(self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str = SEQUENTIAL) -> None:
         """
-        Processes the different behaviors for wall profiles caching in single and multi-threaded modes
+        Processes the different behaviors for wall profiles caching in sequential and concurrent modes
         """
         cached_wall_profile_hashes = []
 
         for profile_id, profile_data in wall_data['wall_construction'].wall_profile_data.items():
             wall_profile_config_hash = wall_data['profile_config_hash_data'][profile_id]
 
-            if simulation_type == SINGLE_THREADED:
-                # Only cache the unique wall profile configs in single-threaded mode.
+            if simulation_type == SEQUENTIAL:
+                # Only cache the unique wall profile configs in sequential mode.
                 # The build progress of the wall profiles with duplicate configs is
                 # always the same.
                 if wall_profile_config_hash in cached_wall_profile_hashes:
@@ -303,7 +303,7 @@ class BaseWallProfileView(APIView):
 
     def cache_wall_profile(
             self, wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any,
-            wall_profile_config_hash: str, simulation_type: str = SINGLE_THREADED
+            wall_profile_config_hash: str, simulation_type: str = SEQUENTIAL
     ) -> None:
         """
         Creates a new WallProfile object and saves it to the database.
@@ -315,8 +315,8 @@ class BaseWallProfileView(APIView):
             'cost': wall_data['sim_calc_details']['profile_costs'][profile_id],
         }
 
-        # Set profile_id only for multi-threaded cases
-        if simulation_type == MULTI_THREADED:
+        # Set profile_id only for concurrent cases
+        if simulation_type == CONCURRENT:
             wall_profile_creation_kwargs['profile_id'] = profile_id
 
         # Create the wall profile object
