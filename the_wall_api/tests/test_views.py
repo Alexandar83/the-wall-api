@@ -1,7 +1,9 @@
+from inspect import currentframe
+from typing import List, Literal
+
 from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
-from inspect import currentframe
 
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 from the_wall_api.utils import exposed_endpoints, load_wall_profiles_from_config, CONCURRENT
@@ -19,23 +21,22 @@ class ViewTest(BaseTestcase):
         self.max_days_per_profile = {
             index + 1: settings.MAX_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config)
         }
-        pass
 
-    def get_valid_profile_ids(self):
+    def get_valid_profile_ids(self) -> List[int]:
         return [int(pid) for pid in generate_valid_values() if int(pid) <= self.max_profile_id]
 
-    def get_invalid_profile_ids(self):
+    def get_invalid_profile_ids(self) -> List[int]:
         return [int(pid) for pid in generate_valid_values() if int(pid) > self.max_profile_id]
 
-    def get_valid_days_for_profile(self, profile_id):
+    def get_valid_days_for_profile(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
         return [int(day) for day in generate_valid_values() if 1 <= int(day) <= max_day]
 
-    def get_invalid_days_for_profile_sequential(self, profile_id):
+    def get_invalid_days_for_profile_sequential(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
         return [day for day in generate_valid_values() if isinstance(day, int) and day > max_day]
     
-    def get_invalid_days_for_profile_concurrent(self, valid_profile_id, valid_num_crews):
+    def get_invalid_days_for_profile_concurrent(self, valid_profile_id: int, valid_num_crews: int) -> List[int]:
         wall_construction = WallConstruction(
             wall_construction_config=self.wall_construction_config,
             sections_count=sum(len(profile) for profile in self.wall_construction_config),
@@ -51,7 +52,10 @@ class ViewTest(BaseTestcase):
         valid_num_crews.insert(0, 0)
         return valid_num_crews
     
-    def execute_test_case(self, expected_status, test_case_source, profile_id=None, day=None, num_crews=None):
+    def execute_test_case(
+        self, expected_status: Literal[200, 400, 404], test_case_source: str, profile_id: int | None = None,
+        day: int | None = None, num_crews: int | None = None
+    ) -> None:
         """Executes test cases for the different endpoints."""
         # Reverse the URL
         if profile_id is not None and day is not None:
@@ -77,7 +81,7 @@ class ViewTest(BaseTestcase):
         self.log_test_result(
             passed=passed,
             input_data=input_data,
-            expected_message=expected_status,
+            expected_message=str(expected_status),
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
