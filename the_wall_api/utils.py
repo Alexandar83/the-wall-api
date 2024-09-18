@@ -80,19 +80,17 @@ def generate_config_hash_details(wall_construction_config: list) -> dict:
     result: Dict[str, Any] = {'profile_config_hash_data': {}}
 
     # Hash of the whole config
-    wall_config_data_to_hash = {'wall_config': wall_construction_config}
-    result['wall_config_hash'] = _hash_calc(wall_config_data_to_hash)
+    result['wall_config_hash'] = hash_calc(wall_construction_config)
     
-    for profile_index, profile_config in enumerate(wall_construction_config):
+    for profile_id, profile_config in enumerate(wall_construction_config, start=1):
         # Hash each profile config
-        config_data_to_hash = {'profile_config': profile_config}
-        result['profile_config_hash_data'][profile_index + 1] = _hash_calc(config_data_to_hash)
+        result['profile_config_hash_data'][profile_id] = hash_calc(profile_config)
     
     return result
 
 
-def _hash_calc(data_to_hash: Dict[str, Any]) -> str:
-    config_str = json.dumps(data_to_hash, sort_keys=True)
+def hash_calc(data_to_hash: Any) -> str:
+    config_str = json.dumps(data_to_hash)
     return hashlib.sha256(config_str.encode('utf-8')).hexdigest()
 
 
