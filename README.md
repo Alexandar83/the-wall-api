@@ -33,6 +33,8 @@ The Wall is a massive fortification being built along the northern border of the
   - Python-dotenv 1.0.1
   - drf-spectacular 0.27.2
   - openapi-spec-validator 0.7.1
+  - redis
+  - django-redis
 
 
 ### Installation Steps

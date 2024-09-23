@@ -1,0 +1,29 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: redis_data_prod
+    ports:
+      - 6379:6379
+    volumes:
+      - the_wall_api_redis_data_prod:/data
+      - ../../config/docker/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+  
+  the-wall-api:
+    image: the-wall-api:latest
+    container_name: app
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile.prod
+    command: >
+      sh -c "python manage.py makemigrations the_wall_api &&
+             python manage.py migrate &&
+             exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
+    ports:
+      - 8000:8000
+    volumes:
+      - ../../.env:/app/.env
+
+volumes:
+  the_wall_api_redis_data_prod:
+    name: the_wall_api_redis_data_prod

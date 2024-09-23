@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 # Initialize environment variables
 load_dotenv()
 
+SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,7 +29,6 @@ PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 if PROJECT_MODE == 'prod':
-    SECRET_KEY = os.getenv('PROD_SECRET_KEY')
     DEBUG = os.getenv('PROD_DEBUG', 'False') == 'True'
     ALLOWED_HOSTS = os.getenv('PROD_ALLOWED_HOSTS', '').split(',')
     DATABASES = {
@@ -43,8 +44,10 @@ if PROJECT_MODE == 'prod':
     # NO-LOGGING - disable logging
     # SUMMARY - only log tests summary
     TEST_LOGGING_LEVEL = os.getenv('PROD_TEST_LOGGING_LEVEL', 'NO-LOGGING')
+    REDIS_URL = os.getenv('PROD_REDIS_URL', 'redis://127.0.0.1:6379/1')
+    REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('PROD_REDIS_SOCKET_CONNECT_TIMEOUT', 2))
+    REDIS_SOCKET_TIMEOUT = int(os.getenv('PROD_REDIS_SOCKET_TIMEOUT', 2))
 else:
-    SECRET_KEY = os.getenv('DEV_SECRET_KEY')
     DEBUG = os.getenv('DEV_DEBUG', 'False') == 'True'
     ALLOWED_HOSTS = os.getenv('DEV_ALLOWED_HOSTS', '').split(',')
     DATABASES = {
@@ -54,6 +57,27 @@ else:
         }
     }
     TEST_LOGGING_LEVEL = os.getenv('DEV_TEST_LOGGING_LEVEL', 'NO-LOGGING')
+    REDIS_URL = os.getenv('DEV_REDIS_URL', 'redis://127.0.0.1:6379/1')
+    REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('DEV_REDIS_SOCKET_CONNECT_TIMEOUT', 2))
+    REDIS_SOCKET_TIMEOUT = int(os.getenv('DEV_REDIS_SOCKET_TIMEOUT', 2))
+
+# Redis Configuration
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,
+            'SOCKET_CONNECT_TIMEOUT': REDIS_SOCKET_CONNECT_TIMEOUT,
+            'SOCKET_TIMEOUT': REDIS_SOCKET_TIMEOUT,
+        },
+        'TIMEOUT': None
+    }
+}
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 # Application definition
 
