@@ -33,3 +33,5 @@ config/docker
 **/redis.conf
 poetry.lock
 pyproject.toml
+config/envs/*.example
+config/envs/*dev*

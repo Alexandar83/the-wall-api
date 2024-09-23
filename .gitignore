@@ -148,3 +148,7 @@ logs
 COMMANDS.txt
 TODO.txt
 /temp_files
+/config/envs/postgres_dev.env
+/config/envs/redis.conf
+/config/envs/the_wall_api_dev.env
+/config/envs/the_wall_api_prod.env

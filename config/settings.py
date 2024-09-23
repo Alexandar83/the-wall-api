@@ -15,53 +15,55 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Initialize environment variables
-load_dotenv()
-
-SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
+PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
+if PROJECT_MODE == 'dev':
+    # App. DEV env. settings
+    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'the_wall_api_dev.env')
+    # PostgreSQL DEV env. settings
+    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'postgres_dev.env', override=True)
+else:
+    # App. PROD env. settings
+    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'the_wall_api_prod.env')
+
+SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-if PROJECT_MODE == 'prod':
-    DEBUG = os.getenv('PROD_DEBUG', 'False') == 'True'
-    ALLOWED_HOSTS = os.getenv('PROD_ALLOWED_HOSTS', '').split(',')
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv('PROD_DB_ENGINE', 'django.db.backends.sqlite3'),
-            'NAME': os.getenv('PROD_DB_NAME', BASE_DIR / 'db.sqlite3'),
-        }
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+
+DATABASES = {
+    'default': {
+        'ENGINE': os.getenv('DB_ENGINE'),
+        'NAME': os.getenv('POSTGRES_DB'),
+        'USER': os.getenv('POSTGRES_USER'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
-    # Verbosity of unit tests
-    # FAILED - only log failed tests
-    # PASSED - only log passed tests
-    # ALL - log all tests
-    # NO-LOGGING - disable logging
-    # SUMMARY - only log tests summary
-    TEST_LOGGING_LEVEL = os.getenv('PROD_TEST_LOGGING_LEVEL', 'NO-LOGGING')
-    REDIS_URL = os.getenv('PROD_REDIS_URL', 'redis://127.0.0.1:6379/1')
-    REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('PROD_REDIS_SOCKET_CONNECT_TIMEOUT', 2))
-    REDIS_SOCKET_TIMEOUT = int(os.getenv('PROD_REDIS_SOCKET_TIMEOUT', 2))
-else:
-    DEBUG = os.getenv('DEV_DEBUG', 'False') == 'True'
-    ALLOWED_HOSTS = os.getenv('DEV_ALLOWED_HOSTS', '').split(',')
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv('DEV_DB_ENGINE', 'django.db.backends.sqlite3'),
-            'NAME': os.getenv('DEV_DB_NAME', BASE_DIR / 'db.sqlite3')
-        }
-    }
-    TEST_LOGGING_LEVEL = os.getenv('DEV_TEST_LOGGING_LEVEL', 'NO-LOGGING')
-    REDIS_URL = os.getenv('DEV_REDIS_URL', 'redis://127.0.0.1:6379/1')
-    REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('DEV_REDIS_SOCKET_CONNECT_TIMEOUT', 2))
-    REDIS_SOCKET_TIMEOUT = int(os.getenv('DEV_REDIS_SOCKET_TIMEOUT', 2))
+}
+
+# Verbosity of unit tests
+# FAILED - only log failed tests
+# PASSED - only log passed tests
+# ALL - log all tests
+# NO-LOGGING - disable logging
+# SUMMARY - only log tests summary
+TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
 
 # Redis Configuration
+
+REDIS_URL = os.getenv('REDIS_URL')
+
+REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', 2))
+
+REDIS_SOCKET_TIMEOUT = int(os.getenv('REDIS_SOCKET_TIMEOUT', 2))
 
 CACHES = {
     'default': {
