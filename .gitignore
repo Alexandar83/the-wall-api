@@ -148,7 +148,12 @@ logs
 COMMANDS.txt
 TODO.txt
 /temp_files
-/config/envs/postgres_dev.env
-/config/envs/redis.conf
-/config/envs/the_wall_api_dev.env
-/config/envs/the_wall_api_prod.env
+
+# Ignore everything in config/envs/ and its subdirectories
+/config/envs/**
+
+# Unignore only the directories (required for Git to traverse the folder)
+!/config/envs/**/
+
+# Unignore all .example files in config/envs and its subfolders
+!/config/envs/**/*.example

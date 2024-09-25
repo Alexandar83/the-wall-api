@@ -21,18 +21,14 @@ PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 if PROJECT_MODE == 'dev':
+    # No env. settings are injected in dev
+
     # App. DEV env. settings
-    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'the_wall_api_dev.env')
+    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'dev' / 'the_wall_api_dev.env')
     # PostgreSQL DEV env. settings
-    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'postgres_dev.env', override=True)
-else:
-    # App. PROD env. settings
-    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'the_wall_api_prod.env')
+    load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'dev' / 'postgres_dev.env', override=True)
 
 SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
