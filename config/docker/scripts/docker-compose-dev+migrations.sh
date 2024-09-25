@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Script to ensure that postgres is running before migrations are run
+
 # Start Docker Compose services, but skip `wait_for_postgres`
 docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up --build -d redis postgres
 
