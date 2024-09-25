@@ -1,0 +1,52 @@
+services:
+  the-wall-api:
+    image: ghcr.io/alexandar83/the-wall-api-test:latest
+    container_name: app
+    command: >
+      sh -c "python manage.py makemigrations the_wall_api &&
+             python manage.py migrate &&
+             exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
+    ports:
+      - 8000:8000
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+      - ../../config/envs/prod/redis_prod.env
+      - ../../config/envs/prod/postgres_prod.env
+    environment:
+      - PROJECT_MODE=prod_v1
+    depends_on:
+      postgres:
+        condition: service_healthy  # Wait for PostgreSQL health check to pass
+
+  redis:
+    image: redis:7.0.12
+    container_name: redis_data_prod
+    ports:
+      - 6379:6379
+    volumes:
+      - the_wall_api_redis_data_prod:/data
+      - ../../config/envs/common/redis.conf:/usr/local/etc/redis/redis.conf
+    command: sh -c 'redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDIS_PASSWORD"'
+    env_file:
+      - ../../config/envs/prod/redis_prod.env
+  
+  postgres:
+    image: postgres:15.3
+    container_name: postgres_data_prod
+    ports:
+      - 5432:5432
+    volumes:
+      - the_wall_api_postgres_data_prod:/var/lib/postgresql/data
+    env_file:
+      - ../../config/envs/prod/postgres_prod.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s  # How often to check
+      timeout: 5s    # How long to wait for a response
+      retries: 5     # How many retries before marking as unhealthy
+
+volumes:
+  the_wall_api_redis_data_prod:
+    name: the_wall_api_redis_data_prod
+  the_wall_api_postgres_data_prod:
+    name: the_wall_api_postgres_data_prod

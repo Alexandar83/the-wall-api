@@ -56,6 +56,11 @@ TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
 # Redis Configuration
 
 REDIS_URL = os.getenv('REDIS_URL')
+if REDIS_URL is not None:
+    # Inject the password in the url for prod
+    if PROJECT_MODE == 'prod_v1':
+        REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+        REDIS_URL = REDIS_URL.replace('REDIS_PASSWORD', REDIS_PASSWORD)
 
 REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', 2))
 
