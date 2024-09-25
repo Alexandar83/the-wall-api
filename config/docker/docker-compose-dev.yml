@@ -1,4 +1,3 @@
-
 services:
   redis:
     image: redis:7.0.12
@@ -7,7 +6,7 @@ services:
       - 6379:6379
     volumes:
       - the_wall_api_redis_data_dev:/data
-      - ../../config/envs/redis.conf:/usr/local/etc/redis/redis.conf
+      - ../../config/envs/common/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
 
   postgres:
@@ -18,14 +17,20 @@ services:
     volumes:
       - the_wall_api_postgres_data_dev:/var/lib/postgresql/data
     env_file:
-      - ../../config/envs/postgres_dev.env
+      - ../../config/envs/dev/postgres_dev.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 1s  # How often to check
+      timeout: 5s    # How long to wait for a response
+      retries: 5     # How many retries before marking as unhealthy
     
   wait_for_postgres:
   # A wait service to facilitate the DB migrations after the composition is created
     image: busybox:latest
     depends_on:
-      - postgres
-    entrypoint: sh -c "while ! nc -z postgres 5432; do sleep 1; done"
+      postgres:
+        condition: service_healthy
+    entrypoint: sh -c "echo 'PostgreSQL is ready'"
 
 volumes:
   the_wall_api_redis_data_dev:
