@@ -33,3 +33,4 @@ config/docker
 poetry.lock
 pyproject.toml
 config/envs
+config/secrets

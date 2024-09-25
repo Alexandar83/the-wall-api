@@ -34,16 +34,28 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DB_ENGINE'),
-        'NAME': os.getenv('POSTGRES_DB'),
-        'USER': os.getenv('POSTGRES_USER'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+if PROJECT_MODE in ['dev', 'prod_v1']:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE'),
+            'NAME': os.getenv('POSTGRES_DB'),
+            'USER': os.getenv('POSTGRES_USER'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+            'HOST': os.getenv('DB_HOST'),
+            'PORT': os.getenv('DB_PORT'),
+        }
     }
-}
+elif PROJECT_MODE == 'prod_v2':
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE'),
+            'NAME': open(os.environ['POSTGRES_DB_FILE']).read().strip(),
+            'USER': open(os.environ['POSTGRES_USER_FILE']).read().strip(),
+            'PASSWORD': open(os.environ['POSTGRES_PASSWORD_FILE']).read().strip(),
+            'HOST': os.getenv('DB_HOST'),
+            'PORT': os.getenv('DB_PORT'),
+        }
+    }
 
 # Verbosity of unit tests
 # FAILED - only log failed tests
@@ -60,6 +72,9 @@ if REDIS_URL is not None:
     # Inject the password in the url for prod
     if PROJECT_MODE == 'prod_v1':
         REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+        REDIS_URL = REDIS_URL.replace('REDIS_PASSWORD', REDIS_PASSWORD)
+    elif PROJECT_MODE == 'prod_v2':
+        REDIS_PASSWORD = open(os.environ['REDIS_PASSWORD_FILE']).read().strip()
         REDIS_URL = REDIS_URL.replace('REDIS_PASSWORD', REDIS_PASSWORD)
 
 REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', 2))

@@ -1,0 +1,70 @@
+services:
+  the-wall-api:
+    image: ghcr.io/alexandar83/the-wall-api-test:latest
+    command: >
+      sh -c "python /app/wait_for_postgres.py && \
+             echo 'PostgreSQL is ready!' && \
+             python manage.py makemigrations the_wall_api && \
+             python manage.py migrate && \
+             exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
+    ports:
+      - 8000:8000
+    volumes:
+      - ../../config\docker\scripts\wait_for_postgres.py:/app/wait_for_postgres.py
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+    environment:
+      - PROJECT_MODE=prod_v2
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    secrets:
+      - redis_password
+      - postgres_db
+      - postgres_user
+      - postgres_password
+
+  redis:
+    image: redis:7.0.12
+    ports:
+      - 6379:6379
+    volumes:
+      - the_wall_api_redis_data_prod:/data
+      - ../../config/envs/common/redis.conf:/usr/local/etc/redis/redis.conf
+    command: sh -c 'redis-server /usr/local/etc/redis/redis.conf --requirepass "$$(cat /run/secrets/redis_password)"'
+    environment:
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+    secrets:
+      - redis_password
+  
+  postgres:
+    image: postgres:15.3
+    ports:
+      - 5432:5432
+    volumes:
+      - the_wall_api_postgres_data_prod:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    secrets:
+      - postgres_db
+      - postgres_user
+      - postgres_password
+
+volumes:
+  the_wall_api_redis_data_prod:
+    name: the_wall_api_redis_data_prod
+  the_wall_api_postgres_data_prod:
+    name: the_wall_api_postgres_data_prod
+
+secrets:
+  redis_password:
+    external: true
+  postgres_db:
+    external: true
+  postgres_user:
+    external: true
+  postgres_password:
+    external: true

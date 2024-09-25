@@ -157,3 +157,7 @@ TODO.txt
 
 # Unignore all .example files in config/envs and its subfolders
 !/config/envs/**/*.example
+
+# Secrets
+/config/secrets/*
+!/config/secrets/*.example
