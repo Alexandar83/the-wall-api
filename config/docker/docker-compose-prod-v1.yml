@@ -1,6 +1,6 @@
 services:
   the-wall-api:
-    image: ghcr.io/alexandar83/the-wall-api-test:latest
+    image: ghcr.io/alexandar83/the-wall-api:latest
     container_name: app
     command: >
       sh -c "python manage.py makemigrations the_wall_api &&

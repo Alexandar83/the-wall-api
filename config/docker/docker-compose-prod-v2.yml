@@ -1,6 +1,6 @@
 services:
   the-wall-api:
-    image: ghcr.io/alexandar83/the-wall-api-test:latest
+    image: ghcr.io/alexandar83/the-wall-api:latest
     command: >
       sh -c "python /app/wait_for_postgres.py && \
              echo 'PostgreSQL is ready!' && \
