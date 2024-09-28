@@ -2,6 +2,7 @@ from inspect import currentframe
 from typing import List, Literal
 
 from django.conf import settings
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
 
@@ -63,6 +64,11 @@ class ViewTest(BaseTestcase):
             self.execute_response_status_test(url, params, expected_status, input_data, test_case_source)
         else:
             self.execute_results_consistency_test(url, params, input_data, test_case_source)
+        
+        # Clear the cache after each test
+        # A DB flush for such tests is automatically performed
+        # by the Django test runner
+        cache.clear()
 
     def prepare_url(self, profile_id: int | None, day: int | None) -> str:
         if profile_id is not None and day is not None:

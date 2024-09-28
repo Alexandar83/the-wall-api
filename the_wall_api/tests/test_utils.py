@@ -1,4 +1,6 @@
 import logging
+
+from django.core.cache import cache
 from django.conf import settings
 from django.test import TestCase
 from django.test.runner import DiscoverRunner
@@ -71,8 +73,14 @@ logger = configure_test_logger()
 
 
 class CustomTestRunner(DiscoverRunner):
+    def setup_test_environment(self, **kwargs):
+        """Called at the start of the entire test suite."""
+        cache.clear()   # Ensure cache is cleared at the start of the test suite
+        super().setup_test_environment(**kwargs)
+
     def teardown_test_environment(self, **kwargs):
         """Called at the end of the entire test suite."""
+        cache.clear()   # Ensure cache is cleared at the end of the test suite
         super().teardown_test_environment(**kwargs)
         # Log the total PASSED and FAILED across all modules
         logger.info('--------------------------------------------')

@@ -213,9 +213,7 @@ python manage.py test
 
 - Run specific test modules:
 ```bash
-python manage.py test <the_wall_api>.tests.<test_module>
-# Example:
-python manage.py test the_wall_api.tests.test_models
+python manage.py test the_wall_api.tests.<test_module>
 ```
 
 
