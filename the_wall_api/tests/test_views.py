@@ -47,14 +47,13 @@ class ViewTest(BaseTestcase):
         return [day for day in generate_valid_values() if isinstance(day, int) and day < min(profile_days)]
 
     def get_valid_num_crews(self):
-        valid_num_crews = [value for value in generate_valid_values()]
         # Add 0 to test sequential mode
-        valid_num_crews.insert(0, 0)
+        valid_num_crews = range(0, 10, 2)
         return valid_num_crews
     
     def execute_test_case(
         self, expected_status: Literal[200, 400, 404], test_case_source: str, profile_id: int | None = None,
-        day: int | None = None, num_crews: int | None = None
+        day: int | None = None, num_crews: int | None = None, consistency_test: bool = False
     ) -> None:
         """Executes test cases for the different endpoints."""
         # Reverse the URL
@@ -73,18 +72,41 @@ class ViewTest(BaseTestcase):
 
         # Execute the GET request
         response = self.client.get(url, params)
-        passed = response.status_code == expected_status
-        
+
         input_data = {key: value for key, value in [('profile_id', profile_id), ('day', day), ('num_crews', num_crews)] if value is not None}
 
-        # Log the test result
-        self.log_test_result(
-            passed=passed,
-            input_data=input_data,
-            expected_message=str(expected_status),
-            actual_message=str(response.status_code),
-            test_case_source=test_case_source
-        )
+        if not consistency_test:
+            passed = response.status_code == expected_status
+
+            # Log the test result
+            self.log_test_result(
+                passed=passed,
+                input_data=input_data,
+                expected_message=str(expected_status),
+                actual_message=str(response.status_code),
+                test_case_source=test_case_source
+            )
+        elif num_crews:
+            # Consistency tests for concurrent simulations only
+            reference_result = response.json()
+            passed = True
+            result = ''
+            # Run the test 5 more times and compare with the reference result
+            for _ in range(5):
+                response = self.client.get(url, params)
+                result = response.json()
+                passed = result == reference_result
+                if not passed:
+                    break
+            
+            # Log the test result
+            self.log_test_result(
+                passed=passed,
+                input_data=input_data,
+                expected_message=reference_result,
+                actual_message=result,
+                test_case_source=test_case_source
+            )
 
 
 class DailyIceUsageViewTest(ViewTest):
@@ -92,7 +114,7 @@ class DailyIceUsageViewTest(ViewTest):
     
     url_name = exposed_endpoints['daily-ice-usage']['name']
 
-    def test_daily_ice_usage_valid(self):
+    def test_daily_ice_usage_valid(self, consistency_test=False):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
         valid_num_crews = self.get_valid_num_crews()
@@ -101,8 +123,14 @@ class DailyIceUsageViewTest(ViewTest):
             valid_days = self.get_valid_days_for_profile(profile_id)
             for day in valid_days:
                 for num_crews in valid_num_crews:
-                    self.execute_test_case(status.HTTP_200_OK, test_case_source, profile_id, day, num_crews)
+                    self.execute_test_case(
+                        status.HTTP_200_OK, test_case_source, profile_id, day, num_crews,
+                        consistency_test=consistency_test
+                    )
 
+    def test_daily_ice_usage_results_consistency(self):
+        self.test_daily_ice_usage_valid(consistency_test=True)
+    
     def test_daily_ice_usage_invalid_profile_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
@@ -147,12 +175,18 @@ class CostOverviewViewTest(ViewTest):
     
     url_name = exposed_endpoints['cost-overview']['name']
 
-    def test_cost_overview_valid(self):
+    def test_cost_overview_valid(self, consistency_test=False):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         valid_num_crews = self.get_valid_num_crews()
 
         for num_crews in valid_num_crews:
-            self.execute_test_case(status.HTTP_200_OK, test_case_source, num_crews=num_crews)
+            self.execute_test_case(
+                status.HTTP_200_OK, test_case_source, num_crews=num_crews,
+                consistency_test=consistency_test
+            )
+
+    def test_cost_overview_results_consistency(self):
+        self.test_cost_overview_valid(consistency_test=True)
 
     def test_cost_overview_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -167,14 +201,20 @@ class CostOverviewProfileidViewTest(ViewTest):
     
     url_name = exposed_endpoints['cost-overview-profile']['name']
 
-    def test_cost_overview_profileid_valid(self):
+    def test_cost_overview_profileid_valid(self, consistency_test=False):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
         valid_num_crews = self.get_valid_num_crews()
 
         for profile_id in valid_profile_ids:
             for num_crews in valid_num_crews:
-                self.execute_test_case(status.HTTP_200_OK, test_case_source, profile_id=profile_id, num_crews=num_crews)
+                self.execute_test_case(
+                    status.HTTP_200_OK, test_case_source, profile_id=profile_id, num_crews=num_crews,
+                    consistency_test=consistency_test
+                )
+
+    def test_cost_overview_profileid_results_consistency(self):
+        self.test_cost_overview_profileid_valid(consistency_test=True)
 
     def test_cost_overview_profileid_invalid_profile_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
