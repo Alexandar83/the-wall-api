@@ -36,7 +36,6 @@ class WallConstruction:
             self.thread_counter = count(1)
             self.counter_lock = Lock()
             self.thread_days = {}
-            self.thread_days_lock = Lock()
             self.filename = f'logs/wall_construction_{uuid.uuid4().hex}.log'
             self.logger = self._setup_logger()
 
@@ -48,8 +47,7 @@ class WallConstruction:
             
             # Init a condition for crew threads synchronization
             self.active_crews = self.max_crews
-            self.active_crews_lock = Lock()
-            self.day_condition = Condition(self.active_crews_lock)
+            self.day_condition = Condition()
             self.finished_crews_for_the_day = 0
         
         self.wall_profile_data = {}
@@ -157,8 +155,12 @@ class WallConstruction:
             self.process_section(profile_id, section_id, height, thread)
 
         # When there are no more sections available for the crew, relieve it
-        with self.active_crews_lock:
+        with self.day_condition:
             self.active_crews -= 1
+            if self.finished_crews_for_the_day == self.active_crews:
+                # Reset the counter and notify all other threads
+                self.finished_crews_for_the_day = 0
+                self.day_condition.notify_all()
 
     def initialize_thread_days(self, thread: Thread) -> None:
         """
@@ -201,7 +203,8 @@ class WallConstruction:
             if self.finished_crews_for_the_day == self.active_crews:
                 # Last crew to reach this point resets the counter and notifies all others
                 self.finished_crews_for_the_day = 0
-                self.day_condition.notify_all()  # Wake up all waiting threads
+                # Wake up all waiting threads
+                self.day_condition.notify_all()
             else:
                 # Wait until all other crews are done with the current day
                 self.day_condition.wait()
