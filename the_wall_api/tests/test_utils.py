@@ -63,6 +63,7 @@ def configure_test_logger():
 
 
 # Configure the logger with the desired log level
+# ERROR - only log errors
 # FAILED - only log failed tests
 # PASSED - only log passed tests
 # ALL - log all tests
@@ -86,14 +87,16 @@ class CustomTestRunner(DiscoverRunner):
         logger.info('--------------------------------------------')
         logger.info(f'Total PASSED in all tests: {BaseTestcase.total_passed}')
         logger.info(f'Total FAILED in all tests: {BaseTestcase.total_failed}')
+        logger.info(f'Total ERRORS in all tests: {BaseTestcase.total_errors}')
 
 
 class BaseTestcase(TestCase):
     # Class-level counter to track test numbers per test module
     test_counter = 1
-    # Class-level counters to track passed/failed tests globally
+    # Class-level counters to track passed/failed/error tests globally
     total_passed = 0
     total_failed = 0
+    total_errors = 0
     # Class-level counter to track test groups
     test_group_counter = 0
     # Padding for output messages alignment
@@ -105,6 +108,7 @@ class BaseTestcase(TestCase):
         # Track passed/failed tests on module level
         cls.module_passed = 0
         cls.module_failed = 0
+        cls.module_errors = 0
         if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
             logger.info(' ')
             BaseTestcase.test_group_counter += 1
@@ -120,6 +124,7 @@ class BaseTestcase(TestCase):
             logger.info(' ')
             logger.info(f'Total PASSED: {cls.module_passed}')
             logger.info(f'Total FAILED: {cls.module_failed}')
+            logger.info(f'Total ERRORS: {cls.module_errors}')
             logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
             # logger.info(f'{"TEST GROUP #" + str(cls.test_group_counter) + ":":<{cls.padding}}END')
             logger.info(' ')
@@ -131,22 +136,31 @@ class BaseTestcase(TestCase):
 
     def log_test_result(
         self, passed: bool, input_data, expected_message: str, actual_message: str,
-        test_case_source: str, log_level: str = TEST_LOGGING_LEVEL
+        test_case_source: str, log_level: str = TEST_LOGGING_LEVEL, error_occurred: bool = False
     ) -> None:
         """Helper function to log the test result based on the TEST_LOGGING_LEVEL."""
-        status = 'PASSED' if passed else 'FAILED'
-        
         if passed:
+            status = 'PASSED'
             self.__class__.module_passed += 1
             BaseTestcase.total_passed += 1
-        else:
+        elif not error_occurred:
+            status = 'FAILED'
             self.__class__.module_failed += 1
             BaseTestcase.total_failed += 1
+        else:
+            status = 'ERROR'
+            self.__class__.module_errors += 1
+            BaseTestcase.total_errors += 1
 
         if log_level == 'NO-LOGGING':
             return  # Skip logging entirely
 
-        if log_level == 'ALL' or (log_level == 'FAILED' and not passed) or (log_level == 'PASSED' and passed):
+        if (
+            TEST_LOGGING_LEVEL == 'ALL' or
+            (TEST_LOGGING_LEVEL == 'PASSED' and passed) or
+            (TEST_LOGGING_LEVEL == 'FAILED' and not passed) or  # Log both FAILED and ERROR
+            (TEST_LOGGING_LEVEL == 'ERROR' and error_occurred)  # Log only ERROR
+        ):
             logger.info('')
             test_number = BaseTestcase.test_counter
             logger.info(f'{"TEST #" + str(test_number) + ":":<{self.padding}}{status}')

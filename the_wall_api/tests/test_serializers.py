@@ -37,8 +37,12 @@ class SerializerTest(BaseTestcase):
 
             self.log_test_serializer_result(True, input_data, expected_errors, actual_errors, test_case_source)
 
-        except AssertionError as e:
-            self.log_test_serializer_result(False, input_data, expected_errors, str(e), test_case_source)
+        except AssertionError as assrtn_err:
+            self.log_test_serializer_result(False, input_data, expected_errors, str(assrtn_err), test_case_source)
+        
+        except Exception as err:
+            actual_errors = f'{err.__class__.__name__}: {str(err)}'
+            self.log_test_serializer_result(False, input_data, expected_errors, actual_errors, test_case_source, error_occured=True)
 
     def validate_with_errors(self, serializer, input_data):
         try:
@@ -68,12 +72,12 @@ class SerializerTest(BaseTestcase):
         else:
             self.assertIn(expected_error, actual_error if isinstance(actual_error, list) else [actual_error])
 
-    def log_test_serializer_result(self, passed, input_data, expected_errors, actual_errors, test_case_source):
+    def log_test_serializer_result(self, passed, input_data, expected_errors, actual_errors, test_case_source, error_occured=False):
         expected_message = ', '.join(expected_errors.values()) if expected_errors else 'No errors expected, validation passed'
         actual_message = 'Validation passed' if not actual_errors else ', '.join(
             [str(extract_error_detail(actual_errors, field)) for field in expected_errors.keys()]
         )
-        self.log_test_result(passed, input_data, expected_message, actual_message, test_case_source)
+        self.log_test_result(passed, input_data, expected_message, actual_message, test_case_source, error_occurred=error_occured)
 
 
 class CostOverviewSerializerTest(SerializerTest):

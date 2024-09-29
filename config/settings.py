@@ -61,6 +61,7 @@ elif PROJECT_MODE == 'prod_v2':
     }
 
 # Verbosity of unit tests
+# ERROR - only log errors
 # FAILED - only log failed tests
 # PASSED - only log passed tests
 # ALL - log all tests

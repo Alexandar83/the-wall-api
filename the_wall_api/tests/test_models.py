@@ -34,17 +34,20 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data = self.wall_profile_data.copy()
         input_data['profile_id'] = None
         passed = False
+        error_occurred = False
 
         try:
             duplicate_profile = WallProfile(**input_data)
             duplicate_profile.full_clean()
-        except ValidationError as e:
-            passed = True
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'None'
+        except ValidationError as vldtn_err:
+            passed = True
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source)
+        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
     def test_wall_profile_with_different_profile_id(self):
         """Test that profiles with the same wall and config_hash can exist as long as profile_id is different."""
@@ -57,15 +60,19 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data = self.wall_profile_data.copy()
         input_data['profile_id'] = 2
         passed = True
+        error_occurred = False
 
         try:
             WallProfile.objects.create(**input_data)
             actual_error = 'Validation passed'
-        except ValidationError as e:
+        except ValidationError as vldtn_err:
             passed = False
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
     def test_wall_profile_with_same_profile_id(self):
         """Test that profiles with the same wall, config_hash, and profile_id raise a ValidationError."""
@@ -78,17 +85,20 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data = self.wall_profile_data.copy()
         input_data['profile_id'] = 1
         passed = False
+        error_occurred = False
 
         try:
             duplicate_profile = WallProfile(**input_data)
             duplicate_profile.full_clean()
-        except ValidationError as e:
-            passed = True
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'None'
+        except ValidationError as vldtn_err:
+            passed = True
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source)
+        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
     def test_wall_profile_with_different_hash_same_profile_id(self):
         """Test that profiles with different wall_profile_config_hash but same profile_id are allowed."""
@@ -102,16 +112,19 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data['wall_profile_config_hash'] = 'different_hash_value'
         input_data['profile_id'] = 1
         passed = True
+        error_occurred = False
 
         try:
             WallProfile.objects.create(**input_data)
-        except ValidationError as e:
-            passed = False
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'Validation passed'
+        except ValidationError as vldtn_err:
+            passed = False
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
     def test_wall_profile_with_same_wall_but_different_hash(self):
         """Test that profiles with the same wall but different config_hash are allowed."""
@@ -125,16 +138,19 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         input_data['wall_profile_config_hash'] = 'another_unique_hash'
         input_data['profile_id'] = 1
         passed = True
+        error_occurred = False
 
         try:
             WallProfile.objects.create(**input_data)
-        except ValidationError as e:
-            passed = False
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'Validation passed'
+        except ValidationError as vldtn_err:
+            passed = False
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source)
+        self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
 
 class WallUniqueConstraintTest(BaseTestcase):
@@ -158,16 +174,19 @@ class WallUniqueConstraintTest(BaseTestcase):
 
         # Attempt to create another Wall with the same wall_config_hash and num_crews should raise a ValidationError
         passed = False
+        error_occurred = False
         try:
             duplicate_wall = Wall(**self.wall_data)
             duplicate_wall.full_clean()
-        except ValidationError as e:
-            passed = True
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'None'
+        except ValidationError as vldtn_err:
+            passed = True
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, self.wall_data, 'ValidationError', actual_error, test_case_source)
+        self.log_test_result(passed, self.wall_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
 
 class WallProfileProgressUniqueConstraintTest(BaseTestcase):
@@ -201,16 +220,19 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
 
         # Attempt to create another WallProfileProgress with the same wall_profile and day should raise a ValidationError
         passed = False
+        error_occurred = False
         try:
             duplicate_progress = WallProfileProgress(**self.progress_data)
             duplicate_progress.full_clean()
-        except ValidationError as e:
-            passed = True
-            actual_error = f"{e.__class__.__name__}: {str(e)}"
-        else:
             actual_error = 'None'
+        except ValidationError as vldtn_err:
+            passed = True
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
 
-        self.log_test_result(passed, self.progress_data, 'ValidationError', actual_error, test_case_source)
+        self.log_test_result(passed, self.progress_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
 
 class CascadeDeletionTest(BaseTestcase):

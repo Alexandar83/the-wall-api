@@ -60,10 +60,17 @@ class ViewTest(BaseTestcase):
         params = {'num_crews': num_crews} if num_crews is not None else {}
         input_data = {key: value for key, value in [('profile_id', profile_id), ('day', day), ('num_crews', num_crews)] if value is not None}
 
-        if not consistency_test:
-            self.execute_response_status_test(url, params, expected_status, input_data, test_case_source)
-        else:
-            self.execute_results_consistency_test(url, params, input_data, test_case_source)
+        try:
+            if not consistency_test:
+                self.execute_response_status_test(url, params, expected_status, input_data, test_case_source)
+            else:
+                self.execute_results_consistency_test(url, params, input_data, test_case_source)
+        except Exception as err:
+            self.log_test_result(
+                passed=False, input_data=input_data, expected_message=str(expected_status),
+                actual_message=f'{err.__class__.__name__}: {str(err)}',
+                test_case_source=test_case_source, error_occurred=True
+            )
         
         # Clear the cache after each test
         # A DB flush for such tests is automatically performed
