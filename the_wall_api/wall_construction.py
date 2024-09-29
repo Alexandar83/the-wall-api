@@ -41,9 +41,9 @@ class WallConstruction:
 
             # Initialize the queue with sections
             self.sections_queue = Queue()
-            for profile_id, profile in enumerate(self.wall_construction_config):
-                for section_id, height in enumerate(profile):
-                    self.sections_queue.put((profile_id + 1, section_id + 1, height))
+            for profile_id, profile in enumerate(self.wall_construction_config, 1):
+                for section_id, height in enumerate(profile, 1):
+                    self.sections_queue.put((profile_id, section_id, height))
             
             # Init a condition for crew threads synchronization
             self.active_crews = self.max_crews
