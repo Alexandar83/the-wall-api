@@ -130,10 +130,11 @@ class DailyIceUsageViewTest(ViewTest):
             valid_days = self.get_valid_days_for_profile(profile_id)
             for day in valid_days:
                 for num_crews in valid_num_crews:
-                    self.execute_test_case(
-                        status.HTTP_200_OK, test_case_source, profile_id, day, num_crews,
-                        consistency_test=consistency_test
-                    )
+                    with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
+                        self.execute_test_case(
+                            status.HTTP_200_OK, test_case_source, profile_id, day, num_crews,
+                            consistency_test=consistency_test
+                        )
 
     def test_daily_ice_usage_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -146,7 +147,8 @@ class DailyIceUsageViewTest(ViewTest):
         num_crews = self.get_valid_num_crews()[0]
 
         for invalid_profile_id in invalid_profile_ids:
-            self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, invalid_profile_id, day, num_crews)
+            with self.subTest(invalid_profile_id=invalid_profile_id):
+                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, invalid_profile_id, day, num_crews)
     
     def test_daily_ice_usage_invalid_day_sequential(self):
         """Test with days after the construction's completion day."""
@@ -156,7 +158,8 @@ class DailyIceUsageViewTest(ViewTest):
         num_crews = 0
 
         for invalid_day in invalid_days:
-            self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id, invalid_day, num_crews)
+            with self.subTest(invalid_day=invalid_day):
+                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id, invalid_day, num_crews)
     
     def test_daily_ice_usage_invalid_day_concurrent(self):
         """Test with days on which the profile was not worked on."""
@@ -166,7 +169,8 @@ class DailyIceUsageViewTest(ViewTest):
         invalid_days = self.get_invalid_days_for_profile_concurrent(profile_id, num_crews)
 
         for invalid_day in invalid_days:
-            self.execute_test_case(status.HTTP_404_NOT_FOUND, test_case_source, profile_id, invalid_day, num_crews)
+            with self.subTest(invalid_day=invalid_day):
+                self.execute_test_case(status.HTTP_404_NOT_FOUND, test_case_source, profile_id, invalid_day, num_crews)
     
     def test_daily_ice_usage_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -175,7 +179,8 @@ class DailyIceUsageViewTest(ViewTest):
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
-            self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id, day, invalid_num_crews)
+            with self.subTest(invalid_num_crews=invalid_num_crews):
+                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id, day, invalid_num_crews)
 
 
 class CostOverviewViewTest(ViewTest):
@@ -189,10 +194,11 @@ class CostOverviewViewTest(ViewTest):
         valid_num_crews = self.get_valid_num_crews()
 
         for num_crews in valid_num_crews:
-            self.execute_test_case(
-                status.HTTP_200_OK, test_case_source, num_crews=num_crews,
-                consistency_test=consistency_test
-            )
+            with self.subTest(num_crews=num_crews):
+                self.execute_test_case(
+                    status.HTTP_200_OK, test_case_source, num_crews=num_crews,
+                    consistency_test=consistency_test
+                )
 
     def test_cost_overview_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -203,7 +209,8 @@ class CostOverviewViewTest(ViewTest):
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
-            self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, num_crews=invalid_num_crews)
+            with self.subTest(invalid_num_crews=invalid_num_crews):
+                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, num_crews=invalid_num_crews)
 
 
 class CostOverviewProfileidViewTest(ViewTest):
@@ -219,10 +226,11 @@ class CostOverviewProfileidViewTest(ViewTest):
 
         for profile_id in valid_profile_ids:
             for num_crews in valid_num_crews:
-                self.execute_test_case(
-                    status.HTTP_200_OK, test_case_source, profile_id=profile_id, num_crews=num_crews,
-                    consistency_test=consistency_test
-                )
+                with self.subTest(profile_id=profile_id, num_crews=num_crews):
+                    self.execute_test_case(
+                        status.HTTP_200_OK, test_case_source, profile_id=profile_id, num_crews=num_crews,
+                        consistency_test=consistency_test
+                    )
 
     def test_cost_overview_profileid_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -235,7 +243,8 @@ class CostOverviewProfileidViewTest(ViewTest):
 
         for invalid_profile_id in invalid_profile_ids:
             for num_crews in valid_num_crews:
-                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=invalid_profile_id, num_crews=num_crews)
+                with self.subTest(invalid_profile_id=invalid_profile_id, num_crews=num_crews):
+                    self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=invalid_profile_id, num_crews=num_crews)
     
     def test_cost_overview_profileid_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -243,4 +252,5 @@ class CostOverviewProfileidViewTest(ViewTest):
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
-            self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=profile_id, num_crews=invalid_num_crews)
+            with self.subTest(invalid_num_crews=invalid_num_crews):
+                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=profile_id, num_crews=invalid_num_crews)
