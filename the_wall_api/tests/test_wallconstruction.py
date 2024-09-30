@@ -13,13 +13,16 @@ MAX_LENGTH = settings.MAX_LENGTH
 class WallConstructionCreationTest(BaseTestcase):
     description = 'Wall construction creation tests'
 
-    def run_wall_construction_test(self, config, num_crews, simulation_type, expected_message, test_case_source):
+    def run_wall_construction_test(
+            self, config: list, num_crews: int, simulation_type: str, expected_message: str, test_case_source: str
+    ) -> None:
         """Helper method to run wall construction tests and log results."""
         # Avoid printing of big volumes of data
         config_output = config if 'test_maximum_length_profile' not in test_case_source else '[[0] * MAX_LENGTH]'
+        sections_count = sum(len(profile) for profile in config)
 
         try:
-            wall_construction = WallConstruction(config, num_crews, simulation_type)
+            wall_construction = WallConstruction(config, sections_count, num_crews, simulation_type)
             profile_data = wall_construction.wall_profile_data
 
             if config:
@@ -52,7 +55,7 @@ class WallConstructionCreationTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
-            num_crews=None,
+            num_crews=0,
             simulation_type='sequential',
             expected_message='Empty profile list handled correctly',
             test_case_source=test_case_source
@@ -64,7 +67,7 @@ class WallConstructionCreationTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
-            num_crews=None,
+            num_crews=0,
             simulation_type='sequential',
             expected_message='Minimum section heights handled correctly',
             test_case_source=test_case_source
@@ -76,7 +79,7 @@ class WallConstructionCreationTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
-            num_crews=None,
+            num_crews=0,
             simulation_type='sequential',
             expected_message='Single section profile handled correctly',
             test_case_source=test_case_source
@@ -88,7 +91,7 @@ class WallConstructionCreationTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
-            num_crews=None,
+            num_crews=0,
             simulation_type='sequential',
             expected_message='Mixed profiles handled correctly',
             test_case_source=test_case_source
@@ -113,7 +116,7 @@ class WallConstructionCreationTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
-            num_crews=None,
+            num_crews=0,
             simulation_type='sequential',
             expected_message='Maximum length profile handled correctly',
             test_case_source=test_case_source
@@ -123,7 +126,7 @@ class WallConstructionCreationTest(BaseTestcase):
 class SequentialVsConcurrentTest(BaseTestcase):
     description = 'Sequential and Concurrent simulation results comparison'
 
-    def compare_sequential_and_concurrent_results(self, config, config_case):
+    def compare_sequential_and_concurrent_results(self, config: list, config_case: str) -> None:
         """Compare a sequential with multiple concurrent simulations."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         test_case_source += ' - ' + config_case
@@ -146,7 +149,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
         for num_crews in range(1, 10):
             self.run_comparison_tests(wall_sequential, concurrent_config, sections_count, num_crews, config_output, test_case_source)
 
-    def log_wall_construction_error(self, wall_cnstrctn_err, num_crews, config_output, test_case_source):
+    def log_wall_construction_error(
+            self, wall_cnstrctn_err: Exception, num_crews: int, config_output: list | str, test_case_source: str
+    ) -> None:
         self.log_test_result(
             passed=False,
             input_data={'config': config_output, 'num_crews': num_crews},
@@ -156,7 +161,10 @@ class SequentialVsConcurrentTest(BaseTestcase):
             error_occurred=True
         )
 
-    def run_comparison_tests(self, wall_sequential, concurrent_config, sections_count, num_crews, config_output, test_case_source):
+    def run_comparison_tests(
+            self, wall_sequential: WallConstruction, concurrent_config: list,
+            sections_count: int, num_crews: int, config_output: list | str, test_case_source: str
+    ) -> None:
         """Run sequential vs concurrent comparison for a given number of crews."""
         input_data = {'config': config_output, 'num_crews': num_crews}
         try:
@@ -174,7 +182,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
         except Exception as wall_cnstrctn_err:
             self.log_wall_construction_error(wall_cnstrctn_err, num_crews, config_output, test_case_source)
 
-    def compare_total_wall_costs(self, wall_sequential, wall_concurrent, input_data, test_case_source):
+    def compare_total_wall_costs(
+            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction, input_data: dict, test_case_source: str
+    ) -> None:
         """Compare the total costs of sequential and concurrent simulations."""
         sequential_cost = wall_sequential.sim_calc_details['total_cost']
         concurrent_cost = wall_concurrent.sim_calc_details['total_cost']
@@ -191,7 +201,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    def compare_profile_costs(self, wall_sequential, wall_concurrent, input_data, test_case_source):
+    def compare_profile_costs(
+            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction, input_data: dict, test_case_source: str
+    ) -> None:
         """Compare the profile costs of sequential and concurrent simulations."""
         for profile_id, sequential_profile_cost in wall_sequential.sim_calc_details['profile_costs'].items():
             concurrent_profile_cost = wall_concurrent.sim_calc_details['profile_costs'].get(profile_id, 0)
