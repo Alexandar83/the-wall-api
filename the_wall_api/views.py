@@ -264,7 +264,12 @@ class BaseWallProfileView(APIView):
         if cached_profile_ice_usage:
             return cached_profile_ice_usage, profile_ice_usage_redis_cache_key
         
-        self.check_if_cached_on_another_day_redis_cache(wall_data, profile_id)
+        # No check_if_cached_on_another_day_redis_cache method is implemented:
+        # Explanation:
+        # Don't mix DB with Redis cache fethes in this case, to avoid theoretical
+        # race conditions, where 1 process has already cached the wall
+        # and its construction days in the DB, but the Redis cache is still
+        # not committed
 
         return cached_profile_ice_usage, profile_ice_usage_redis_cache_key
 
@@ -284,33 +289,6 @@ class BaseWallProfileView(APIView):
         # profile_ice_usage_redis_cache_key = hash_calc(key_data)   # Potential future mem. usage optimisation
         
         return key_data
-
-    def check_if_cached_on_another_day_redis_cache(self, wall_data: Dict[str, Any], profile_id: int) -> None:
-        """
-        -In CONCURRENT mode there are days without profile daily ice usage,
-        because there was no crew assigned on the profile.
-        Check for other cached daily progress to avoid processing of
-        an already cached simulation.
-        -Don't raise WallProfileProgress.DoesNotExist if no work on another day
-        is found in the Redis cachebut proceed to the DB cache check.
-        """
-        wall_construction_days_key = self.get_wall_construction_days_redis_cache_key(wall_data)
-        cached_wall_construction_days = cache.get(wall_construction_days_key)
-        if cached_wall_construction_days:
-            self.check_wall_construction_days(cached_wall_construction_days, wall_data, profile_id)
-
-    def get_wall_construction_days_redis_cache_key(self, wall_data: Dict[str, Any]) -> str:
-        return f'wall_days_{wall_data["wall_config_hash"]}_{wall_data["num_crews"]}'
-
-    def check_wall_construction_days(self, wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
-        """
-        Handle erroneous construction days related responses.
-        """
-        if wall_data['request_day'] <= wall_construction_days:
-            response_details = f'No crew has worked on profile {profile_id} on day {wall_data["request_day"]}.'
-            wall_data['error_response'] = Response(response_details, status=status.HTTP_404_NOT_FOUND)
-        else:
-            wall_data['error_response'] = self.create_out_of_range_response('day', wall_construction_days, status.HTTP_400_BAD_REQUEST)
 
     def fetch_daily_ice_usage_from_db(
             self, wall_data: Dict[str, Any], wall_profile_config_hash: str | None,
@@ -336,9 +314,9 @@ class BaseWallProfileView(APIView):
             # Refresh the Redis cache
             self.set_redis_cache(wall_data, profile_ice_usage_redis_cache_key, wall_profile_progress.ice_used)
         except WallProfileProgress.DoesNotExist:
-            self.check_if_cached_on_another_day_db(wall_data, profile_id)
+            self.check_if_cached_on_another_day(wall_data, profile_id)
 
-    def check_if_cached_on_another_day_db(self, wall_data: Dict[str, Any], profile_id: int) -> None:
+    def check_if_cached_on_another_day(self, wall_data: Dict[str, Any], profile_id: int) -> None:
         """
         In CONCURRENT mode there are days without profile daily ice usage,
         because there was no crew assigned on the profile.
@@ -354,6 +332,16 @@ class BaseWallProfileView(APIView):
             self.check_wall_construction_days(wall_construction_days, wall_data, profile_id)
         except Wall.DoesNotExist:
             raise WallProfileProgress.DoesNotExist
+    
+    def check_wall_construction_days(self, wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
+        """
+        Handle erroneous construction days related responses.
+        """
+        if wall_data['request_day'] <= wall_construction_days:
+            response_details = f'No crew has worked on profile {profile_id} on day {wall_data["request_day"]}.'
+            wall_data['error_response'] = Response(response_details, status=status.HTTP_404_NOT_FOUND)
+        else:
+            wall_data['error_response'] = self.create_out_of_range_response('day', wall_construction_days, status.HTTP_400_BAD_REQUEST)
 
     def run_simulation_and_create_cache(self, wall_data: Dict[str, Any]) -> None:
         """
@@ -419,15 +407,15 @@ class BaseWallProfileView(APIView):
                 )
                 
                 # Cache it in Redis
-                self.cache_wall_redis(wall_data, total_cost, wall.construction_days)
+                self.cache_wall_redis(wall_data, total_cost)
                 
                 # Process the remaining wall elements
                 self.process_wall_profiles(wall_data, wall, wall_data['simulation_type'])
         except IntegrityError as wall_crtn_hash_col_err:
             if (
-                wall_data['num_crews'] == 0
-                and 'unique constraint' in str(wall_crtn_hash_col_err)
-                and 'wall_config_hash' in str(wall_crtn_hash_col_err)
+                wall_data['num_crews'] == 0 and
+                'unique constraint' in str(wall_crtn_hash_col_err) and
+                'wall_config_hash' in str(wall_crtn_hash_col_err)
             ):
                 # Hash collision - should be a very rare case
                 # TODO: log hash collision tech. error in DB
@@ -438,15 +426,12 @@ class BaseWallProfileView(APIView):
             wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_err_unkwn)
             return
 
-    def cache_wall_redis(self, wall_data: Dict[str, Any], total_cost: int, construction_days: int) -> None:
+    def cache_wall_redis(self, wall_data: Dict[str, Any], total_cost: int) -> None:
         """
         Cache the wall cost and construction days to Redis.
         """
         wall_redis_key = self.get_wall_redis_cache_key(wall_data)
         self.set_redis_cache(wall_data, wall_redis_key, total_cost)
-        
-        wall_construction_days_key = self.get_wall_construction_days_redis_cache_key(wall_data)
-        self.set_redis_cache(wall_data, wall_construction_days_key, construction_days)
 
     def process_wall_profiles(self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str = SEQUENTIAL) -> None:
         """
