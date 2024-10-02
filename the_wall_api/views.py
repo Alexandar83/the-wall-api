@@ -1,14 +1,18 @@
 import copy
-from typing import Any, Dict
+from typing import Any, Dict, List
+import xxhash
 
 from django.core.cache import cache
-from django.db import IntegrityError, transaction
+from django.db import connection, IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpRequest, JsonResponse
 from django_redis import get_redis_connection
 from django.views.defaults import page_not_found
 
 from drf_spectacular.utils import extend_schema
+
+from redis import Redis
+from redis.exceptions import ConnectionError, TimeoutError
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -164,12 +168,12 @@ class BaseWallProfileView(APIView):
         Fetch a cached Wall from the Redis cache.
         Both simulation types store the same cost.
         """
-        wall_redis_key = self.get_wall_redis_cache_key(wall_data)
+        wall_redis_key = self.get_wall_cache_key(wall_data)
         cached_wall_cost = cache.get(wall_redis_key)
         
         return cached_wall_cost, wall_redis_key
 
-    def get_wall_redis_cache_key(self, wall_data: Dict[str, Any]) -> str:
+    def get_wall_cache_key(self, wall_data: Dict[str, Any]) -> str:
         return f'wall_cost_{wall_data["wall_config_hash"]}'
 
     def fetch_wall_cost_from_db(self, wall_data: Dict[str, Any], cached_result: Dict[str, Any], wall_redis_key: str) -> None:
@@ -206,12 +210,12 @@ class BaseWallProfileView(APIView):
         Fetch a cached Wall Profile from the Redis cache.
         Both simulation types store the same cost - attempt to find a cached value for any of them.
         """
-        wall_profile_redis_cache_key = self.get_wall_profile_redis_cache_key(wall_profile_config_hash)
+        wall_profile_redis_cache_key = self.get_wall_profile_cache_key(wall_profile_config_hash)
         cached_wall_profile_cost = cache.get(wall_profile_redis_cache_key)
 
         return cached_wall_profile_cost, wall_profile_redis_cache_key
 
-    def get_wall_profile_redis_cache_key(self, wall_profile_config_hash: str) -> str:
+    def get_wall_profile_cache_key(self, wall_profile_config_hash: str) -> str:
         return f'wall_prfl_cost_{wall_profile_config_hash}'
 
     def fetch_wall_profile_cost_from_db(
@@ -257,7 +261,7 @@ class BaseWallProfileView(APIView):
         Fetch a cached Wall Profile Progress from the Redis cache.
         Variability depending on the number of crews.
         """
-        profile_ice_usage_redis_cache_key = self.get_daily_ice_usage_redis_cache_key(
+        profile_ice_usage_redis_cache_key = self.get_daily_ice_usage_cache_key(
             wall_data, wall_profile_config_hash, wall_data['request_day'], profile_id
         )
         cached_profile_ice_usage = cache.get(profile_ice_usage_redis_cache_key)
@@ -273,7 +277,7 @@ class BaseWallProfileView(APIView):
 
         return cached_profile_ice_usage, profile_ice_usage_redis_cache_key
 
-    def get_daily_ice_usage_redis_cache_key(
+    def get_daily_ice_usage_cache_key(
             self, wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int
     ) -> str:
         key_data = (
@@ -395,8 +399,19 @@ class BaseWallProfileView(APIView):
         Creates a new Wall object.
         Start a cascade cache creation of all wall elements.
         """
+        wall_cache_key = self.get_wall_cache_key(wall_data)
+        wall_db_lock_key = self.generate_db_lock_key(wall_cache_key)
+        db_lock_acquired = None
         total_cost = wall_data['sim_calc_details']['total_cost']
+        wall_redis_data = []
+        
         try:
+            db_lock_acquired = self.acquire_db_lock(wall_db_lock_key)
+            if not db_lock_acquired:
+                # Skip cache creation if lock is not acquired -
+                # another process is creating the cache
+                return
+            
             with transaction.atomic():
                 # Create the wall object in the DB
                 wall = Wall.objects.create(
@@ -405,35 +420,59 @@ class BaseWallProfileView(APIView):
                     total_cost=total_cost,
                     construction_days=wall_data['sim_calc_details']['construction_days'],
                 )
-                
-                # Cache it in Redis
-                self.cache_wall_redis(wall_data, total_cost)
-                
-                # Process the remaining wall elements
-                self.process_wall_profiles(wall_data, wall, wall_data['simulation_type'])
-        except IntegrityError as wall_crtn_hash_col_err:
-            if (
-                wall_data['num_crews'] == 0 and
-                'unique constraint' in str(wall_crtn_hash_col_err) and
-                'wall_config_hash' in str(wall_crtn_hash_col_err)
-            ):
-                # Hash collision - should be a very rare case
-                # TODO: log hash collision tech. error in DB
-                wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_hash_col_err)
-        except Exception as wall_crtn_err_unkwn:
-            # Other tech. error
-            # TODO: log tech. error in DB
-            wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_err_unkwn)
-            return
 
-    def cache_wall_redis(self, wall_data: Dict[str, Any], total_cost: int) -> None:
-        """
-        Cache the wall cost and construction days to Redis.
-        """
-        wall_redis_key = self.get_wall_redis_cache_key(wall_data)
-        self.set_redis_cache(wall_data, wall_redis_key, total_cost)
+                # Deferred Redis cache
+                wall_redis_data.append((wall_cache_key, total_cost))
+                self.process_wall_profiles(wall_data, wall, wall_data['simulation_type'], wall_redis_data)
 
-    def process_wall_profiles(self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str = SEQUENTIAL) -> None:
+                # Commit deferred Redis cache after a successful DB transaction
+                transaction.on_commit(lambda: self.commit_deferred_redis_cache(wall_data, wall_redis_data))
+        
+        except IntegrityError as wall_crtn_intgrty_err:
+            self.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
+        except Exception as wall_crtn_unkwn_err:
+            self.handle_wall_crtn_unknown_error(wall_data, wall_crtn_unkwn_err)
+        finally:
+            if db_lock_acquired:
+                self.release_db_lock(wall_db_lock_key)
+
+    def generate_db_lock_key(self, cache_lock_key: str) -> List[int]:
+        """Generate two unique integers from a string key for PostgreSQL advisory locks."""
+        xxhash_64bit = xxhash.xxh64(cache_lock_key).intdigest()
+        lock_id1 = xxhash_64bit & 0xFFFFFFFF  # Lower 32 bits
+        lock_id2 = (xxhash_64bit >> 32) & 0xFFFFFFFF  # Upper 32 bits
+        return [lock_id1, lock_id2]
+
+    def acquire_db_lock(self, wall_db_lock_key: List[int]) -> bool:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pg_try_advisory_lock(%s, %s);', wall_db_lock_key)
+            db_lock_acquired = cursor.fetchone()
+            return bool(db_lock_acquired and db_lock_acquired[0])
+
+    def release_db_lock(self, wall_db_lock_key: List[int]) -> None:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pg_advisory_unlock(%s, %s);', wall_db_lock_key)
+
+    def handle_wall_crtn_integrity_error(self, wall_data: Dict[str, Any], wall_crtn_intgrty_err: IntegrityError) -> None:
+        """Handle known integrity errors, such as hash collisions."""
+        if (
+            wall_data['num_crews'] == 0 and
+            'unique constraint' in str(wall_crtn_intgrty_err) and
+            'wall_config_hash' in str(wall_crtn_intgrty_err)
+        ):
+            # Hash collision - should be a very rare case
+            wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_intgrty_err)
+        else:
+            self.log_error_to_db(wall_crtn_intgrty_err)
+
+    def handle_wall_crtn_unknown_error(self, wall_data: Dict[str, Any], wall_crtn_unkwn_err: Exception) -> None:
+        self.log_error_to_db(wall_crtn_unkwn_err)
+        wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_unkwn_err)
+
+    def process_wall_profiles(
+            self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str,
+            wall_redis_data: list[tuple[str, int]]
+    ) -> None:
         """
         Manage the different behaviors for wall profiles caching in SEQUENTIAL and CONCURRENT modes.
         """
@@ -451,11 +490,14 @@ class BaseWallProfileView(APIView):
                 cached_wall_profile_hashes.append(wall_profile_config_hash)
 
             # Proceed to create the wall profile
-            self.cache_wall_profile(wall, wall_data, profile_id, profile_data, wall_profile_config_hash, simulation_type)
+            self.cache_wall_profile(
+                wall, wall_data, profile_id, profile_data,
+                wall_profile_config_hash, simulation_type, wall_redis_data
+            )
 
     def cache_wall_profile(
             self, wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any,
-            wall_profile_config_hash: str, simulation_type: str = SEQUENTIAL
+            wall_profile_config_hash: str, simulation_type: str, wall_redis_data: list[tuple[str, int]]
     ) -> None:
         """
         Create a new WallProfile object and save it to the database.
@@ -475,22 +517,22 @@ class BaseWallProfileView(APIView):
         # Create the wall profile object
         wall_profile = WallProfile.objects.create(**wall_profile_creation_kwargs)
 
-        # Cache it in Redis
-        self.cache_wall_profile_redis(wall_data, wall_profile_config_hash, wall_profile_cost)
+        # Deferred Redis cache
+        wall_redis_data.append(
+            (
+                self.get_wall_profile_cache_key(wall_profile_config_hash),
+                wall_profile_cost
+            )
+        )
 
         # Proceed to create the wall profile progress
-        self.cache_wall_profile_progress(wall_data, wall_profile, wall_profile_config_hash, profile_id, profile_data)
-
-    def cache_wall_profile_redis(self, wall_data: Dict[str, Any], wall_profile_config_hash: str, wall_profile_cost: int) -> None:
-        """
-        Cache the wall profile config hash to Redis.
-        """
-        wall_profile_redis_cache_key = self.get_wall_profile_redis_cache_key(wall_profile_config_hash)
-        self.set_redis_cache(wall_data, wall_profile_redis_cache_key, wall_profile_cost)
+        self.cache_wall_profile_progress(
+            wall_data, wall_profile, wall_profile_config_hash, profile_id, profile_data, wall_redis_data
+        )
 
     def cache_wall_profile_progress(
-            self, wall_data: Dict[str, Any], wall_profile: WallProfile,
-            wall_profile_config_hash: str, profile_id: int, profile_data: dict
+            self, wall_data: Dict[str, Any], wall_profile: WallProfile, wall_profile_config_hash: str, profile_id: int,
+            profile_data: dict, wall_redis_data: list[tuple[str, int]]
     ) -> None:
         """
         Create a new WallProfileProgress object and save it to the database.
@@ -502,36 +544,48 @@ class BaseWallProfileView(APIView):
                 day=day_index,
                 ice_used=data['ice_used']
             )
+            
+            # Deferred Redis cache
+            wall_redis_data.append(
+                (
+                    self.get_daily_ice_usage_cache_key(wall_data, wall_profile_config_hash, day_index, profile_id),
+                    data['ice_used']
+                )
+            )
 
-            # Cache it in Redis
-            self.cache_wall_profile_progress_redis(wall_data, wall_profile_config_hash, profile_id, day_index, data['ice_used'])
-
-    def cache_wall_profile_progress_redis(
-            self, wall_data: Dict[str, Any], wall_profile_config_hash: str, profile_id: int, day: int, ice_used: int
-    ) -> None:
-        profile_ice_usage_redis_cache_key = self.get_daily_ice_usage_redis_cache_key(wall_data, wall_profile_config_hash, day, profile_id)
-        self.set_redis_cache(wall_data, profile_ice_usage_redis_cache_key, ice_used)
+    def commit_deferred_redis_cache(self, wall_data: Dict[str, Any], wall_redis_data: list[tuple[str, Any]]) -> None:
+        for redis_cache_key, redis_cache_value in wall_redis_data:
+            self.set_redis_cache(wall_data, redis_cache_key, redis_cache_value)
 
     def set_redis_cache(self, wall_data: Dict[str, Any], redis_cache_key: str, redis_cache_value: Any) -> None:
         """
         Thread-Safe and Distributed Locking, ensuring safety across processes and servers.
         """
         # Establish a Redis connection only once per view
-        redis_connection = wall_data.get('redis_connection')
-        if not redis_connection:
-            redis_connection = get_redis_connection('default')
-            wall_data['redis_connection'] = redis_connection
+        redis_connection = self.fetch_redis_connection(wall_data)
         
         lock_key = f'lock_{redis_cache_key}'
 
-        with redis_connection.lock(lock_key, blocking=False) as lock:
+        try:
+            lock = redis_connection.lock(lock_key, blocking=False)
             # If no lock - skip
             # The cache is being created in another process
-            if not lock.locked():
+            if not lock.acquire(blocking=False):
                 return
 
             # Create the cache if the lock is acquired
             cache.set(redis_cache_key, redis_cache_value)
+        except (ConnectionError, TimeoutError):
+            # The Redis server is down
+            # TODO: Add logging?
+            pass
+    
+    def fetch_redis_connection(self, wall_data: Dict[str, Any]) -> Redis:
+        if not wall_data.get('redis_connection'):
+            redis_connection = get_redis_connection('default')
+            wall_data['redis_connection'] = redis_connection
+        
+        return wall_data['redis_connection']
         
     def create_out_of_range_response(self, out_of_range_type: str, max_value: int | Any, status_code: int) -> Response:
         if out_of_range_type == 'day':
@@ -544,15 +598,17 @@ class BaseWallProfileView(APIView):
     def create_technical_error_response(self, request_data, tech_error: Exception | None = None) -> Response:
         error_details = None
         if tech_error:
-            tech_error_msg = str(tech_error.args[0])
-            error_details = {'error_msg': tech_error_msg}
+            error_details = {'tech_info': f'{tech_error.__class__.__name__}: {str(tech_error)}'}
             if request_data:
                 error_details['request_data'] = request_data
         error_msg = 'Wall Construction simulation failed. Please contact support.'
         error_response: Dict[str, Any] = {'error': error_msg}
         if error_details:
             error_response['error_details'] = error_details
-        return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def log_error_to_db(self, error: Exception) -> None:
+        pass
 
 
 class DailyIceUsageView(BaseWallProfileView):
