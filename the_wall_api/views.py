@@ -6,12 +6,10 @@ from django.core.cache import cache
 from django.db import connection, IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpRequest, JsonResponse
-from django_redis import get_redis_connection
 from django.views.defaults import page_not_found
 
 from drf_spectacular.utils import extend_schema
 
-from redis import Redis
 from redis.exceptions import ConnectionError, TimeoutError
 
 from rest_framework import status
@@ -558,34 +556,12 @@ class BaseWallProfileView(APIView):
             self.set_redis_cache(wall_data, redis_cache_key, redis_cache_value)
 
     def set_redis_cache(self, wall_data: Dict[str, Any], redis_cache_key: str, redis_cache_value: Any) -> None:
-        """
-        Thread-Safe and Distributed Locking, ensuring safety across processes and servers.
-        """
-        # Establish a Redis connection only once per view
-        redis_connection = self.fetch_redis_connection(wall_data)
-        
-        lock_key = f'lock_{redis_cache_key}'
-
         try:
-            lock = redis_connection.lock(lock_key, blocking=False)
-            # If no lock - skip
-            # The cache is being created in another process
-            if not lock.acquire(blocking=False):
-                return
-
-            # Create the cache if the lock is acquired
             cache.set(redis_cache_key, redis_cache_value)
         except (ConnectionError, TimeoutError):
             # The Redis server is down
             # TODO: Add logging?
             pass
-    
-    def fetch_redis_connection(self, wall_data: Dict[str, Any]) -> Redis:
-        if not wall_data.get('redis_connection'):
-            redis_connection = get_redis_connection('default')
-            wall_data['redis_connection'] = redis_connection
-        
-        return wall_data['redis_connection']
         
     def create_out_of_range_response(self, out_of_range_type: str, max_value: int | Any, status_code: int) -> Response:
         if out_of_range_type == 'day':
