@@ -7,8 +7,12 @@ from django.db import connection
 from django_redis import get_redis_connection
 
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils.wall_config_utils import generate_config_hash_details, hash_calc, load_wall_profiles_from_config, CONCURRENT
-from the_wall_api.views import BaseWallProfileView
+from the_wall_api.utils.wall_config_utils import (
+    generate_config_hash_details, hash_calc, load_wall_profiles_from_config, CONCURRENT
+)
+from the_wall_api.utils.storage_utils import (
+    acquire_db_lock, generate_db_lock_key, get_wall_cache_key, release_db_lock
+)
 
 
 class LockTestBase(BaseTestcase):
@@ -26,7 +30,6 @@ class LockTestBase(BaseTestcase):
             'simulation_type': CONCURRENT,
         }
         self.sleep_time = 3
-        self.view = BaseWallProfileView()
 
     def put_lock_acquired_in_result_queue(self, result_queue: Queue | None, lock_acquired: bool) -> None:
         if result_queue is not None:
@@ -52,7 +55,7 @@ class AdvisoryLockTest(LockTestBase):
     def try_to_acquire_advisory_lock(self, wall_db_lock_key: list[int], result_queue: Queue | None = None) -> bool:
         db_lock_acquired = None
         try:
-            db_lock_acquired = self.view.acquire_db_lock(wall_db_lock_key)
+            db_lock_acquired = acquire_db_lock(wall_db_lock_key)
             if not db_lock_acquired:
                 self.put_lock_acquired_in_result_queue(result_queue, bool(db_lock_acquired))
                 return db_lock_acquired
@@ -61,7 +64,7 @@ class AdvisoryLockTest(LockTestBase):
         
         finally:
             if db_lock_acquired:
-                self.view.release_db_lock(wall_db_lock_key)
+                release_db_lock(wall_db_lock_key)
             # Ensure the connection is closed in the thread,
             # to avoid lingering connections during test DB teardown
             connection.close()
@@ -72,7 +75,7 @@ class AdvisoryLockTest(LockTestBase):
     def test_db_advisory_lock(self):
         """Test concurrent acquisition of PostgreSQL advisory lock."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        wall_db_lock_key = self.view.generate_db_lock_key(self.view.get_wall_cache_key(self.wall_data))
+        wall_db_lock_key = generate_db_lock_key(get_wall_cache_key(self.wall_data))
 
         thread_1_lock_acquired, main_thread_lock_acquired = self.run_lock_test(self.try_to_acquire_advisory_lock, wall_db_lock_key)
 
@@ -110,7 +113,7 @@ class RedisLockTest(LockTestBase):
     def test_redis_cache_lock(self):
         """Test concurrent acquisition of Redis cache lock."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        cache_lock_key = self.view.get_wall_cache_key(self.wall_data)
+        cache_lock_key = get_wall_cache_key(self.wall_data)
 
         thread_1_lock_acquired, main_thread_lock_acquired = self.run_lock_test(self.try_to_acquire_redis_lock, cache_lock_key)
 
