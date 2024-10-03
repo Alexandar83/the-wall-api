@@ -3,12 +3,12 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from the_wall_api.utils import exposed_endpoints
+from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.views import custom_404_view
 
 handler404 = custom_404_view
 
-# For control of existing and adding of new endpoints -> the_wall_api.utils.exposed_endpoints
+# For control of existing and adding of new endpoints -> the_wall_api.utils.api_utils.exposed_endpoints
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('the_wall_api.urls')),

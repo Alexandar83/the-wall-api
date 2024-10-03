@@ -49,7 +49,7 @@ class WallConstructionCreationTest(BaseTestcase):
                 actual_message=str(err), test_case_source=test_case_source, error_occurred=True
             )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_empty_profiles(self, mock_load_config):
         mock_load_config.return_value = []
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -61,7 +61,7 @@ class WallConstructionCreationTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_minimum_section_heights(self, mock_load_config):
         mock_load_config.return_value = [[0, 0, 0]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -73,7 +73,7 @@ class WallConstructionCreationTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_single_section_profile(self, mock_load_config):
         mock_load_config.return_value = [[15]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -85,7 +85,7 @@ class WallConstructionCreationTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_mixed_profiles(self, mock_load_config):
         mock_load_config.return_value = [[0, 15, MAX_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -97,7 +97,7 @@ class WallConstructionCreationTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_concurrent_simulation(self, mock_load_config):
         mock_load_config.return_value = [[0, 15, MAX_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -109,7 +109,7 @@ class WallConstructionCreationTest(BaseTestcase):
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.load_wall_profiles_from_config')
+    @patch('the_wall_api.utils.config_utils.load_wall_profiles_from_config')
     def test_maximum_length_profile(self, mock_load_config):
         max_length_profile = [[0] * MAX_LENGTH]
         mock_load_config.return_value = max_length_profile

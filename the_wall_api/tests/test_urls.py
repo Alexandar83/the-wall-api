@@ -4,7 +4,7 @@ from rest_framework import status
 from inspect import currentframe
 
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils import exposed_endpoints
+from the_wall_api.utils.api_utils import exposed_endpoints
 
 
 class URLTests(BaseTestcase):

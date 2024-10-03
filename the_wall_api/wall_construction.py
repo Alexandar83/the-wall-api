@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 from django.conf import settings
 
-from the_wall_api.utils import CONCURRENT, SEQUENTIAL
+from the_wall_api.utils.config_utils import CONCURRENT, SEQUENTIAL
 
 MAX_HEIGHT = settings.MAX_HEIGHT                                        # Maximum height of a wall section
 ICE_PER_FOOT = settings.ICE_PER_FOOT                                    # Cubic yards of ice used per 1 foot height increase

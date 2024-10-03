@@ -18,13 +18,15 @@ from rest_framework.views import APIView
 
 from the_wall_api.models import WallProfileProgress, WallProfile, Wall
 from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
-from the_wall_api.utils import (
-    CONCURRENT, SEQUENTIAL, WallConstructionError,
+from the_wall_api.utils.api_utils import (
     cost_overview_examples, cost_overview_parameters,
     cost_overview_profile_id_examples, cost_overview_responses,
     daily_ice_usage_examples, daily_ice_usage_parameters, daily_ice_usage_responses,
-    exposed_endpoints, generate_config_hash_details,
-    load_wall_profiles_from_config, num_crews_parameter
+    exposed_endpoints, num_crews_parameter
+)
+from the_wall_api.utils.config_utils import (
+    CONCURRENT, SEQUENTIAL, WallConstructionError,
+    generate_config_hash_details, load_wall_profiles_from_config
 )
 from the_wall_api.wall_construction import WallConstruction
 

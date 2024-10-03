@@ -7,7 +7,7 @@ from django.db import connection
 from django_redis import get_redis_connection
 
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils import generate_config_hash_details, hash_calc, load_wall_profiles_from_config, CONCURRENT
+from the_wall_api.utils.config_utils import generate_config_hash_details, hash_calc, load_wall_profiles_from_config, CONCURRENT
 from the_wall_api.views import BaseWallProfileView
 
 
