@@ -28,6 +28,7 @@ from the_wall_api.utils.config_utils import (
     CONCURRENT, SEQUENTIAL, WallConstructionError,
     generate_config_hash_details, load_wall_profiles_from_config
 )
+from the_wall_api.utils import error_utils
 from the_wall_api.wall_construction import WallConstruction
 
 
@@ -64,13 +65,15 @@ class BaseWallProfileView(APIView):
         try:
             return load_wall_profiles_from_config()
         except (WallConstructionError, FileNotFoundError) as tech_error:
-            wall_data['error_response'] = self.create_technical_error_response({}, tech_error)
+            error_utils.handle_unknown_error(wall_data, tech_error)
             return []
 
     def is_invalid_profile_number(self, profile_id: int | None, wall_construction_config: list, wall_data: Dict[str, Any]) -> bool:
         max_profile_number = len(wall_construction_config)
         if profile_id is not None and profile_id > max_profile_number:
-            wall_data['error_response'] = self.create_out_of_range_response('profile number', max_profile_number, status.HTTP_400_BAD_REQUEST)
+            wall_data['error_response'] = error_utils.create_out_of_range_response(
+                'profile number', max_profile_number, status.HTTP_400_BAD_REQUEST
+            )
             return True
         return False
 
@@ -134,7 +137,9 @@ class BaseWallProfileView(APIView):
         """
         construction_days = wall_data['sim_calc_details']['construction_days']
         if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
-            wall_data['error_response'] = self.create_out_of_range_response('day', construction_days, status.HTTP_400_BAD_REQUEST)
+            wall_data['error_response'] = error_utils.create_out_of_range_response(
+                'day', construction_days, status.HTTP_400_BAD_REQUEST
+            )
 
     def collect_cached_data(self, wall_data: Dict[str, Any], request_type: str) -> None:
         """
@@ -318,34 +323,7 @@ class BaseWallProfileView(APIView):
             # Refresh the Redis cache
             self.set_redis_cache(wall_data, profile_ice_usage_redis_cache_key, wall_profile_progress.ice_used)
         except WallProfileProgress.DoesNotExist:
-            self.check_if_cached_on_another_day(wall_data, profile_id)
-
-    def check_if_cached_on_another_day(self, wall_data: Dict[str, Any], profile_id: int) -> None:
-        """
-        In CONCURRENT mode there are days without profile daily ice usage,
-        because there was no crew assigned on the profile.
-        Check for other cached daily progress to avoid processing of
-        an already cached simulation.
-        """
-        try:
-            wall = Wall.objects.get(
-                wall_config_hash=wall_data['wall_config_hash'],
-                num_crews=wall_data['num_crews'],
-            )
-            wall_construction_days = wall.construction_days
-            self.check_wall_construction_days(wall_construction_days, wall_data, profile_id)
-        except Wall.DoesNotExist:
-            raise WallProfileProgress.DoesNotExist
-    
-    def check_wall_construction_days(self, wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
-        """
-        Handle erroneous construction days related responses.
-        """
-        if wall_data['request_day'] <= wall_construction_days:
-            response_details = f'No crew has worked on profile {profile_id} on day {wall_data["request_day"]}.'
-            wall_data['error_response'] = Response(response_details, status=status.HTTP_404_NOT_FOUND)
-        else:
-            wall_data['error_response'] = self.create_out_of_range_response('day', wall_construction_days, status.HTTP_400_BAD_REQUEST)
+            error_utils.check_if_cached_on_another_day(wall_data, profile_id)
 
     def run_simulation_and_create_cache(self, wall_data: Dict[str, Any]) -> None:
         """
@@ -359,7 +337,7 @@ class BaseWallProfileView(APIView):
                 simulation_type=wall_data['simulation_type']
             )
         except WallConstructionError as tech_error:
-            wall_data['error_response'] = self.create_technical_error_response({}, tech_error)
+            error_utils.handle_unknown_error(wall_data, tech_error)
             return
         wall_data['wall_construction'] = wall_construction
         wall_data['sim_calc_details'] = wall_construction.sim_calc_details
@@ -429,9 +407,9 @@ class BaseWallProfileView(APIView):
                 transaction.on_commit(lambda: self.commit_deferred_redis_cache(wall_data, wall_redis_data))
         
         except IntegrityError as wall_crtn_intgrty_err:
-            self.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
+            error_utils.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
         except Exception as wall_crtn_unkwn_err:
-            self.handle_wall_crtn_unknown_error(wall_data, wall_crtn_unkwn_err)
+            error_utils.handle_unknown_error(wall_data, wall_crtn_unkwn_err)
         finally:
             if db_lock_acquired:
                 self.release_db_lock(wall_db_lock_key)
@@ -452,22 +430,6 @@ class BaseWallProfileView(APIView):
     def release_db_lock(self, wall_db_lock_key: List[int]) -> None:
         with connection.cursor() as cursor:
             cursor.execute('SELECT pg_advisory_unlock(%s, %s);', wall_db_lock_key)
-
-    def handle_wall_crtn_integrity_error(self, wall_data: Dict[str, Any], wall_crtn_intgrty_err: IntegrityError) -> None:
-        """Handle known integrity errors, such as hash collisions."""
-        if (
-            wall_data['num_crews'] == 0 and
-            'unique constraint' in str(wall_crtn_intgrty_err) and
-            'wall_config_hash' in str(wall_crtn_intgrty_err)
-        ):
-            # Hash collision - should be a very rare case
-            wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_intgrty_err)
-        else:
-            self.log_error_to_db(wall_crtn_intgrty_err)
-
-    def handle_wall_crtn_unknown_error(self, wall_data: Dict[str, Any], wall_crtn_unkwn_err: Exception) -> None:
-        self.log_error_to_db(wall_crtn_unkwn_err)
-        wall_data['error_response'] = self.create_technical_error_response({}, wall_crtn_unkwn_err)
 
     def process_wall_profiles(
             self, wall_data: Dict[str, Any], wall: Wall, simulation_type: str,
@@ -564,29 +526,6 @@ class BaseWallProfileView(APIView):
             # The Redis server is down
             # TODO: Add logging?
             pass
-        
-    def create_out_of_range_response(self, out_of_range_type: str, max_value: int | Any, status_code: int) -> Response:
-        if out_of_range_type == 'day':
-            finishing_msg = f'The wall has been finished for {max_value} days.'
-        else:
-            finishing_msg = f'The wall has {max_value} profiles.'
-        response_details = {'error': f'The {out_of_range_type} is out of range. {finishing_msg}'}
-        return Response(response_details, status=status_code)
-
-    def create_technical_error_response(self, request_data, tech_error: Exception | None = None) -> Response:
-        error_details = None
-        if tech_error:
-            error_details = {'tech_info': f'{tech_error.__class__.__name__}: {str(tech_error)}'}
-            if request_data:
-                error_details['request_data'] = request_data
-        error_msg = 'Wall Construction simulation failed. Please contact support.'
-        error_response: Dict[str, Any] = {'error': error_msg}
-        if error_details:
-            error_response['error_details'] = error_details
-        return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def log_error_to_db(self, error: Exception) -> None:
-        pass
 
 
 class DailyIceUsageView(BaseWallProfileView):

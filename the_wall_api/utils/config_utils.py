@@ -6,14 +6,12 @@ from typing import Dict, Any
 
 from django.conf import settings
 
+from the_wall_api.utils.error_utils import WallConstructionError
+
 SEQUENTIAL = 'sequential'
 CONCURRENT = 'concurrent'
 MAX_LENGTH = settings.MAX_LENGTH
 MAX_HEIGHT = settings.MAX_HEIGHT
-
-
-class WallConstructionError(ValueError):
-    pass
 
 
 def load_wall_profiles_from_config() -> list:
