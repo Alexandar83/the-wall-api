@@ -7,11 +7,13 @@ import re
 import uuid
 from queue import Empty, Queue
 from threading import Condition, current_thread, Lock, Thread
-from typing import Dict, Any
+from typing import Any, Dict
+
 
 from django.conf import settings
 
-from the_wall_api.utils.config_utils import CONCURRENT, SEQUENTIAL
+from the_wall_api.utils.wall_config_utils import CONCURRENT, SEQUENTIAL
+from the_wall_api.utils import wall_config_utils, error_utils
 
 MAX_HEIGHT = settings.MAX_HEIGHT                                        # Maximum height of a wall section
 ICE_PER_FOOT = settings.ICE_PER_FOOT                                    # Cubic yards of ice used per 1 foot height increase
@@ -285,3 +287,104 @@ class WallConstruction:
             overview['profile_daily_details'][profile_id] = profile_daily_details
 
         return overview
+
+
+def initialize_wall_data(profile_id: int | None = None, day: int | None = None) -> Dict[str, Any]:
+    """
+    Initialize the wall_data dictionary to hold various control data
+    throughout the wall construction simulation process.
+    """
+    return {
+        'request_profile_id': profile_id,
+        'request_day': day,
+        'error_response': None,
+        'concurrent_not_needed': None,
+        'wall_construction': None,
+    }
+
+
+def set_simulation_params(
+        wall_data: Dict[str, Any], num_crews: int, wall_construction_config: list, request_type: str
+) -> None:
+    """
+    Set the simulation parameters for the wall_data dictionary.
+    """
+    sections_count = sum(len(profile) for profile in wall_construction_config)
+    wall_data['sections_count'] = sections_count
+
+    simulation_type, wall_config_hash_details, num_crews_final = evaluate_simulation_params(
+        num_crews, sections_count, wall_construction_config, wall_data
+    )
+    wall_data['num_crews'] = num_crews_final
+    wall_data['wall_construction_config'] = copy.deepcopy(wall_construction_config)
+    wall_data['simulation_type'] = simulation_type
+    wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
+    wall_data['profile_config_hash_data'] = wall_config_hash_details['profile_config_hash_data']
+    wall_data['request_type'] = request_type
+
+
+def evaluate_simulation_params(
+        num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
+) -> tuple[str, dict, int]:
+    # num_crews
+    if num_crews == 0:
+        # No num_crews provided - sequential mode
+        simulation_type = wall_config_utils.SEQUENTIAL
+        num_crews_final = 0
+    elif num_crews >= sections_count:
+        # There's a crew for each section at the beginning
+        # which is the same as the sequential mode
+        simulation_type = wall_config_utils.SEQUENTIAL
+        num_crews_final = 0
+        # For eventual future response message
+        wall_data['concurrent_not_needed'] = True
+    else:
+        # The crews are less than the number of sections
+        simulation_type = wall_config_utils.CONCURRENT
+        num_crews_final = num_crews
+
+    # configuration hashes
+    wall_config_hash_details = wall_config_utils.generate_config_hash_details(wall_construction_config)
+
+    return simulation_type, wall_config_hash_details, num_crews_final
+
+
+def run_simulation(wall_data: Dict[str, Any]) -> None:
+    """
+    Run the simulation, create and save the wall and its elements.
+    """
+    try:
+        wall_construction = WallConstruction(
+            wall_construction_config=wall_data['wall_construction_config'],
+            sections_count=wall_data['sections_count'],
+            num_crews=wall_data['num_crews'],
+            simulation_type=wall_data['simulation_type']
+        )
+    except error_utils.WallConstructionError as tech_error:
+        error_utils.handle_unknown_error(wall_data, tech_error)
+        return
+    wall_data['wall_construction'] = wall_construction
+    wall_data['sim_calc_details'] = wall_construction.sim_calc_details
+    store_simulation_result(wall_data)
+
+
+def store_simulation_result(wall_data):
+    """
+    Store the simulation results to be used in the responses.
+    """
+    simulation_result = wall_data['simulation_result'] = {}
+
+    # Used in the costowverview response
+    simulation_result['wall_total_cost'] = wall_data['sim_calc_details']['total_cost']
+
+    # Used in the costoverview/profile_id response
+    request_profile_id = wall_data['request_profile_id']
+    if request_profile_id:
+        simulation_result['wall_profile_cost'] = wall_data['sim_calc_details']['profile_costs'][request_profile_id]
+
+    # Used in the daily-ice-usage response
+    request_day = wall_data['request_day']
+    if request_day:
+        profile_daily_progress_data = wall_data['sim_calc_details']['profile_daily_details'][request_profile_id]
+        profile_day_data = profile_daily_progress_data.get(wall_data['request_day'], {})
+        simulation_result['profile_daily_ice_used'] = profile_day_data.get('ice_used', 0)

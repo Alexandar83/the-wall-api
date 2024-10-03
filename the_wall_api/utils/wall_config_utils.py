@@ -5,13 +5,34 @@ import json
 from typing import Dict, Any
 
 from django.conf import settings
+from rest_framework import status
 
-from the_wall_api.utils.error_utils import WallConstructionError
+from the_wall_api.utils.error_utils import (
+    create_out_of_range_response, handle_unknown_error, WallConstructionError
+)
 
 SEQUENTIAL = 'sequential'
 CONCURRENT = 'concurrent'
 MAX_LENGTH = settings.MAX_LENGTH
 MAX_HEIGHT = settings.MAX_HEIGHT
+
+
+def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | None) -> list:
+    try:
+        wall_construction_config = load_wall_profiles_from_config()
+    except (WallConstructionError, FileNotFoundError) as tech_error:
+        handle_unknown_error(wall_data, tech_error)
+        return []
+    
+    # Validate the profile number if provided
+    max_profile_number = len(wall_construction_config)
+    if profile_id is not None and profile_id > max_profile_number:
+        wall_data['error_response'] = create_out_of_range_response(
+            'profile number', max_profile_number, status.HTTP_400_BAD_REQUEST
+        )
+        return []
+
+    return wall_construction_config
 
 
 def load_wall_profiles_from_config() -> list:

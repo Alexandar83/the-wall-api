@@ -8,7 +8,7 @@ from rest_framework import status
 
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
-from the_wall_api.utils.config_utils import load_wall_profiles_from_config, CONCURRENT
+from the_wall_api.utils.wall_config_utils import load_wall_profiles_from_config, CONCURRENT
 from the_wall_api.wall_construction import WallConstruction
 
 

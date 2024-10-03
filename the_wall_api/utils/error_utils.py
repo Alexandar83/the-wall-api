@@ -84,3 +84,14 @@ def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[st
         wall_data['error_response'] = create_out_of_range_response(
             'day', wall_construction_days, status.HTTP_400_BAD_REQUEST
         )
+
+
+def validate_day_within_range(wall_data: Dict[str, Any]) -> None:
+    """
+    Compare the day from the request (if provided and the max day in the simulation).
+    """
+    construction_days = wall_data['sim_calc_details']['construction_days']
+    if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
+        wall_data['error_response'] = create_out_of_range_response(
+            'day', construction_days, status.HTTP_400_BAD_REQUEST
+        )
