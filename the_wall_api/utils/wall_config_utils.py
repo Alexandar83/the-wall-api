@@ -8,7 +8,7 @@ from django.conf import settings
 from rest_framework import status
 
 from the_wall_api.utils.error_utils import (
-    create_out_of_range_response, handle_unknown_error, WallConstructionError
+    create_out_of_range_response, handle_unknown_error, WallConstructionError, get_request_params
 )
 
 SEQUENTIAL = 'sequential'
@@ -27,8 +27,9 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
     # Validate the profile number if provided
     max_profile_number = len(wall_construction_config)
     if profile_id is not None and profile_id > max_profile_number:
+        request_params = get_request_params(wall_data)
         wall_data['error_response'] = create_out_of_range_response(
-            'profile number', max_profile_number, status.HTTP_400_BAD_REQUEST
+            'profile number', max_profile_number, request_params, status.HTTP_400_BAD_REQUEST
         )
         return []
 

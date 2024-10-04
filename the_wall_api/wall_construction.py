@@ -289,7 +289,9 @@ class WallConstruction:
         return overview
 
 
-def initialize_wall_data(profile_id: int | None = None, day: int | None = None) -> Dict[str, Any]:
+def initialize_wall_data(
+        profile_id: int | None = None, day: int | None = None, request_num_crews: int | None = None
+) -> Dict[str, Any]:
     """
     Initialize the wall_data dictionary to hold various control data
     throughout the wall construction simulation process.
@@ -297,6 +299,7 @@ def initialize_wall_data(profile_id: int | None = None, day: int | None = None) 
     return {
         'request_profile_id': profile_id,
         'request_day': day,
+        'request_num_crews': request_num_crews,
         'error_response': None,
         'concurrent_not_needed': None,
         'wall_construction': None,

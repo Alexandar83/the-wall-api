@@ -4,8 +4,6 @@ from django.conf import settings
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample, inline_serializer, OpenApiResponse
 from rest_framework import serializers
 
-from the_wall_api.serializers import DailyIceUsageSerializer, CostOverviewSerializer
-
 
 # API ENPOINTS SECTION - only for exposed endpoints
 # Changes here are reflected automatically throughout the project:
@@ -40,12 +38,12 @@ exposed_endpoints = {
 
 # **Externalized parameters for extend_schema**
 
-# DailyIceUsageView
+# *COMMON elements*
 error_response_serializer = inline_serializer(
     name='ErrorResponse',
     fields={
         'error': serializers.CharField(),
-        'details': serializers.CharField(required=False),
+        'error_details': serializers.CharField(required=False),
     }
 )
 
@@ -61,55 +59,82 @@ num_crews_parameter = OpenApiParameter(
     ),
     location=OpenApiParameter.QUERY
 )
+# *COMMON elements -end-*
 
-# Daily usage parameters
+# *DailyIceUsageView*
+
+# Response serializers
+daily_ice_usage_response_serializer = inline_serializer(
+    name='DailyIceUsageResponse',
+    fields={
+        'profile_id': serializers.IntegerField(),
+        'day': serializers.IntegerField(),
+        'ice_used': serializers.IntegerField(),
+        'details': serializers.CharField(),
+    }
+)
+
+# PATH parameters
 daily_ice_usage_parameters = [
     OpenApiParameter(
         name='profile_id',
         type=int,
-        required=True,
-        description='Wall profile number (required).',
+        # required=True,    # Omitted for PATH parameters -> always required
+        description='Wall profile number.',
         location=OpenApiParameter.PATH
     ),
     OpenApiParameter(
         name='day',
         type=int,
-        required=True,
-        description='Construction day number (required).',
+        # required=True,    # Omitted for PATH parameters -> always required
+        description='Construction day number.',
         location=OpenApiParameter.PATH
     ),
 ]
 
-daily_ice_usage_examples = [
-    OpenApiExample(
-        'Example response',
-        summary='Profile construction cost (Response)',
-        value={
-            'profile_id': 1,
-            'day': 2,
-            'ice_used': 585,
-            'details': 'Volume of ice used for profile 1 on day 2: 585 cubic yards.'
-        },
-        description='Response example when retrieving a profile cost overview.',
-        response_only=True,
-    ),
-]
-
+# Responses
 daily_ice_usage_responses = {
-    200: DailyIceUsageSerializer,
+    200: OpenApiResponse(
+        response=daily_ice_usage_response_serializer,
+        examples=[
+            OpenApiExample(
+                'Example response',
+                summary='Profile construction cost (Response)',
+                value={
+                    'profile_id': 1,
+                    'day': 2,
+                    'ice_used': 585,
+                    'details': 'Volume of ice used for profile 1 on day 2: 585 cubic yards.'
+                },
+                response_only=True,
+            ),
+        ]
+    ),
     400: OpenApiResponse(
         response=error_response_serializer,
         examples=[
             OpenApiExample(
                 name='Profile ID Out of Range',
                 value={
-                    'error': 'The profile number is out of range. The wall has 5 profiles.',
+                    'error': 'The profile number is out of range. The wall has 3 profiles.',
+                    'error_details': {
+                        'request_params': {
+                            'profile_id': 5,
+                            'day': 1
+                        },
+                    },
                 },
             ),
             OpenApiExample(
                 name='Day Out of Range',
                 value={
-                    'error': 'The day is out of range. The wall has been finished for 10 days.',
+                    'error': 'The day is out of range. The wall has been finished for 13 days.',
+                    'error_details': {
+                        'request_params': {
+                            'profile_id': 1,
+                            'day': 15
+                        },
+                    },
                 },
             )
         ]
@@ -120,9 +145,14 @@ daily_ice_usage_responses = {
             OpenApiExample(
                 name='No work on profile',
                 value={
-                    "profile_id": 2,
-                    "day": 14,
-                    "details": "No crew has worked on profile 2 on day 14."
+                    'error': 'No crew has worked on profile 2 on day 1.',
+                    'error_details': {
+                        'request_params': {
+                            'profile_id': 2,
+                            'day': 1,
+                            'num_crews': 1
+                        }
+                    }
                 },
             )
         ]
@@ -131,77 +161,116 @@ daily_ice_usage_responses = {
         response=error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency 1',
+                name='Simulation Data Inconsistency',
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
                     'error_details': {
-                        'request_data': {
+                        'request_params': {
                             'profile_id': 1,
                             'day': 14,
                             'num_crews': 5
                         },
-                        'error_msg': 'FileNotFoundError'
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
                     }
                 },
-            ),
+            )
+        ]
+    ),
+}
+# *DailyIceUsageView -end-*
+
+# *CostOverviewView and CostOverviewProfileidView*
+
+# Response serializers
+cost_overview_profile_id_response_serializer = inline_serializer(
+    name='CostOverviewProfileIdResponse',
+    fields={
+        'profile_id': serializers.IntegerField(),
+        'profile_cost': serializers.CharField(),
+        'details': serializers.CharField(),
+    }
+)
+
+cost_overview_response_serializer = inline_serializer(
+    name='CostOverviewResponse',
+    fields={
+        'total_cost': serializers.CharField(),
+        'details': serializers.CharField(),
+    }
+)
+
+# PATH parameters
+cost_overview_profile_id_parameters = [
+    OpenApiParameter(
+        name='profile_id',
+        type=int,
+        # required=True,    # Omitted for PATH parameters -> always required
+        description='Wall profile number.',
+        location=OpenApiParameter.PATH
+    ),
+]
+
+# Responses
+cost_overview_responses = {
+    200: OpenApiResponse(
+        response=cost_overview_response_serializer,
+        examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency 2',
+                'Example response',
+                summary='Total construction cost (Response)',
+                value={
+                    'total_cost': '32233500',
+                    'details': 'Total construction cost: 32233500 Gold Dragon coins'
+                },
+                response_only=True,
+            ),
+        ]
+    ),
+    500: OpenApiResponse(
+        response=error_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='Simulation Data Inconsistency',
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
-                    'error_details': 'Invalid wall configuration file.'
+                    'error_details': {
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
+                    }
                 },
             ),
         ]
     ),
 }
 
-# CostOverviewView and CostOverviewProfileidView
-cost_overview_examples = [
-    OpenApiExample(
-        'Example response',
-        summary='Total construction cost (Response)',
-        value={
-            'total_cost': '32233500',
-            'details': 'Total construction cost: 32233500 Gold Dragon coins'
-        },
-        description='Response example when retrieving wall construction total cost overview.',
-        response_only=True,
+cost_overview_profile_id_responses = {
+    200: OpenApiResponse(
+        response=cost_overview_profile_id_response_serializer,
+        examples=[
+            OpenApiExample(
+                'Example response',
+                summary='Profile construction cost (Response)',
+                value={
+                    'profile_id': 2,
+                    'profile_cost': '8058375',
+                    'details': 'Profile 2 construction cost: 8058375 Gold Dragon coins'
+                },
+                response_only=True,
+            ),
+        ]
     ),
-]
-
-cost_overview_profile_id_examples = [
-    OpenApiExample(
-        'Example response',
-        summary='Profile construction cost (Response)',
-        value={
-            'profile_id': 'profile_id',
-            'profile_cost': '8058375',
-            'details': 'Profile <profile_id> construction cost: 8058375 Gold Dragon coins'
-        },
-        description='Response example when retrieving wall profile cost overview.',
-        response_only=True,
-    ),
-]
-
-cost_overview_parameters = [
-    OpenApiParameter(
-        name='profile_id',
-        type=int,
-        required=False,
-        description='Wall profile number (optional).',
-        location=OpenApiParameter.PATH
-    ),
-]
-
-cost_overview_responses = {
-    200: CostOverviewSerializer,
     400: OpenApiResponse(
         response=error_response_serializer,
         examples=[
             OpenApiExample(
                 name='Profile ID Out of Range',
                 value={
-                    'error': 'The profile number is out of range. The maximum value is 10.',
+                    'error': 'The profile number is out of range. The wall has 3 profiles.',
+                    'error_details': {
+                        'request_params': {
+                            'profile_id': 5,
+                            'num_crews': 1
+                        },
+                    },
                 },
             ),
         ]
@@ -210,21 +279,33 @@ cost_overview_responses = {
         response=error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency 1',
-                value={
-                    'error': 'Simulation data inconsistency detected.',
-                    'error_details': 'Please contact support.'
-                },
-                
-            ),
-            OpenApiExample(
-                name='Simulation Data Inconsistency 2',
+                name='Simulation Data Inconsistency',
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
-                    'error_details': 'Invalid wall configuration file.'
+                    'error_details': {
+                        'request_params': {
+                            'profile_id': 5,
+                            'num_crews': 1
+                        },
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
+                    }
                 },
             ),
         ]
     ),
 }
-# **Externalized parameters for extend_schema - end**
+# *CostOverviewView and CostOverviewProfileidView -end-*
+
+# **Externalized parameters for extend_schema -end-**
+
+
+def get_request_num_crews(request):
+    request_num_crews = request.GET.get('num_crews')
+
+    if request_num_crews is not None:
+        try:
+            return int(request_num_crews)
+        except ValueError:
+            return None
+
+    return None

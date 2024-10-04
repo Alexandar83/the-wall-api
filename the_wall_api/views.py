@@ -20,10 +20,10 @@ class DailyIceUsageView(APIView):
         summary='Get daily ice usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
         parameters=api_utils.daily_ice_usage_parameters + [api_utils.num_crews_parameter],
-        examples=api_utils.daily_ice_usage_examples,
         responses=api_utils.daily_ice_usage_responses
     )
     def get(self, request: HttpRequest, profile_id: int, day: int) -> Response:
+        request_num_crews = api_utils.get_request_num_crews(request)
         num_crews = request.GET.get('num_crews', 0)
         serializer = DailyIceUsageSerializer(data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews})
         if not serializer.is_valid():
@@ -33,7 +33,7 @@ class DailyIceUsageView(APIView):
         day = serializer.validated_data['day']                  # type: ignore
         num_crews = serializer.validated_data['num_crews']      # type: ignore
 
-        wall_data = initialize_wall_data(profile_id, day)
+        wall_data = initialize_wall_data(profile_id, day, request_num_crews)
         fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
         if wall_data['error_response']:
             return wall_data['error_response']
@@ -66,10 +66,10 @@ class CostOverviewView(APIView):
         summary='Get cost overview',
         description='Retrieve the total wall construction cost.',
         parameters=[api_utils.num_crews_parameter],
-        examples=api_utils.cost_overview_examples,
         responses=api_utils.cost_overview_responses
     )
     def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
+        request_num_crews = api_utils.get_request_num_crews(request)
         num_crews = request.GET.get('num_crews', 0)
         request_data = {'profile_id': profile_id, 'num_crews': num_crews}
         cost_serializer = CostOverviewSerializer(data=request_data)
@@ -81,7 +81,7 @@ class CostOverviewView(APIView):
 
         request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
 
-        wall_data = initialize_wall_data(profile_id, None)
+        wall_data = initialize_wall_data(profile_id, None, request_num_crews)
         fetch_wall_data(wall_data, num_crews, profile_id, request_type)
         if wall_data['error_response']:
             return wall_data['error_response']
@@ -115,9 +115,8 @@ class CostOverviewProfileidView(CostOverviewView):
         operation_id='get_cost_overview_profile_id',
         summary='Get cost overview for a profile',
         description='Retrieve the total cost for a specific wall profile.',
-        parameters=api_utils.cost_overview_parameters + [api_utils.num_crews_parameter],
-        examples=api_utils.cost_overview_profile_id_examples,
-        responses=api_utils.cost_overview_responses
+        parameters=api_utils.cost_overview_profile_id_parameters + [api_utils.num_crews_parameter],
+        responses=api_utils.cost_overview_profile_id_responses
     )
     def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
         return super().get(request, profile_id)

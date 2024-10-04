@@ -17,7 +17,3 @@ urlpatterns = [
     path(exposed_endpoints['redoc']['path'], SpectacularRedocView.as_view(url_name=exposed_endpoints['schema']['name']), name=exposed_endpoints['redoc']['name']),
     # You can add more paths here if needed, for other endpoints
 ]
-
-SPECTACULAR_SETTINGS = {
-    'SERVE_INCLUDE_SCHEMA': False,
-}
