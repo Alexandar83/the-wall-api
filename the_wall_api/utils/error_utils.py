@@ -1,3 +1,5 @@
+# Error handling utilities
+
 from typing import Any, Dict
 
 from django.db import IntegrityError

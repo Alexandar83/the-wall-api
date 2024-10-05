@@ -2,7 +2,7 @@ import logging
 
 from django.core.cache import cache
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.runner import DiscoverRunner
 from rest_framework.exceptions import ErrorDetail
 
@@ -85,12 +85,12 @@ class CustomTestRunner(DiscoverRunner):
         super().teardown_test_environment(**kwargs)
         # Log the total PASSED and FAILED across all modules
         logger.info('--------------------------------------------')
-        logger.info(f'Total PASSED in all tests: {BaseTestcase.total_passed}')
-        logger.info(f'Total FAILED in all tests: {BaseTestcase.total_failed}')
-        logger.info(f'Total ERRORS in all tests: {BaseTestcase.total_errors}')
+        logger.info(f'Total PASSED in all tests: {BaseTestMixin.total_passed}')
+        logger.info(f'Total FAILED in all tests: {BaseTestMixin.total_failed}')
+        logger.info(f'Total ERRORS in all tests: {BaseTestMixin.total_errors}')
 
 
-class BaseTestcase(TestCase):
+class BaseTestMixin:
     # Class-level counter to track test numbers per test module
     test_counter = 1
     # Class-level counters to track passed/failed/error tests globally
@@ -104,16 +104,16 @@ class BaseTestcase(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
         # Track passed/failed tests on module level
         cls.module_passed = 0
         cls.module_failed = 0
         cls.module_errors = 0
         if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
             logger.info(' ')
-            BaseTestcase.test_group_counter += 1
+            BaseTestMixin.test_group_counter += 1
             cls.test_case_group_description = getattr(cls, 'description', cls.__name__)
-            logger.info(f'{"=" * 14} START OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
+            test_module = cls.__module__.upper().rpartition('.')[-1]
+            logger.info(f'{"=" * 14} {test_module} -  START OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
             logger.info(f'{cls.test_case_group_description.upper()}')
             logger.info(' ')
 
@@ -126,10 +126,7 @@ class BaseTestcase(TestCase):
             logger.info(f'Total FAILED: {cls.module_failed}')
             logger.info(f'Total ERRORS: {cls.module_errors}')
             logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
-            # logger.info(f'{"TEST GROUP #" + str(cls.test_group_counter) + ":":<{cls.padding}}END')
             logger.info(' ')
-
-        super().tearDownClass()
 
     def _get_test_case_source(self, method_name: str) -> str:
         return f'{self.__module__} -> {method_name}'
@@ -142,15 +139,15 @@ class BaseTestcase(TestCase):
         if passed:
             status = 'PASSED'
             self.__class__.module_passed += 1
-            BaseTestcase.total_passed += 1
+            BaseTestMixin.total_passed += 1
         elif not error_occurred:
             status = 'FAILED'
             self.__class__.module_failed += 1
-            BaseTestcase.total_failed += 1
+            BaseTestMixin.total_failed += 1
         else:
             status = 'ERROR'
             self.__class__.module_errors += 1
-            BaseTestcase.total_errors += 1
+            BaseTestMixin.total_errors += 1
 
         if log_level == 'NO-LOGGING':
             return  # Skip logging entirely
@@ -162,13 +159,37 @@ class BaseTestcase(TestCase):
             (TEST_LOGGING_LEVEL == 'ERROR' and error_occurred)  # Log only ERROR
         ):
             logger.info('')
-            test_number = BaseTestcase.test_counter
+            test_number = BaseTestMixin.test_counter
             logger.info(f'{"TEST #" + str(test_number) + ":":<{self.padding}}{status}')
             logger.info(f'{"Test method:":<{self.padding}}{test_case_source}')
             logger.info(f'{"Input values:":<{self.padding}}{input_data}')
             logger.info(f'{"Expected result:":<{self.padding}}{expected_message}')
             logger.info(f'{"Actual result:":<{self.padding}}{actual_message}')
 
-            BaseTestcase.test_counter += 1
+            BaseTestMixin.test_counter += 1
             for handler in logger.handlers:
                 handler.flush()
+
+
+class BaseTestcase(BaseTestMixin, TestCase):
+    @classmethod
+    def setUpClass(cls):
+        TestCase.setUpClass()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        TestCase.tearDownClass()
+
+
+class BaseTransactionTestcase(BaseTestMixin, TransactionTestCase):
+    @classmethod
+    def setUpClass(cls):
+        TransactionTestCase.setUpClass()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        TransactionTestCase.tearDownClass()

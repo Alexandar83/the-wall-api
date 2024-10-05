@@ -1,5 +1,6 @@
 # Wall configuration loading and config hashing
 
+from decimal import Decimal
 import hashlib
 import json
 from typing import Dict, Any
@@ -15,6 +16,7 @@ SEQUENTIAL = 'sequential'
 CONCURRENT = 'concurrent'
 MAX_LENGTH = settings.MAX_LENGTH
 MAX_HEIGHT = settings.MAX_HEIGHT
+COST_ROUNDING = Decimal('.01')
 
 
 def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | None) -> list:

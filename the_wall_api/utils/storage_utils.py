@@ -1,3 +1,6 @@
+# Redis caching and database logic
+
+from decimal import Decimal
 from typing import Any, Dict, List
 import xxhash
 
@@ -70,7 +73,7 @@ def fetch_wall_cost(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) ->
     fetch_wall_cost_from_db(wall_data, cached_result, wall_redis_key)
 
 
-def fetch_wall_cost_from_redis_cache(wall_data: Dict[str, Any]) -> tuple[Dict[str, Any], str]:
+def fetch_wall_cost_from_redis_cache(wall_data: Dict[str, Any]) -> tuple[int, str]:
     """
     Fetch a cached Wall from the Redis cache.
     Both simulation types store the same cost.
@@ -94,7 +97,7 @@ def fetch_wall_cost_from_db(wall_data: Dict[str, Any], cached_result: Dict[str, 
     if wall:
         cached_result['wall_total_cost'] = wall.total_cost
         # Refresh the Redis cache
-        set_redis_cache(wall_data, wall_redis_key, wall.total_cost)
+        set_redis_cache(wall_redis_key, wall.total_cost)
 
 
 def fetch_wall_profile_cost(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) -> None:
@@ -112,11 +115,11 @@ def fetch_wall_profile_cost(wall_data: Dict[str, Any], cached_result: Dict[str, 
     
     # DB
     fetch_wall_profile_cost_from_db(
-        wall_profile_config_hash, cached_result, wall_data, wall_profile_redis_cache_key
+        wall_profile_config_hash, cached_result, wall_profile_redis_cache_key
     )
 
 
-def fetch_wall_profile_cost_from_redis_cache(wall_profile_config_hash: str) -> tuple[Dict[str, Any], str]:
+def fetch_wall_profile_cost_from_redis_cache(wall_profile_config_hash: str) -> tuple[int, str]:
     """
     Fetch a cached Wall Profile from the Redis cache.
     Both simulation types store the same cost - attempt to find a cached value for any of them.
@@ -133,7 +136,7 @@ def get_wall_profile_cache_key(wall_profile_config_hash: str) -> str:
 
 def fetch_wall_profile_cost_from_db(
         wall_profile_config_hash: str | None, cached_result: Dict[str, Any],
-        wall_data: Dict[str, Any], wall_profile_redis_cache_key: str
+        wall_profile_redis_cache_key: str
 ) -> None:
     """
     Fetch a cached Wall Profile from the DB.
@@ -143,7 +146,7 @@ def fetch_wall_profile_cost_from_db(
     if wall_profile:
         cached_result['wall_profile_cost'] = wall_profile.cost
         # Refresh the Redis cache
-        set_redis_cache(wall_data, wall_profile_redis_cache_key, wall_profile.cost)
+        set_redis_cache(wall_profile_redis_cache_key, wall_profile.cost)
 
 
 def fetch_daily_ice_usage(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) -> None:
@@ -171,7 +174,7 @@ def fetch_daily_ice_usage(wall_data: Dict[str, Any], cached_result: Dict[str, An
 
 def fetch_daily_ice_usage_from_redis_cache(
         wall_data: Dict[str, Any], wall_profile_config_hash: str | None, profile_id: int,
-) -> tuple[str | None, str]:
+) -> tuple[int, str]:
     """
     Fetch a cached Wall Profile Progress from the Redis cache.
     Variability depending on the number of crews.
@@ -233,7 +236,7 @@ def fetch_daily_ice_usage_from_db(
         wall_profile_progress = WallProfileProgress.objects.get(wall_progress_query)
         cached_result['profile_daily_ice_used'] = wall_profile_progress.ice_used
         # Refresh the Redis cache
-        set_redis_cache(wall_data, profile_ice_usage_redis_cache_key, wall_profile_progress.ice_used)
+        set_redis_cache(profile_ice_usage_redis_cache_key, wall_profile_progress.ice_used)
     except WallProfileProgress.DoesNotExist:
         error_utils.check_if_cached_on_another_day(wall_data, profile_id)
 
@@ -266,11 +269,14 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
             )
 
             # Deferred Redis cache
-            wall_redis_data.append((wall_cache_key, total_cost))
+            wall_redis_data.append((
+                wall_cache_key,
+                format_value_for_redis('cost', total_cost)
+            ))
             process_wall_profiles(wall_data, wall, wall_data['simulation_type'], wall_redis_data)
 
             # Commit deferred Redis cache after a successful DB transaction
-            transaction.on_commit(lambda: commit_deferred_redis_cache(wall_data, wall_redis_data))
+            transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
     
     except IntegrityError as wall_crtn_intgrty_err:
         error_utils.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
@@ -299,6 +305,12 @@ def acquire_db_lock(wall_db_lock_key: List[int]) -> bool:
 def release_db_lock(wall_db_lock_key: List[int]) -> None:
     with connection.cursor() as cursor:
         cursor.execute('SELECT pg_advisory_unlock(%s, %s);', wall_db_lock_key)
+
+
+def format_value_for_redis(type: str, value_in: Any) -> Any:
+    """Format a value before storing it in Redis to correspond to the ORM model."""
+    if type == 'cost':
+        return Decimal(value_in).quantize(wall_config_utils.COST_ROUNDING)
 
 
 def process_wall_profiles(
@@ -354,7 +366,7 @@ def cache_wall_profile_to_db(
     wall_redis_data.append(
         (
             get_wall_profile_cache_key(wall_profile_config_hash),
-            wall_profile_cost
+            format_value_for_redis('cost', wall_profile_cost)
         )
     )
 
@@ -388,12 +400,12 @@ def cache_wall_profile_progress_to_db(
         )
 
 
-def commit_deferred_redis_cache(wall_data: Dict[str, Any], wall_redis_data: list[tuple[str, Any]]) -> None:
+def commit_deferred_redis_cache(wall_redis_data: list[tuple[str, Any]]) -> None:
     for redis_cache_key, redis_cache_value in wall_redis_data:
-        set_redis_cache(wall_data, redis_cache_key, redis_cache_value)
+        set_redis_cache(redis_cache_key, redis_cache_value)
 
 
-def set_redis_cache(wall_data: Dict[str, Any], redis_cache_key: str, redis_cache_value: Any) -> None:
+def set_redis_cache(redis_cache_key: str, redis_cache_value: Any) -> None:
     try:
         cache.set(redis_cache_key, redis_cache_value)
     except (ConnectionError, TimeoutError):

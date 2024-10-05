@@ -50,7 +50,7 @@ class LockTestBase(BaseTestcase):
 
 
 class AdvisoryLockTest(LockTestBase):
-    description = 'Advisory Lock Test'
+    description = 'Advisory Locks Test'
 
     def try_to_acquire_advisory_lock(self, wall_db_lock_key: list[int], result_queue: Queue | None = None) -> bool:
         db_lock_acquired = None
