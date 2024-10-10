@@ -1,11 +1,12 @@
 services:
   redis:
-    image: redis:7.0.12
+    image: redis:7.4.1
     container_name: redis_data_dev
     ports:
       - 6379:6379
     volumes:
-      - the_wall_api_redis_data_dev:/data
+      # Persist the redis data in a docker volume
+      - redis_data_dev:/data
       - ../../config/envs/common/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
 
@@ -15,7 +16,8 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - the_wall_api_postgres_data_dev:/var/lib/postgresql/data
+      # Persist the postgres data in a docker volume
+      - postgres_data_dev:/var/lib/postgresql/data
     env_file:
       - ../../config/envs/dev/postgres_dev.env
     healthcheck:
@@ -26,14 +28,57 @@ services:
     
   wait_for_postgres:
   # A wait service to facilitate the DB migrations after the composition is created
-    image: busybox:latest
+    image: busybox:1.36.1
     depends_on:
       postgres:
         condition: service_healthy
-    entrypoint: sh -c "echo 'PostgreSQL is ready'"
-
+    entrypoint: sh -c "echo"
+  
+  celery_worker:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    build:
+      context: ../..
+      dockerfile: ./config/docker/Dockerfile.dev
+    container_name: celery_worker_dev
+    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks,computation_tasks"
+    volumes:
+      - ../..:/app
+    env_file:
+      - ../../config/envs/dev/the_wall_api_dev.env
+    environment:
+      - REDIS_DB_NUMBER=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config status"]
+      interval: 1s    # How often to check
+      timeout: 5s     # How long to wait for a response
+      retries: 5      # How many retries before marking as unhealthy
+  
+  wait_for_celery_worker:
+  # A wait service to start the Celery beat only after the full initialization of the worker
+    image: busybox:1.36.1
+    depends_on:
+      celery_worker:
+        condition: service_healthy
+    entrypoint: sh -c "echo"
+  
+  celery_beat:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    container_name: celery_beat_dev
+    # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
+    # Persist the schedule in a docker volume
+    command: sh -c "celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"
+    volumes:
+      - ../..:/app
+      - celery_beat_schedule:/var/lib/celery/data
+    env_file:
+      - ../../config/envs/dev/the_wall_api_dev.env
+    environment:
+      - REDIS_DB_NUMBER=2
+  
 volumes:
-  the_wall_api_redis_data_dev:
+  redis_data_dev:
     name: the_wall_api_redis_data_dev
-  the_wall_api_postgres_data_dev:
+  postgres_data_dev:
     name: the_wall_api_postgres_data_dev
+  celery_beat_schedule:
+    name: the_wall_api_celery_beat_schedule_dev

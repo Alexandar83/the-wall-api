@@ -76,6 +76,7 @@ TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
 
 REDIS_URL = os.getenv('REDIS_URL')
 REDIS_DB_NUMBER = os.getenv('REDIS_DB_NUMBER', '0')
+REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = int(os.getenv('REDIS_CACHE_TRANSIENT_DATA_TIMEOUT', 60 * 60 * 24 * 7))
 
 if REDIS_URL is not None:
     # Inject the password in the url for prod
@@ -91,6 +92,14 @@ if REDIS_URL is not None:
     else:
         # Use a separate Redis DB for testing
         REDIS_URL = REDIS_URL.replace('REDIS_DB_NUMBER', '1')
+
+# Set Celery to use Redis as a message broker
+    if PROJECT_MODE == 'dev' and REDIS_URL:
+        # 'redis' is not properly resolved locally from the Django dev server and
+        # localhost is not accessible in the Celery services
+        CELERY_BROKER_URL = REDIS_URL.replace('localhost', 'redis')
+    else:
+        CELERY_BROKER_URL = REDIS_URL
 
 REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', 2))
 
@@ -222,6 +231,8 @@ TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', 'config/wall_config.json')             # Location of the wall profile configuration
 LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Construction simulation logs
 LOGS_ARCHIVE_DIR = f'{LOGS_DIR}/archive'
+LOGS_RETENTION_DAYS = int(os.getenv('LOGS_RETENTION_DAYS', 1))                          # Days of logs retention
+LOGS_ARCHIVE_RETENTION_DAYS = int(os.getenv('LOGS_ARCHIVE_RETENTION_DAYS', 7))          # Days of logs archive retention
 
 # Wall Configuration Settings
 MAX_HEIGHT = int(os.getenv('MAX_HEIGHT', 30))                                           # Maximum height of a wall section

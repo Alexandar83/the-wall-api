@@ -19,7 +19,7 @@ services:
         condition: service_healthy  # Wait for PostgreSQL health check to pass
 
   redis:
-    image: redis:7.0.12
+    image: redis:7.4.1
     container_name: redis_data_prod
     ports:
       - 6379:6379

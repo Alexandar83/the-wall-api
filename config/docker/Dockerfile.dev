@@ -1,8 +1,6 @@
 # For more information, please refer to https://aka.ms/vscode-docker-python
 FROM python:3.11.9-slim-bullseye
 
-EXPOSE 8000
-
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -18,16 +16,14 @@ RUN apt-get update && apt-get install -y gcc libpq-dev
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Install gunicorn separately, because it is not a dependency of the Django app
-RUN python -m pip install --no-cache-dir gunicorn
-
 # Sets the working directory of the container to “app”
 WORKDIR /app
 COPY . /app
 
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
-USER appuser
+RUN adduser -u 5678 --disabled-password --gecos "" appuser && \
+mkdir -p /var/lib/celery/data && \
+chown -R appuser:appuser /app && \
+chown -R appuser:appuser /var/lib/celery/data
 
-# Runs a lightweight and highly efficient Gunicorn WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi"]
+USER appuser

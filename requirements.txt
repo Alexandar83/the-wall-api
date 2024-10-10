@@ -1,7 +1,15 @@
+amqp==5.2.0
 asgiref==3.8.1
 attrs==24.2.0
+billiard==4.2.1
+celery==5.4.0
 certifi==2024.7.4
 charset-normalizer==3.3.2
+click==8.1.7
+click-didyoumean==0.3.1
+click-plugins==1.1.1
+click-repl==0.3.0
+colorama==0.4.6
 Django==5.1
 django-redis==5.4.0
 djangorestframework==3.15.2
@@ -11,11 +19,14 @@ inflection==0.5.1
 jsonschema==4.23.0
 jsonschema-path==0.3.3
 jsonschema-specifications==2023.12.1
+kombu==5.4.2
 lazy-object-proxy==1.10.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 pathable==0.4.3
+prompt_toolkit==3.0.48
 psycopg2==2.9.9
+python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 PyYAML==6.0.2
 redis==5.0.8
@@ -28,4 +39,6 @@ sqlparse==0.5.1
 tzdata==2024.1
 uritemplate==4.1.1
 urllib3==2.2.2
+vine==5.1.0
+wcwidth==0.2.13
 xxhash==3.5.0

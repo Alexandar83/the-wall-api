@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Any, Dict, List
 import xxhash
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, IntegrityError, transaction
 from django.db.models import Q
@@ -12,6 +13,9 @@ from redis.exceptions import ConnectionError, TimeoutError
 from the_wall_api.models import WallProfileProgress, WallProfile, Wall
 from the_wall_api.utils import wall_config_utils, error_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
+
+
+REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 
 
 def fetch_wall_data(
@@ -407,7 +411,7 @@ def commit_deferred_redis_cache(wall_redis_data: list[tuple[str, Any]]) -> None:
 
 def set_redis_cache(redis_cache_key: str, redis_cache_value: Any) -> None:
     try:
-        cache.set(redis_cache_key, redis_cache_value)
+        cache.set(redis_cache_key, redis_cache_value, timeout=REDIS_CACHE_TRANSIENT_DATA_TIMEOUT)
     except (ConnectionError, TimeoutError):
         # The Redis server is down
         # TODO: Add logging?

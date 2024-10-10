@@ -2,7 +2,16 @@
 maxmemory 512mb
 
 # Evict the least recently used keys when memory is full
-maxmemory-policy allkeys-lru
+# Evict only cache with a set TTL
+maxmemory-policy volatile-lru
 
-# Enable data persistence (optional)
+# Enable data persistence
 appendonly yes
+
+# === Trim AOF data for evicted keys ===
+# Trigger a rewrite when the AOF file doubles in size
+auto-aof-rewrite-percentage 100
+
+# Only trigger a rewrite when the AOF file is at least 64 MB in size
+# to avoid frequent rewrites after fresh Redis initialization
+auto-aof-rewrite-min-size 64mb
