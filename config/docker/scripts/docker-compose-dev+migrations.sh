@@ -31,24 +31,11 @@ echo
 docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml build celery_worker --no-cache
 echo
 
-# Start the Celery worker service
+# Start the Celery services
 echo "=== STAGE 5 ==="
-echo "Build ready, starting the Celery worker service..."
+echo "Build ready, starting the Celery services..."
 echo
-docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_worker
-echo
-
-# Wait for the wait_for_celery_worker service to finish
-echo "=== STAGE 6 ==="
-echo "Waiting for the Celery worker to start..."
-echo
-docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml run --rm wait_for_celery_worker
-
-# Start the Celery beat service, after the app's image build is finished
-echo "=== STAGE 7 ==="
-echo "The Celery worker is ready, starting the Celery beat service..."
-echo
-docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_beat
+docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_worker celery_beat
 echo
 
 echo "=== DEV COMPOSE FINISH ==="

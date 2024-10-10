@@ -80,7 +80,6 @@ git clone https://github.com/Alexandar83/the-wall-api.git
   - *This script ensures that:*
     - *The Django migrations will be run after the PostgreSQL server is completely started*
     - *The Celery services are started after the image they're using is built*
-    - *The Celery beat is started after the Celery worker is completely initialized*
   
 ```bash
 config/docker/scripts/docker-compose-dev+migrations.sh

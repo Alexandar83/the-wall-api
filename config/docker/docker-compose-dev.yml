@@ -52,15 +52,7 @@ services:
       interval: 1s    # How often to check
       timeout: 5s     # How long to wait for a response
       retries: 5      # How many retries before marking as unhealthy
-  
-  wait_for_celery_worker:
-  # A wait service to start the Celery beat only after the full initialization of the worker
-    image: busybox:1.36.1
-    depends_on:
-      celery_worker:
-        condition: service_healthy
-    entrypoint: sh -c "echo"
-  
+
   celery_beat:
     image: ghcr.io/alexandar83/the-wall-api:latest
     container_name: celery_beat_dev
@@ -74,6 +66,9 @@ services:
       - ../../config/envs/dev/the_wall_api_dev.env
     environment:
       - REDIS_DB_NUMBER=2
+    depends_on:
+      celery_worker:
+        condition: service_healthy
   
 volumes:
   redis_data_dev:
