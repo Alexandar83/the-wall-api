@@ -21,8 +21,11 @@ The Wall is a massive fortification being built along the northern border of the
 
 # Dependencies
 - Django Rest Framework - implementation framework
-- Redis - in-memory cache management
+- Redis
+  - In-memory cache management
+  - Message broker for Celery
 - PostgreSQL - DB engine for persistent data storage
+- Celery - for scheduling of periodic tasks
 - Docker - for containerization and deployment
   - Docker compose
   - Docker swarm
@@ -36,7 +39,7 @@ The Wall is a massive fortification being built along the northern border of the
 git clone https://github.com/Alexandar83/the-wall-api.git
 ```
 
-### 2. Local development setup
+### 2. Local development setup >All scripts must be executed in the project's root folder<
 <details>
 <summary>DEV</summary>
 <br>
@@ -72,9 +75,13 @@ git clone https://github.com/Alexandar83/the-wall-api.git
 <br>
 - 2.3.1 Start a virtual environment
   
-- 2.3.2 Start the Redis and PostgreSQL containers:
+- 2.3.2 Start all dockerized services:
 
-*This script ensures, that the Django migrations will be run after the PostgreSQL server is completely started*
+  - *This script ensures that:*
+    - *The Django migrations will be run after the PostgreSQL server is completely started*
+    - *The Celery services are started after the image they're using is built*
+    - *The Celery beat is started after the Celery worker is completely initialized*
+  
 ```bash
 config/docker/scripts/docker-compose-dev+migrations.sh
 ```
