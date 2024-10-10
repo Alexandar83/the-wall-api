@@ -1,23 +1,25 @@
-from concurrent.futures import ThreadPoolExecutor
 import copy
 import logging
-from itertools import count
 import os
 import re
-import uuid
-from queue import Empty, Queue
-from threading import Condition, current_thread, Lock, Thread
-from typing import Any, Dict
+import secrets
 
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from itertools import count
+from queue import Empty, Queue
+from threading import Condition, Lock, Thread, current_thread
+from typing import Any, Dict
 
 from django.conf import settings
 
-from the_wall_api.utils.wall_config_utils import CONCURRENT, SEQUENTIAL
-from the_wall_api.utils import wall_config_utils, error_utils
+from the_wall_api.utils import error_utils
+from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
-MAX_HEIGHT = settings.MAX_HEIGHT                                        # Maximum height of a wall section
-ICE_PER_FOOT = settings.ICE_PER_FOOT                                    # Cubic yards of ice used per 1 foot height increase
-ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD              # Gold Dragon coins cost per cubic yard
+LOGS_DIR = settings.LOGS_DIR
+MAX_HEIGHT = settings.MAX_HEIGHT
+ICE_PER_FOOT = settings.ICE_PER_FOOT
+ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
 
 
 class WallConstruction:
@@ -38,7 +40,8 @@ class WallConstruction:
             self.thread_counter = count(1)
             self.counter_lock = Lock()
             self.thread_days = {}
-            self.filename = f'logs/wall_construction_{uuid.uuid4().hex}.log'
+            timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
+            self.filename = f'{LOGS_DIR}/wall_construction_{timestamp}_{secrets.token_hex(4)}.log'
             self.logger = self._setup_logger()
 
             # Initialize the queue with sections
@@ -332,22 +335,22 @@ def evaluate_simulation_params(
     # num_crews
     if num_crews == 0:
         # No num_crews provided - sequential mode
-        simulation_type = wall_config_utils.SEQUENTIAL
+        simulation_type = SEQUENTIAL
         num_crews_final = 0
     elif num_crews >= sections_count:
         # There's a crew for each section at the beginning
         # which is the same as the sequential mode
-        simulation_type = wall_config_utils.SEQUENTIAL
+        simulation_type = SEQUENTIAL
         num_crews_final = 0
         # For eventual future response message
         wall_data['concurrent_not_needed'] = True
     else:
         # The crews are less than the number of sections
-        simulation_type = wall_config_utils.CONCURRENT
+        simulation_type = CONCURRENT
         num_crews_final = num_crews
 
     # configuration hashes
-    wall_config_hash_details = wall_config_utils.generate_config_hash_details(wall_construction_config)
+    wall_config_hash_details = generate_config_hash_details(wall_construction_config)
 
     return simulation_type, wall_config_hash_details, num_crews_final
 

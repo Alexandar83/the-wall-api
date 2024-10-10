@@ -37,6 +37,7 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
+# === Database configuration ===
 if PROJECT_MODE in ['dev', 'prod_v1']:
     DATABASES = {
         'default': {
@@ -60,6 +61,8 @@ elif PROJECT_MODE == 'prod_v2':
         }
     }
 
+# === Database configuration end ===
+
 # Verbosity of unit tests
 # ERROR - only log errors
 # FAILED - only log failed tests
@@ -69,7 +72,7 @@ elif PROJECT_MODE == 'prod_v2':
 # SUMMARY - only log tests summary
 TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
 
-# Redis Configuration
+# === Redis Configuration ===
 
 REDIS_URL = os.getenv('REDIS_URL')
 REDIS_DB_NUMBER = os.getenv('REDIS_DB_NUMBER', '0')
@@ -108,6 +111,8 @@ CACHES = {
 }
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
+# === Redis Configuration end ===
 
 # Application definition
 
@@ -213,8 +218,12 @@ APPEND_SLASH = True
 
 TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 
+# Filesystem configuration
+WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', 'config/wall_config.json')             # Location of the wall profile configuration
+LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Construction simulation logs
+LOGS_ARCHIVE_DIR = f'{LOGS_DIR}/archive'
+
 # Wall Configuration Settings
-WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', BASE_DIR / 'wall_config.json')         # Location of the wall profile configuration
 MAX_HEIGHT = int(os.getenv('MAX_HEIGHT', 30))                                           # Maximum height of a wall section
 MAX_LENGTH = int(os.getenv('MAX_LENGTH', 2000))                                         # Maximum lenght of a wall profile
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
