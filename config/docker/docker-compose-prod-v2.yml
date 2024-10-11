@@ -2,15 +2,14 @@ services:
   the-wall-api:
     image: ghcr.io/alexandar83/the-wall-api:latest
     command: >
-      sh -c "python /app/wait_for_postgres.py && \
-             echo 'PostgreSQL is ready!' && \
+      sh -c "python /app/config/docker/scripts/wait_for_postgres.py && \
              python manage.py makemigrations the_wall_api && \
              python manage.py migrate && \
              exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
     ports:
       - 8000:8000
     volumes:
-      - ../../config/docker/scripts/wait_for_postgres.py:/app/wait_for_postgres.py
+      - shared_sim_logs:/app/logs
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:
@@ -53,11 +52,56 @@ services:
       - postgres_user
       - postgres_password
 
+  celery_worker:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks,computation_tasks"
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+    environment:
+      - PROJECT_MODE=prod_v2
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    secrets:
+      - redis_password
+      - postgres_db
+      - postgres_user
+      - postgres_password
+    volumes:
+      - shared_sim_logs:/app/logs
+  
+  celery_beat:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
+    # Persist the schedule in a docker volume
+    command: sh -c "python /app/config/docker/scripts/wait_for_celery_worker.py && \
+                    celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"
+    volumes:
+      - celery_beat_schedule:/var/lib/celery/data
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+    environment:
+      - PROJECT_MODE=prod_v2
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    secrets:
+      - redis_password
+      - postgres_db
+      - postgres_user
+      - postgres_password
+
 volumes:
   the_wall_api_redis_data_prod:
     name: the_wall_api_redis_data_prod
   the_wall_api_postgres_data_prod:
     name: the_wall_api_postgres_data_prod
+  celery_beat_schedule:
+    name: the_wall_api_celery_beat_schedule_prod
+  shared_sim_logs:
+    name: the_wall_api_shared_sim_logs_prod
 
 secrets:
   redis_password:

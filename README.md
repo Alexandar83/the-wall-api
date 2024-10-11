@@ -180,7 +180,6 @@ docker secret create <password_name> config/secrets/<password_file_name>.txt
 
 4.4 **Docker stack deploy:**
 - Ensure the v2 compose file from the repo is placed in  ***config/docker/docker-compose-prod-v2.yml***
-- Ensure the wait_for_postgres.py script from the repo is placed in ***config/docker/scripts/wait_for_postgres.py***
 
 4.5 **Workflow:**
 - Start the app, Redis and PostgreSQL by deploying the prod_stack:

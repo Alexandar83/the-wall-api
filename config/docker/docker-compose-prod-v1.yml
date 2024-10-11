@@ -2,12 +2,12 @@ services:
   the-wall-api:
     image: ghcr.io/alexandar83/the-wall-api:latest
     container_name: app
+    ports:
+      - 8000:8000
     command: >
       sh -c "python manage.py makemigrations the_wall_api &&
              python manage.py migrate &&
              exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
-    ports:
-      - 8000:8000
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
@@ -17,6 +17,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy  # Wait for PostgreSQL health check to pass
+    volumes:
+      - shared_sim_logs:/app/logs
 
   redis:
     image: redis:7.4.1
@@ -45,8 +47,51 @@ services:
       timeout: 5s    # How long to wait for a response
       retries: 5     # How many retries before marking as unhealthy
 
+  celery_worker:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    container_name: celery_worker_prod
+    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks,computation_tasks"
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+      - ../../config/envs/prod/redis_prod.env
+      - ../../config/envs/prod/postgres_prod.env
+    environment:
+      - PROJECT_MODE=prod_v1
+      - REDIS_DB_NUMBER=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config status"]
+      interval: 1s    # How often to check
+      timeout: 5s     # How long to wait for a response
+      retries: 5      # How many retries before marking as unhealthy
+    # Shared access with the app so the worker can manage the simulation logs
+    volumes:
+      - shared_sim_logs:/app/logs
+
+  celery_beat:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    container_name: celery_beat_prod
+    # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
+    # Persist the schedule in a docker volume
+    command: sh -c "celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"
+    volumes:
+      - celery_beat_schedule:/var/lib/celery/data
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+      - ../../config/envs/prod/redis_prod.env
+      - ../../config/envs/prod/postgres_prod.env
+    environment:
+      - PROJECT_MODE=prod_v1
+      - REDIS_DB_NUMBER=2
+    depends_on:
+      celery_worker:
+        condition: service_healthy
+
 volumes:
   the_wall_api_redis_data_prod:
     name: the_wall_api_redis_data_prod
   the_wall_api_postgres_data_prod:
     name: the_wall_api_postgres_data_prod
+  celery_beat_schedule:
+    name: the_wall_api_celery_beat_schedule_prod
+  shared_sim_logs:
+    name: the_wall_api_shared_sim_logs_prod
