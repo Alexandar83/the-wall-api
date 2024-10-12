@@ -13,7 +13,7 @@ echo
 
 # Wait for the wait_for_postgres service to finish
 echo "=== STAGE 2 ==="
-echo "Waiting for PostgreSQL to be ready..."
+echo "Waiting for PostgreSQL..."
 echo
 docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml run --rm wait_for_postgres
 
@@ -33,7 +33,7 @@ echo
 
 # Start the Celery services
 echo "=== STAGE 5 ==="
-echo "Build ready, starting the Celery services..."
+echo "App image built, starting the Celery services..."
 echo
 docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_worker celery_beat
 echo

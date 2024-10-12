@@ -57,11 +57,10 @@ services:
       - ../../config/envs/prod/postgres_prod.env
     environment:
       - PROJECT_MODE=prod_v1
-      - REDIS_DB_NUMBER=2
     healthcheck:
       test: ["CMD-SHELL", "celery -A config status"]
-      interval: 1s    # How often to check
-      timeout: 5s     # How long to wait for a response
+      interval: 2s    # How often to check
+      timeout: 8s     # How long to wait for a response
       retries: 5      # How many retries before marking as unhealthy
     # Shared access with the app so the worker can manage the simulation logs
     volumes:
@@ -81,7 +80,6 @@ services:
       - ../../config/envs/prod/postgres_prod.env
     environment:
       - PROJECT_MODE=prod_v1
-      - REDIS_DB_NUMBER=2
     depends_on:
       celery_worker:
         condition: service_healthy
