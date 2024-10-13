@@ -13,16 +13,14 @@ LOGS_RETENTION_DAYS = settings.LOGS_RETENTION_DAYS
 LOGS_ARCHIVE_RETENTION_DAYS = settings.LOGS_ARCHIVE_RETENTION_DAYS
 
 
-def archive_logs() -> None:
-    """Move and compress logs older than retention_days to the archive directory."""
-    os.makedirs(LOGS_ARCHIVE_DIR, exist_ok=True)
+def archive_logs(test_data: dict | None = None) -> None:
+    """Move and compress logs older than LOGS_RETENTION_DAYS to the archive directory."""
+    log_retention_date, logs_dir, logs_arhive_dir = get_archive_logs_params(test_data)
 
-    # Calculate the retention period
-    now = datetime.now()
-    log_retention_date = now - timedelta(days=LOGS_RETENTION_DAYS)
+    os.makedirs(logs_arhive_dir, exist_ok=True)
 
-    for log_file in os.listdir(LOGS_DIR):
-        log_path = os.path.join(LOGS_DIR, log_file)
+    for log_file in os.listdir(logs_dir):
+        log_path = os.path.join(logs_dir, log_file)
         
         # Only process files (not directories)
         if os.path.isfile(log_path):
@@ -31,7 +29,7 @@ def archive_logs() -> None:
             
             # Archive the file if it's older than the retention period
             if file_mtime < log_retention_date:
-                archive_path = os.path.join(LOGS_ARCHIVE_DIR, log_file + '.gzip')
+                archive_path = os.path.join(logs_arhive_dir, log_file + '.gzip')
                 
                 # Compress the log file and move it to the archive
                 with open(log_path, 'rb') as f_in:
@@ -42,13 +40,26 @@ def archive_logs() -> None:
                 os.remove(log_path)
 
 
-def clean_old_archives():
-    """Delete archived logs older than max_age_days."""
+def get_archive_logs_params(test_data: dict | None = None) -> tuple[datetime, str, str]:
     now = datetime.now()
-    archive_retention_date = now - timedelta(days=LOGS_ARCHIVE_RETENTION_DAYS)
+    if not test_data:
+        log_retention_date = now - timedelta(days=LOGS_RETENTION_DAYS)
+        logs_dir = LOGS_DIR
+        logs_archive_dir = LOGS_ARCHIVE_DIR
+    else:
+        log_retention_date = now
+        logs_dir = os.path.join(*test_data['test_logs_dir'])
+        logs_archive_dir = os.path.join(*test_data['test_logs_dir_archive'])
 
-    for archive_file in os.listdir(LOGS_ARCHIVE_DIR):
-        archive_path = os.path.join(LOGS_ARCHIVE_DIR, archive_file)
+    return log_retention_date, logs_dir, logs_archive_dir
+    
+
+def clean_old_archives(test_data: dict | None = None) -> None:
+    """Delete archived logs older than LOGS_ARCHIVE_RETENTION_DAYS."""
+    archive_retention_date, logs_archive_dir = get_clean_old_archives_params(test_data)
+
+    for archive_file in os.listdir(logs_archive_dir):
+        archive_path = os.path.join(logs_archive_dir, archive_file)
         
         # Only process files (not directories)
         if os.path.isfile(archive_path):
@@ -57,3 +68,15 @@ def clean_old_archives():
             if file_mtime < archive_retention_date:
                 # Delete the old archive
                 os.remove(archive_path)
+
+
+def get_clean_old_archives_params(test_data: dict | None = None) -> tuple[datetime, str]:
+    now = datetime.now()
+    if not test_data:
+        archive_retention_date = now - timedelta(days=LOGS_ARCHIVE_RETENTION_DAYS)
+        logs_archive_dir = LOGS_ARCHIVE_DIR
+    else:
+        archive_retention_date = now
+        logs_archive_dir = os.path.join(*test_data['test_logs_dir_archive'])
+
+    return archive_retention_date, logs_archive_dir

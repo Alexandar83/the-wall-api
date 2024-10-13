@@ -240,7 +240,7 @@ TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 # Filesystem configuration
 WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', 'config/wall_config.json')             # Location of the wall profile configuration
 LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Construction simulation logs
-LOGS_ARCHIVE_DIR = f'{LOGS_DIR}/archive'
+LOGS_ARCHIVE_DIR = os.path.join(LOGS_DIR, 'archive')                                    # Construction simulation logs archive
 LOGS_RETENTION_DAYS = int(os.getenv('LOGS_RETENTION_DAYS', 1))                          # Days of logs retention
 LOGS_ARCHIVE_RETENTION_DAYS = int(os.getenv('LOGS_ARCHIVE_RETENTION_DAYS', 7))          # Days of logs archive retention
 
