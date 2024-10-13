@@ -22,7 +22,7 @@ class URLTests(BaseTestcase):
             actual_message=str(response.status_code),
             test_case_source=test_case_source
         )
-    
+
     def test_admin_endpoint_super_user(self):
         User.objects.create_superuser('admin', 'admin@example.com', 'password')
         self.client.login(username='admin', password='password')

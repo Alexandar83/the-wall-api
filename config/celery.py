@@ -6,7 +6,7 @@ from celery.schedules import crontab
 def setup_django_settings():
     """Setup Django settings module and Celery configuration."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-    
+
     # 1. Ensures the Celery tasks are discoverable in configure_celery_app
     # 2. Avoids "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
     # when launching tasks
@@ -18,7 +18,7 @@ def configure_celery_app(app):
     """Configure Celery app with settings and task discovery."""
     # Seacrh for Celery settings and use them for the internal setup of the Celery service
     app.config_from_object('django.conf:settings', namespace='CELERY')
-    
+
     # Load task modules (tasks.py) from all registered Django apps
     # django must be fully set up
     app.autodiscover_tasks()
@@ -51,7 +51,7 @@ def create_celery_app() -> Celery:
 
     # Ensure broker retries on startup for Celery 6.0+
     app.conf.broker_connection_retry_on_startup = True
-    
+
     setup_django_settings()
     configure_celery_app(app)
     print_registered_tasks(app)

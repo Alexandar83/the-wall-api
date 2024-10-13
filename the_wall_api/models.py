@@ -12,7 +12,7 @@ class Wall(models.Model):
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     construction_days = models.IntegerField()
     date_created = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         unique_together = ('wall_config_hash', 'num_crews')
 
@@ -43,7 +43,7 @@ class WallProfile(models.Model):
                 condition=Q(profile_id__isnull=False)
             ),
         ]
-        
+
 
 class WallProfileProgress(models.Model):
     """

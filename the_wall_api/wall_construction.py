@@ -34,7 +34,7 @@ class WallConstruction:
         self.testing_wall_construction_config = copy.deepcopy(wall_construction_config)     # For unit testing purposes
         self.simulation_type = simulation_type
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
-        
+
         if simulation_type == CONCURRENT:
             self.max_crews = min(sections_count, num_crews)
             self.thread_counter = count(1)
@@ -49,12 +49,12 @@ class WallConstruction:
             for profile_id, profile in enumerate(self.wall_construction_config, 1):
                 for section_id, height in enumerate(profile, 1):
                     self.sections_queue.put((profile_id, section_id, height))
-            
+
             # Init a condition for crew threads synchronization
             self.active_crews = self.max_crews
             self.day_condition = Condition()
             self.finished_crews_for_the_day = 0
-        
+
         self.wall_profile_data = {}
         self.calc_wall_profile_data()
         self.sim_calc_details = self._calc_sim_details()
@@ -88,7 +88,7 @@ class WallConstruction:
             self.calc_wall_profile_data_concurrent()
         else:
             self.calc_wall_profile_data_sequential()
-    
+
     def calc_wall_profile_data_sequential(self) -> None:
         """
         Sequential construction process simulation.
@@ -105,7 +105,7 @@ class WallConstruction:
                         ice_used += ICE_PER_FOOT
                         profile[i] += 1  # Increment the height of the section
                         self.testing_wall_construction_config[profile_index][i] = profile[i]
-                
+
                 # Keep track of daily ice usage
                 daily_ice_usage[day] = {'ice_used': ice_used}
                 day += 1
@@ -130,7 +130,7 @@ class WallConstruction:
         Logs the progress and the completion details in a log file.
         """
         thread = current_thread()
-        
+
         try:
             self.assign_thread_name(thread)
             self.process_sections(thread)
@@ -155,7 +155,7 @@ class WallConstruction:
             except Empty:
                 # No more sections to process
                 break
-            
+
             self.initialize_thread_days(thread)
             self.process_section(profile_id, section_id, height, thread)
 
@@ -195,7 +195,7 @@ class WallConstruction:
             # Log the section finalization
             if height == MAX_HEIGHT:
                 self.log_section_completion(profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost)
-            
+
             # Synchronize with the other crews at the end of the day
             self.end_of_day_synchronization()
 
@@ -239,7 +239,7 @@ class WallConstruction:
                             r'HGHT_INCRS: Section ID: (\d+)-\d+ - DAY_(\d+) - .*Ice used: (\d+) cbc\. yrds\.', line)
                         if match:
                             profile_id, day, ice_used = map(int, match.groups())
-                            
+
                             self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
                             self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
                     except Exception as e:
@@ -274,7 +274,7 @@ class WallConstruction:
         for profile_id, daily_data in self.wall_profile_data.items():
             profile_total_cost = 0
             profile_daily_details = {}
-            
+
             for day, day_data in daily_data.items():
                 cost = day_data['ice_used'] * ICE_COST_PER_CUBIC_YARD
                 profile_total_cost += cost

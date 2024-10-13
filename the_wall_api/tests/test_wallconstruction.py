@@ -33,7 +33,7 @@ class WallConstructionCreationTest(BaseTestcase):
                 for profile in wall_construction.testing_wall_construction_config:
                     for section in profile:
                         self.assertEqual(section, settings.MAX_HEIGHT)
-                
+
             self.log_test_result(
                 passed=True, input_data=config_output, expected_message=expected_message,
                 actual_message=expected_message, test_case_source=test_case_source
@@ -138,7 +138,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
 
         # Avoid printing of big volumes of data
         config_output = config if 'Large' not in config_case else '[0] * (MAX_LENGTH / 2), [MAX_HEIGHT - 1] * (MAX_LENGTH / 2)'
-        
+
         try:
             wall_sequential = WallConstruction(sequential_config, sections_count, num_crews=0, simulation_type='sequential')
         except Exception as wall_cnstrctn_err:

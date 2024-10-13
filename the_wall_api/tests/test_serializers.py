@@ -44,7 +44,7 @@ class SerializerTest(BaseTestcase):
 
         except AssertionError as assrtn_err:
             self.log_test_serializer_result(False, input_data, expected_errors, str(assrtn_err), test_case_source)
-        
+
         except Exception as err:
             actual_errors = f'{err.__class__.__name__}: {str(err)}'
             self.log_test_serializer_result(False, input_data, expected_errors, actual_errors, test_case_source, error_occured=True)
@@ -55,7 +55,7 @@ class SerializerTest(BaseTestcase):
                 serializer.is_valid(raise_exception=True)
         except AssertionError:
             self.fail(f'Expected ValidationError was not raised for input data: {input_data}')
-        
+
         return validation_error_context.exception
 
     def validate_without_errors(self, serializer: Serializer | ListSerializer) -> None:

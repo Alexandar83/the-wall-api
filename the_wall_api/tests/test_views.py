@@ -13,7 +13,7 @@ from the_wall_api.wall_construction import WallConstruction
 
 
 class ViewTest(BaseTestcase):
-    
+
     url_name = None
 
     def setUp(self):
@@ -37,7 +37,7 @@ class ViewTest(BaseTestcase):
     def get_invalid_days_for_profile_sequential(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
         return [day for day in generate_valid_values() if isinstance(day, int) and day > max_day]
-    
+
     def get_invalid_days_for_profile_concurrent(self, valid_profile_id: int, valid_num_crews: int) -> List[int]:
         wall_construction = WallConstruction(
             wall_construction_config=self.wall_construction_config,
@@ -52,7 +52,7 @@ class ViewTest(BaseTestcase):
         # Add 0 to test sequential mode
         valid_num_crews = range(0, 10, 2)
         return valid_num_crews
-    
+
     def execute_test_case(
         self, expected_status: Literal[200, 400, 404], test_case_source: str, profile_id: int | None = None,
         day: int | None = None, num_crews: int | None = None, consistency_test: bool = False
@@ -72,7 +72,7 @@ class ViewTest(BaseTestcase):
                 actual_message=f'{err.__class__.__name__}: {str(err)}',
                 test_case_source=test_case_source, error_occurred=True
             )
-        
+
         # Clear the cache after each test
         # A DB flush for such tests is automatically performed
         # by the Django test runner
@@ -103,7 +103,7 @@ class ViewTest(BaseTestcase):
                 break
 
         self.log_results_consistency_test_result(passed, input_data, reference_result, result, test_case_source)
-    
+
     def log_response_status_test_result(self, passed: bool, input_data: dict, expected_status: int, actual_status: int, test_case_source: str) -> None:
         self.log_test_result(
             passed=passed,
@@ -125,7 +125,7 @@ class ViewTest(BaseTestcase):
 
 class DailyIceUsageViewTest(ViewTest):
     description = 'Daily Ice Usage View Tests'
-    
+
     url_name = exposed_endpoints['daily-ice-usage']['name']
 
     def test_daily_ice_usage_valid(self, test_case_source=None, consistency_test=False):
@@ -147,7 +147,7 @@ class DailyIceUsageViewTest(ViewTest):
     def test_daily_ice_usage_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         self.test_daily_ice_usage_valid(test_case_source=test_case_source, consistency_test=True)
-    
+
     def test_daily_ice_usage_invalid_profile_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
@@ -157,7 +157,7 @@ class DailyIceUsageViewTest(ViewTest):
         for invalid_profile_id in invalid_profile_ids:
             with self.subTest(invalid_profile_id=invalid_profile_id):
                 self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, invalid_profile_id, day, num_crews)
-    
+
     def test_daily_ice_usage_invalid_day_sequential(self):
         """Test with days after the construction's completion day."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -168,7 +168,7 @@ class DailyIceUsageViewTest(ViewTest):
         for invalid_day in invalid_days:
             with self.subTest(invalid_day=invalid_day):
                 self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id, invalid_day, num_crews)
-    
+
     def test_daily_ice_usage_invalid_day_concurrent(self):
         """Test with days on which the profile was not worked on."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -179,7 +179,7 @@ class DailyIceUsageViewTest(ViewTest):
         for invalid_day in invalid_days:
             with self.subTest(invalid_day=invalid_day):
                 self.execute_test_case(status.HTTP_404_NOT_FOUND, test_case_source, profile_id, invalid_day, num_crews)
-    
+
     def test_daily_ice_usage_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
@@ -193,7 +193,7 @@ class DailyIceUsageViewTest(ViewTest):
 
 class CostOverviewViewTest(ViewTest):
     description = 'Cost Overview View Tests'
-    
+
     url_name = exposed_endpoints['cost-overview']['name']
 
     def test_cost_overview_valid(self, test_case_source=None, consistency_test=False):
@@ -223,7 +223,7 @@ class CostOverviewViewTest(ViewTest):
 
 class CostOverviewProfileidViewTest(ViewTest):
     description = 'Cost Overview Profileid View Tests'
-    
+
     url_name = exposed_endpoints['cost-overview-profile']['name']
 
     def test_cost_overview_profileid_valid(self, test_case_source=None, consistency_test=False):
@@ -253,7 +253,7 @@ class CostOverviewProfileidViewTest(ViewTest):
             for num_crews in valid_num_crews:
                 with self.subTest(invalid_profile_id=invalid_profile_id, num_crews=num_crews):
                     self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=invalid_profile_id, num_crews=num_crews)
-    
+
     def test_cost_overview_profileid_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]

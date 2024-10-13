@@ -15,7 +15,7 @@ class CeleryTaskTest(BaseTestcase):
 
         self.test_logs_dir = self.test_dir + ('logs',)
         self.test_logs_dir_full_path = os.path.join(os.getcwd(), *self.test_logs_dir)
-        
+
         self.test_logs_dir_archive = self.test_logs_dir + ('archive',)
         self.test_logs_dir_archive_full_path = os.path.join(os.getcwd(), *self.test_logs_dir_archive)
 
@@ -30,32 +30,32 @@ class CeleryTaskTest(BaseTestcase):
         # Ensure the test file is existing
         if not os.path.exists(self.test_file):
             return f'Test file: {self.test_file} does not exist!'
-        
+
         # Archive the test file
         archive_task_result = archive_logs_task.delay(test_data=test_data)
         archive_task_result.get(timeout=10)
-        
+
         # Check archive task success
         if not archive_task_result.successful():
             return f'Archive_logs_task failed: {archive_task_result.result}!'
-        
+
         # Ensure the test file is moved and archived
         archived_file_path = os.path.join(self.test_logs_dir_archive_full_path, f'{self.test_file_name}.gzip')
         if not os.path.exists(archived_file_path):
             return f'Archived file: {archived_file_path} does not exist!'
-        
+
         # Remove the archived test file
         clean_old_archives_task_result = clean_old_archives_task.delay(test_data=test_data)
         clean_old_archives_task_result.get(timeout=10)
-        
+
         # Check clean task success
         if not clean_old_archives_task_result.successful():
             return f'clean_old_archives_task failed: {clean_old_archives_task_result.result}!'
-        
+
         # Ensure the archived test file is deleted
         if os.path.exists(archived_file_path):
             return f'Archived file: {archived_file_path} is not deleted!'
-        
+
         return expected_message
 
     def test_file_retention_tasks(self):
@@ -66,7 +66,7 @@ class CeleryTaskTest(BaseTestcase):
             'test_logs_dir': self.test_logs_dir,
             'test_logs_dir_archive': self.test_logs_dir_archive
         }
-        
+
         error_occurred = False
         expected_message = 'File retention tasks successful.'
 
@@ -76,7 +76,7 @@ class CeleryTaskTest(BaseTestcase):
             passed = False
             actual_mesasge = f'{task_err.__class__.__name__}: {str(task_err)}'
             error_occurred = True
-        
+
         passed = expected_message == actual_mesasge
 
         self.log_test_result(

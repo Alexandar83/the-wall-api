@@ -26,7 +26,7 @@ def fetch_wall_data(
         return
 
     set_simulation_params(wall_data, num_crews, wall_construction_config, request_type)
-    
+
     get_or_create_cache(wall_data, request_type)
 
 
@@ -35,7 +35,7 @@ def get_or_create_cache(wall_data, request_type) -> None:
     collect_cached_data(wall_data, request_type)
     if wall_data.get('cached_result') or wall_data['error_response']:
         return
-    
+
     # If no cached data is found, run the simulation
     run_simulation(wall_data)
 
@@ -72,7 +72,7 @@ def fetch_wall_cost(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) ->
     if cached_wall_cost is not None:
         cached_result['wall_total_cost'] = cached_wall_cost
         return
-    
+
     # DB
     fetch_wall_cost_from_db(wall_data, cached_result, wall_redis_key)
 
@@ -84,7 +84,7 @@ def fetch_wall_cost_from_redis_cache(wall_data: Dict[str, Any]) -> tuple[int, st
     """
     wall_redis_key = get_wall_cache_key(wall_data)
     cached_wall_cost = cache.get(wall_redis_key)
-    
+
     return cached_wall_cost, wall_redis_key
 
 
@@ -116,7 +116,7 @@ def fetch_wall_profile_cost(wall_data: Dict[str, Any], cached_result: Dict[str, 
     if cached_wall_profile_cost is not None:
         cached_result['wall_profile_cost'] = cached_wall_profile_cost
         return
-    
+
     # DB
     fetch_wall_profile_cost_from_db(
         wall_profile_config_hash, cached_result, wall_profile_redis_cache_key
@@ -169,7 +169,7 @@ def fetch_daily_ice_usage(wall_data: Dict[str, Any], cached_result: Dict[str, An
     if wall_data['error_response']:
         # Return if any day errors
         return
-    
+
     # DB
     fetch_daily_ice_usage_from_db(
         wall_data, wall_profile_config_hash, profile_id, cached_result, profile_ice_usage_redis_cache_key
@@ -189,7 +189,7 @@ def fetch_daily_ice_usage_from_redis_cache(
     cached_profile_ice_usage = cache.get(profile_ice_usage_redis_cache_key)
     if cached_profile_ice_usage:
         return cached_profile_ice_usage, profile_ice_usage_redis_cache_key
-    
+
     # No check_if_cached_on_another_day_redis_cache method is implemented:
     # Explanation:
     # Don't mix DB with Redis cache fethes in this case, to avoid theoretical
@@ -212,9 +212,9 @@ def get_daily_ice_usage_cache_key(
     )
     if wall_data['simulation_type'] == wall_config_utils.CONCURRENT:
         key_data += f'_{profile_id}'
-    
+
     # profile_ice_usage_redis_cache_key = hash_calc(key_data)   # Potential future mem. usage optimisation
-    
+
     return key_data
 
 
@@ -255,14 +255,14 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
     db_lock_acquired = None
     total_cost = wall_data['sim_calc_details']['total_cost']
     wall_redis_data = []
-    
+
     try:
         db_lock_acquired = acquire_db_lock(wall_db_lock_key)
         if not db_lock_acquired:
             # Skip cache creation if lock is not acquired -
             # another process is creating the cache
             return
-        
+
         with transaction.atomic():
             # Create the wall object in the DB
             wall = Wall.objects.create(
@@ -281,7 +281,7 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
 
             # Commit deferred Redis cache after a successful DB transaction
             transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
-    
+
     except IntegrityError as wall_crtn_intgrty_err:
         error_utils.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
     except Exception as wall_crtn_unkwn_err:
@@ -394,7 +394,7 @@ def cache_wall_profile_progress_to_db(
             day=day_index,
             ice_used=data['ice_used']
         )
-        
+
         # Deferred Redis cache
         wall_redis_data.append(
             (

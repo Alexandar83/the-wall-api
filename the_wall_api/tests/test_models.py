@@ -26,7 +26,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
     def test_unique_wall_profile_no_profile_id(self):
         """Test that multiple profiles with the same config_hash can exist if profile_id is NULL."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
-        
+
         # First profile with profile_id NULL (sequential mode)
         WallProfile.objects.create(**self.wall_profile_data)
 
@@ -168,7 +168,7 @@ class WallUniqueConstraintTest(BaseTestcase):
     def test_wall_unique_together(self):
         """Test that a duplicate wall with the same wall_config_hash and num_crews raises a ValidationError."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        
+
         # First Wall creation should succeed
         Wall.objects.create(**self.wall_data)
 
@@ -214,7 +214,7 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
     def test_wall_profile_progress_unique_together(self):
         """Test that a duplicate WallProfileProgress with the same wall_profile and day raises a ValidationError."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
-        
+
         # First WallProfileProgress creation should succeed
         WallProfileProgress.objects.create(**self.progress_data)
 

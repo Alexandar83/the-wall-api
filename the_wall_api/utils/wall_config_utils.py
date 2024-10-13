@@ -25,7 +25,7 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
     except (WallConstructionError, FileNotFoundError) as tech_error:
         handle_unknown_error(wall_data, tech_error)
         return []
-    
+
     # Validate the profile number if provided
     max_profile_number = len(wall_construction_config)
     if profile_id is not None and profile_id > max_profile_number:
@@ -41,7 +41,7 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
 def load_wall_profiles_from_config() -> list:
     invalid_wall_config_msg = 'Invalid wall configuration file.'
     result = []
-    
+
     try:
         with open(settings.WALL_CONFIG_PATH, 'r') as file:
             result = json.load(file)
@@ -57,7 +57,7 @@ def load_wall_profiles_from_config() -> list:
 
         if not all(isinstance(section_height, int) and 1 <= section_height <= MAX_HEIGHT for section_height in profile):
             raise WallConstructionError(invalid_wall_config_msg)
-    
+
     return result
 
 
@@ -70,11 +70,11 @@ def generate_config_hash_details(wall_construction_config: list) -> dict:
 
     # Hash of the whole config
     result['wall_config_hash'] = hash_calc(wall_construction_config)
-    
+
     for profile_id, profile_config in enumerate(wall_construction_config, start=1):
         # Hash each profile config
         result['profile_config_hash_data'][profile_id] = hash_calc(profile_config)
-    
+
     return result
 
 

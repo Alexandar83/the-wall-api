@@ -53,10 +53,10 @@ class DailyIceUsageView(APIView):
             response_data['ice_used'] = profile_daily_ice_used
             response_data['details'] = f'Volume of ice used for profile {profile_id} on day {day}: {profile_daily_ice_used} cubic yards.'
             return Response(response_data, status=status.HTTP_200_OK)
-        
+
         response_data['details'] = f'No crew has worked on profile {profile_id} on day {day}.'
         return Response(response_data, status=status.HTTP_404_NOT_FOUND)
-    
+
 
 class CostOverviewView(APIView):
 
@@ -85,7 +85,7 @@ class CostOverviewView(APIView):
         fetch_wall_data(wall_data, num_crews, profile_id, request_type)
         if wall_data['error_response']:
             return wall_data['error_response']
-        
+
         return self.build_cost_overview_response(wall_data, profile_id)
 
     def build_cost_overview_response(self, wall_data: Dict[str, Any], profile_id: int | None) -> Response:

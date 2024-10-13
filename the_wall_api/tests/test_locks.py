@@ -59,9 +59,9 @@ class AdvisoryLockTest(LockTestBase):
             if not db_lock_acquired:
                 self.put_lock_acquired_in_result_queue(result_queue, bool(db_lock_acquired))
                 return db_lock_acquired
-            
+
             sleep(self.sleep_time)  # Simulate a long operation
-        
+
         finally:
             if db_lock_acquired:
                 release_db_lock(wall_db_lock_key)
@@ -102,11 +102,11 @@ class RedisLockTest(LockTestBase):
         if not lock.acquire(blocking=False):
             self.put_lock_acquired_in_result_queue(result_queue, False)
             return False
-        
+
         sleep(self.sleep_time)  # Simulate a long operation
-        
+
         lock.release()
-        
+
         self.put_lock_acquired_in_result_queue(result_queue, True)
         return True
 

@@ -88,12 +88,12 @@ if REDIS_URL is not None:
     elif PROJECT_MODE == 'prod_v2':
         REDIS_PASSWORD = open(os.environ['REDIS_PASSWORD_FILE']).read().strip()
         REDIS_URL = REDIS_URL.replace('REDIS_PASSWORD', REDIS_PASSWORD)
-    
+
     # === Celery Configuration ===
 
     # Ensure separate Redis DB for in-memory-caching and Celery
     CELERY_BROKER_URL = REDIS_URL.replace('REDIS_DB_NUMBER', REDIS_DB_NUMBER_CELERY)
-    
+
     if PROJECT_MODE == 'dev' and STARTED_FROM_CELERY_SERVICE:
         # On dev. the app is not containerized:
         # 'redis' is not properly resolved locally from the Django dev server and
