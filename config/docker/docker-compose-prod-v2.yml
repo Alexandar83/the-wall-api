@@ -1,5 +1,5 @@
 services:
-  the-wall-api:
+  the_wall_api:
     image: ghcr.io/alexandar83/the-wall-api:latest
     command: >
       sh -c "python /app/config/docker/scripts/wait_for_postgres.py && \
@@ -54,7 +54,7 @@ services:
 
   celery_worker:
     image: ghcr.io/alexandar83/the-wall-api:latest
-    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks,computation_tasks"
+    command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:
@@ -70,9 +70,29 @@ services:
       - postgres_password
     volumes:
       - shared_sim_logs:/app/logs
+
+  celery_lightweight_worker:
+    image: ghcr.io/alexandar83/celery-lightweight:latest
+    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks --concurrency=1"
+    env_file:
+      - ../../config/envs/prod/the_wall_api_prod.env
+    environment:
+      - LIGHT_CELERY_CONFIG=True
+      - PROJECT_MODE=prod_v2
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    secrets:
+      - redis_password
+      - postgres_db
+      - postgres_user
+      - postgres_password
+    volumes:
+      - shared_sim_logs:/app/logs
   
   celery_beat:
-    image: ghcr.io/alexandar83/the-wall-api:latest
+    image: ghcr.io/alexandar83/celery-lightweight:latest
     # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
     # Persist the schedule in a docker volume
     command: sh -c "python /app/config/docker/scripts/wait_for_celery_worker.py && \
@@ -82,6 +102,7 @@ services:
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:
+      - LIGHT_CELERY_CONFIG=True
       - PROJECT_MODE=prod_v2
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
       - POSTGRES_DB_FILE=/run/secrets/postgres_db

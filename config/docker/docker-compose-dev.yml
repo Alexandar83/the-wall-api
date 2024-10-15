@@ -33,14 +33,15 @@ services:
       postgres:
         condition: service_healthy
     entrypoint: sh -c "echo"
-  
+
   celery_worker:
     image: ghcr.io/alexandar83/the-wall-api:latest
     container_name: celery_worker_dev
     build:
       context: ../..
       dockerfile: ./config/docker/Dockerfile.dev
-    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks,computation_tasks"
+      target: the_wall_api_image
+    command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
     volumes:
       - ../..:/app
     env_file:
@@ -53,8 +54,29 @@ services:
       timeout: 8s     # How long to wait for a response
       retries: 5      # How many retries before marking as unhealthy
 
+  celery_lightweight_worker:
+    image: ghcr.io/alexandar83/celery-lightweight:latest
+    container_name: celery_lightweight_worker_dev
+    build:
+      context: ../..
+      dockerfile: ./config/docker/Dockerfile.dev
+      target: celery_lightweight_image
+    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks --concurrency=1"
+    volumes:
+      - ../../logs:/app/logs
+    env_file:
+      - ../../config/envs/dev/the_wall_api_dev.env
+    environment:
+      - LIGHT_CELERY_CONFIG=True
+      - STARTED_FROM_CELERY_SERVICE=True
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config status"]
+      interval: 2s    # How often to check
+      timeout: 8s     # How long to wait for a response
+      retries: 5      # How many retries before marking as unhealthy
+
   celery_beat:
-    image: ghcr.io/alexandar83/the-wall-api:latest
+    image: ghcr.io/alexandar83/celery-lightweight:latest
     container_name: celery_beat_dev
     # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
     # Persist the schedule in a docker volume
@@ -65,11 +87,14 @@ services:
     env_file:
       - ../../config/envs/dev/the_wall_api_dev.env
     environment:
+      - LIGHT_CELERY_CONFIG=True
       - STARTED_FROM_CELERY_SERVICE=True
     depends_on:
       celery_worker:
         condition: service_healthy
-  
+      celery_lightweight_worker:
+        condition: service_healthy
+
 volumes:
   redis_data_dev:
     name: the_wall_api_redis_data_dev

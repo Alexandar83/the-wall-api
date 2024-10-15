@@ -1,5 +1,5 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.11.9-slim-bullseye
+# === Stage 1: Base Python environment with common setup ===
+FROM python:3.11.9-slim-bullseye AS base
 
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -9,6 +9,15 @@ ENV PYTHONUNBUFFERED=1
 
 ENV PYTHON_VERSION=3.11.9
 
+# Set the working directory of the container to “app”
+WORKDIR /app
+
+# Create a non-root user
+RUN adduser -u 5678 --disabled-password --gecos "" appuser
+
+# === Stage 2: App image ===
+FROM base AS the_wall_api_image
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y gcc libpq-dev
 
@@ -16,14 +25,29 @@ RUN apt-get update && apt-get install -y gcc libpq-dev
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Sets the working directory of the container to “app”
-WORKDIR /app
+# Copy the whole app
 COPY . /app
 
-# Creates a non-root user with an explicit UID and adds permission to access the /app folder
+# Add user permissions
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+# === Stage 3: Celery image ===
+FROM base AS celery_lightweight_image
+
+# Install pip requirements
+# Filter out only the celery and redis dependencies (avoid django-redis)
+COPY requirements.txt .
+RUN grep -E '^celery==|^redis==' /app/requirements.txt > filtered-requirements.txt
+RUN pip install --no-cache-dir -r filtered-requirements.txt
+
+# Copy the whole app
+COPY . /app
+
 # Create a Celery beat schedule folder for mounting only in the beat service
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && \
-mkdir -p /var/lib/celery/data && \
+# Add user permissions for the folders
+RUN mkdir -p /var/lib/celery/data && \
 chown -R appuser:appuser /app && \
 chown -R appuser:appuser /var/lib/celery/data
 

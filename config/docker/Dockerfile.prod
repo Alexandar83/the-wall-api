@@ -1,5 +1,5 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.11.9-slim-bullseye
+# === Stage 1: Base Python environment with common setup ===
+FROM python:3.11.9-slim-bullseye AS base
 
 EXPOSE 8000
 
@@ -11,6 +11,15 @@ ENV PYTHONUNBUFFERED=1
 
 ENV PYTHON_VERSION=3.11.9
 
+# Set the working directory of the container to “app”
+WORKDIR /app
+
+# Create a non-root user
+RUN adduser -u 5678 --disabled-password --gecos "" appuser
+
+# === Stage 2: App image ===
+FROM base AS the_wall_api_image
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y gcc libpq-dev
 
@@ -21,20 +30,33 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 # Install gunicorn separately, because it is not a dependency of the Django app
 RUN python -m pip install --no-cache-dir gunicorn
 
-# Sets the working directory of the container to “app”
-WORKDIR /app
+# Copy the whole app
 COPY . /app
 
-# Create a non-root user with an explicit UID and adds permission to access the /app folder
+# Create the build simulation logs folder to avoid permission issues in the Celery worker service
+# Add user permissions
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+
+USER appuser
+
+# === Stage 3: Celery image ===
+FROM base AS celery_lightweight_image
+
+# Install pip requirements
+# Filter out only the celery and redis dependencies (avoid django-redis)
+COPY requirements.txt .
+RUN grep -E '^celery==|^redis==' /app/requirements.txt > filtered-requirements.txt
+RUN pip install --no-cache-dir -r filtered-requirements.txt
+
+# Copy the whole app
+COPY . /app
+
 # Create a Celery beat schedule folder for mounting only in the beat service
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && \
-mkdir -p /var/lib/celery/data && \
+# Add user permissions for the folders
+RUN mkdir -p /var/lib/celery/data && \
 mkdir -p /app/logs && \
 chown -R appuser:appuser /app && \
 chown -R appuser:appuser /var/lib/celery/data
 
 USER appuser
-
-# Run a lightweight and highly efficient Gunicorn WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi"]
