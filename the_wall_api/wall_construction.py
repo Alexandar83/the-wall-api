@@ -14,9 +14,11 @@ from typing import Any, Dict
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
+from the_wall_api.utils.env_utils import configure_env_logging
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
-LOGS_DIR = settings.LOGS_DIR
+log_settings = configure_env_logging()
+BUILD_SIM_LOGS_DIR = log_settings['BUILD_SIM_LOGS_DIR']
 MAX_HEIGHT = settings.MAX_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
@@ -41,7 +43,10 @@ class WallConstruction:
             self.counter_lock = Lock()
             self.thread_days = {}
             timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
-            self.filename = f'{LOGS_DIR}/wall_construction_{timestamp}_{secrets.token_hex(4)}.log'
+            self.filename = os.path.join(
+                BUILD_SIM_LOGS_DIR,
+                f'wall_construction_{timestamp}_{secrets.token_hex(4)}.log'
+            )
             self.logger = self._setup_logger()
 
             # Initialize the queue with sections
@@ -77,9 +82,6 @@ class WallConstruction:
 
         # Handler to the logger
         logger.addHandler(file_handler)
-
-        # Flushing after each log entry
-        file_handler.flush = lambda: file_handler.stream.flush()
 
         return logger
 

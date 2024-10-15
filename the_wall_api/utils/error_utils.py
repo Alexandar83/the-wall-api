@@ -39,7 +39,7 @@ def create_technical_error_response(request_params: Dict[str, Any], tech_error: 
         error_details['request_params'] = request_params
     if tech_error:
         error_details['tech_info'] = f'{tech_error.__class__.__name__}: {str(tech_error)}'
-    
+
     error_response['error_details'] = error_details
     return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

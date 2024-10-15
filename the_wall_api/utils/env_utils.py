@@ -52,3 +52,26 @@ def configure_redis_url_and_celery_settings() -> dict:
     result['CELERY_RESULT_EXPIRES'] = '600'
 
     return result
+
+
+def configure_env_logging() -> dict:
+    result = {}
+
+    LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Parent logs folder
+    result['LOGS_DIR'] = LOGS_DIR
+
+    BUILD_SIM_LOGS_DIR = os.path.join(LOGS_DIR, 'build_simulations')                        # Construction simulation logs
+    result['BUILD_SIM_LOGS_DIR'] = BUILD_SIM_LOGS_DIR
+
+    BUILD_SIM_LOGS_ARCHIVE_DIR = os.path.join(BUILD_SIM_LOGS_DIR, 'archive')                # Construction simulation logs archive
+    result['BUILD_SIM_LOGS_ARCHIVE_DIR'] = BUILD_SIM_LOGS_ARCHIVE_DIR
+
+    BUILD_SIM_LOGS_RETENTION_DAYS = int(os.getenv('BUILD_SIM_LOGS_RETENTION_DAYS', 1))      # Days of logs retention
+    result['BUILD_SIM_LOGS_RETENTION_DAYS'] = BUILD_SIM_LOGS_RETENTION_DAYS
+
+    BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = int(                                            # Days of logs archive retention
+        os.getenv('BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS', 7)
+    )
+    result['BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS'] = BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS
+
+    return result
