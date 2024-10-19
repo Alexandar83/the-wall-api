@@ -6,7 +6,7 @@ import xxhash
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import connection, IntegrityError, transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from redis.exceptions import ConnectionError, TimeoutError
 
@@ -38,6 +38,8 @@ def get_or_create_cache(wall_data, request_type) -> None:
 
     # If no cached data is found, run the simulation
     run_simulation(wall_data)
+    if wall_data['error_response']:
+        return
 
     # Create the new cache data
     cache_wall(wall_data)
@@ -282,10 +284,8 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
             # Commit deferred Redis cache after a successful DB transaction
             transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
 
-    except IntegrityError as wall_crtn_intgrty_err:
-        error_utils.handle_wall_crtn_integrity_error(wall_data, wall_crtn_intgrty_err)
     except Exception as wall_crtn_unkwn_err:
-        error_utils.handle_unknown_error(wall_data, wall_crtn_unkwn_err)
+        error_utils.handle_unknown_error(wall_data, wall_crtn_unkwn_err, 'caching')
     finally:
         if db_lock_acquired:
             release_db_lock(wall_db_lock_key)

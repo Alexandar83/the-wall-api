@@ -23,7 +23,7 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
     try:
         wall_construction_config = load_wall_profiles_from_config()
     except (WallConstructionError, FileNotFoundError) as tech_error:
-        handle_unknown_error(wall_data, tech_error)
+        handle_unknown_error(wall_data, tech_error, 'wall_configuration')
         return []
 
     # Validate the profile number if provided

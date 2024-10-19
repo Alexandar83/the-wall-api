@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from gzip import open as gzip_open
+import logging
 import os
 from shutil import copyfileobj
 from time import sleep
@@ -68,6 +69,19 @@ def clean_old_archives(input_params: dict | None = None, test_input_params: dict
 
                 # Delete the old archive
                 remove_file(archive_path)
+
+
+def log_error(error_type: str, error_message: str, error_traceback: str, request_info: dict = {}, error_id_prefix: str = '') -> str:
+    from redis import Redis
+
+    # Redis DB2 is used for persistent data
+    redis_connection = Redis.from_url(CELERY_BROKER_URL)
+    error_id = error_id_prefix + str(redis_connection.incr('unknown_errors_counter'))
+
+    logger = logging.getLogger(error_type)
+    logger.error(error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id})
+
+    return error_id
 
 
 def get_archive_logs_details(input_params: dict | None = None, test_input_params: dict | None = None) -> tuple[datetime, str, str]:

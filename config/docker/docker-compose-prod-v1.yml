@@ -47,9 +47,9 @@ services:
       timeout: 5s    # How long to wait for a response
       retries: 5     # How many retries before marking as unhealthy
 
-  celery_worker:
+  celery_worker_1:
     image: ghcr.io/alexandar83/the-wall-api:latest
-    container_name: celery_worker_prod
+    container_name: celery_worker_1_prod
     command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
@@ -66,16 +66,15 @@ services:
     volumes:
       - shared_sim_logs:/app/logs
 
-  celery_lightweight_worker:
-    image: ghcr.io/alexandar83/celery-lightweight:latest
-    container_name: celery_lightweight_worker_prod
+  celery_worker_2:
+    image: ghcr.io/alexandar83/the-wall-api:latest
+    container_name: celery_worker_2_prod
     command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks --concurrency=1"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
       - ../../config/envs/prod/postgres_prod.env
     environment:
-      - LIGHT_CELERY_CONFIG=True
       - PROJECT_MODE=prod_v1
     healthcheck:
       test: ["CMD-SHELL", "celery -A config status"]
@@ -102,9 +101,9 @@ services:
       - LIGHT_CELERY_CONFIG=True
       - PROJECT_MODE=prod_v1
     depends_on:
-      celery_worker:
+      celery_worker_1:
         condition: service_healthy
-      celery_lightweight_worker:
+      celery_worker_2:
         condition: service_healthy
 
 volumes:

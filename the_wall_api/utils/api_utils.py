@@ -170,7 +170,8 @@ daily_ice_usage_responses = {
                             'day': 14,
                             'num_crews': 5
                         },
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'error_id': '1',
                     }
                 },
             )
@@ -234,7 +235,8 @@ cost_overview_responses = {
                 value={
                     'error': 'Wall Construction simulation failed. Please contact support.',
                     'error_details': {
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'error_id': '1',
                     }
                 },
             ),
@@ -287,7 +289,8 @@ cost_overview_profile_id_responses = {
                             'profile_id': 5,
                             'num_crews': 1
                         },
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.'
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'error_id': '1',
                     }
                 },
             ),

@@ -28,14 +28,14 @@ echo
 echo "=== STAGE 4 ==="
 echo "Migrations ready, building the Celery services' images..."
 echo
-docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml build celery_beat celery_worker celery_lightweight_worker --no-cache
+docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml build celery_beat celery_worker_1 --no-cache
 echo
 
 # Start the Celery services
 echo "=== STAGE 5 ==="
 echo "Celery images built, starting the Celery services..."
 echo
-docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_beat celery_worker celery_lightweight_worker
+docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml up -d celery_beat celery_worker_1 celery_worker_2
 echo
 
 echo "=== DEV COMPOSE FINISH ==="

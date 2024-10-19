@@ -52,7 +52,7 @@ services:
       - postgres_user
       - postgres_password
 
-  celery_worker:
+  celery_worker_1:
     image: ghcr.io/alexandar83/the-wall-api:latest
     command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
     env_file:
@@ -71,13 +71,12 @@ services:
     volumes:
       - shared_sim_logs:/app/logs
 
-  celery_lightweight_worker:
-    image: ghcr.io/alexandar83/celery-lightweight:latest
+  celery_worker_2:
+    image: ghcr.io/alexandar83/the-wall-api:latest
     command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks --concurrency=1"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:
-      - LIGHT_CELERY_CONFIG=True
       - PROJECT_MODE=prod_v2
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
       - POSTGRES_DB_FILE=/run/secrets/postgres_db

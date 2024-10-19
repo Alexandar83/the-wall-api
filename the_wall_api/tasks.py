@@ -1,33 +1,46 @@
-import os
-
 from celery import shared_task
 
-from the_wall_api.utils.file_utils import archive_logs, clean_old_archives
-
-# Lightweight Celery config without full app loading:
-# reduce app dependencies for lightweight worker tasks as much as possible
-# to avoid import conflicts
-LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
-if not LIGHT_CELERY_CONFIG:
-    from the_wall_api.utils.error_utils import log_error_to_db
+from the_wall_api.utils.file_utils import archive_logs, clean_old_archives, log_error
 
 
 # === Scheduled tasks ===
 @shared_task(queue='file_tasks')    # Task sent to 'file_tasks' queue
 def archive_logs_task(*args, **kwargs) -> None:
+    from the_wall_api.utils.error_utils import extract_error_traceback
+
     try:
         archive_logs(*args, **kwargs)
-    except Exception as unkwn_err:
-        # TODO: add logging
-        print(f'ARCHIVE_LOGS_TASK ERROR: {unkwn_err}')
+    except Exception as unknwn_err:
+        error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+        error_traceback = extract_error_traceback(unknwn_err)
+        log_error_task.delay('celery_tasks', error_message, error_traceback)    # type: ignore
 
 
 @shared_task(queue='file_tasks')    # Task sent to 'file_tasks' queue
 def clean_old_archives_task(*args, **kwargs) -> None:
+    from the_wall_api.utils.error_utils import extract_error_traceback
+
     try:
         clean_old_archives(*args, **kwargs)
-    except Exception as unkwn_err:
-        # TODO: add logging
-        print(f'CLEAN_OLD_ARCHIVES_TASK ERROR: {unkwn_err}')
+    except Exception as unknwn_err:
+        error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+        error_traceback = extract_error_traceback(unknwn_err)
+        log_error_task.delay('celery_tasks', error_message, error_traceback)    # type: ignore
 
 # === Scheduled tasks end ===
+
+
+@shared_task(queue='file_tasks')    # Task sent to 'file_tasks' queue
+def log_error_task(*args, **kwargs) -> str:
+    from the_wall_api.utils.error_utils import extract_error_traceback
+
+    error_id = ''
+    try:
+        error_id = log_error(*args, **kwargs)
+    except Exception as unknwn_err:
+        print(f'LOG_ERROR_TASK ERROR: {unknwn_err}')
+        exception_traceback = extract_error_traceback(unknwn_err)
+        for line in exception_traceback:
+            print(line)
+
+    return error_id
