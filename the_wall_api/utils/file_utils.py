@@ -1,18 +1,24 @@
 # Management of logs retention policies
 
 from datetime import datetime, timedelta
-import gzip
+from gzip import open as gzip_open
 import os
 from shutil import copyfileobj
 from time import sleep
 
-from the_wall_api.utils.env_utils import configure_env_logging
+LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
 
-log_settings = configure_env_logging()
-BUILD_SIM_LOGS_DIR = log_settings['BUILD_SIM_LOGS_DIR']
-BUILD_SIM_LOGS_ARCHIVE_DIR = log_settings['BUILD_SIM_LOGS_ARCHIVE_DIR']
-BUILD_SIM_LOGS_RETENTION_DAYS = log_settings['BUILD_SIM_LOGS_RETENTION_DAYS']
-BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = log_settings['BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS']
+if not LIGHT_CELERY_CONFIG:
+
+    from django.conf import settings
+
+    BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
+    BUILD_SIM_LOGS_ARCHIVE_DIR = str(settings.BUILD_SIM_LOGS_ARCHIVE_DIR)
+    BUILD_SIM_LOGS_RETENTION_DAYS = settings.BUILD_SIM_LOGS_RETENTION_DAYS
+    BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = settings.BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS
+
+    CELERY_BROKER_URL = settings.CELERY_BROKER_URL
+
 DELETION_RETRIES = 5
 
 
@@ -40,7 +46,7 @@ def archive_logs(input_params: dict | None = None, test_input_params: dict | Non
 
                 # Compress the log file and copy it to the archive
                 with open(log_path, 'rb') as f_in:
-                    with gzip.open(archive_path, 'wb', compresslevel=9) as f_out:
+                    with gzip_open(archive_path, 'wb', compresslevel=9) as f_out:
                         copyfileobj(f_in, f_out)
 
                 # Delete the original log file after compressing

@@ -17,6 +17,7 @@ django-redis = "^5.4.0"
 psycopg2 = "^2.9.9"
 xxhash = "^3.5.0"
 celery = "^5.4.0"
+python-json-logger = "^2.0.7"
 
 
 [build-system]

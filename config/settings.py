@@ -205,8 +205,135 @@ APPEND_SLASH = True
 
 TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 
-# Filesystem configuration
+# === Filesystem configuration ===
+# General
 WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', 'config/wall_config.json')             # Location of the wall profile configuration
+
+# Construction simulation logs
+LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Parent logs folder
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+BUILD_SIM_LOGS_DIR = os.path.join(LOGS_DIR, 'build_simulations')                        # Construction simulation logs
+os.makedirs(BUILD_SIM_LOGS_DIR, exist_ok=True)
+
+BUILD_SIM_LOGS_ARCHIVE_DIR = os.path.join(BUILD_SIM_LOGS_DIR, 'archive')                # Construction simulation logs archive
+os.makedirs(BUILD_SIM_LOGS_ARCHIVE_DIR, exist_ok=True)
+
+BUILD_SIM_LOGS_RETENTION_DAYS = int(os.getenv('BUILD_SIM_LOGS_RETENTION_DAYS', 1))      # Days of logs retention
+BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = int(                                            # Days of logs archive retention
+    os.getenv('BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS', 7)
+)
+
+# == Loging ==
+ERROR_LOGS_DIR = os.path.join(LOGS_DIR, 'errors')
+
+ERROR_LOG_FILES_CONFIG = {}
+
+caching_errors_dir = os.path.join(ERROR_LOGS_DIR, 'caching')
+os.makedirs(caching_errors_dir, exist_ok=True)
+ERROR_LOG_FILES_CONFIG['caching'] = os.path.join(caching_errors_dir, 'caching_errors.log')
+
+celery_tasks_errors_dir = os.path.join(ERROR_LOGS_DIR, 'celery_tasks')
+os.makedirs(celery_tasks_errors_dir, exist_ok=True)
+ERROR_LOG_FILES_CONFIG['celery_tasks'] = os.path.join(celery_tasks_errors_dir, 'celery_tasks_errors.log')
+
+wall_config_errors_dir = os.path.join(ERROR_LOGS_DIR, 'wall_configuration')
+os.makedirs(wall_config_errors_dir, exist_ok=True)
+ERROR_LOG_FILES_CONFIG['wall_configuration'] = os.path.join(wall_config_errors_dir, 'wall_config_errors.log')
+
+wall_creation_errors_dir = os.path.join(ERROR_LOGS_DIR, 'wall_creation')
+os.makedirs(wall_creation_errors_dir, exist_ok=True)
+ERROR_LOG_FILES_CONFIG['wall_creation'] = os.path.join(wall_creation_errors_dir, 'wall_creation_errors.log')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            '()': 'the_wall_api.utils.custom_json_formatter.CustomJsonFormatter',
+            'format': '%(asctime)s %(message)s %(levelname)s %(traceback)s %(request_info)s %(error_id)s',
+        },
+        'json_stdout': {
+            '()': 'the_wall_api.utils.custom_json_formatter.CustomJsonFormatter',
+            'format': '%(asctime)s %(message)s %(levelname)s %(traceback)s %(request_info)s %(error_id)s',
+            'json_indent': 4,
+        },
+    },
+    'handlers': {
+        # Handler for caching errors
+        'caching_errors_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': ERROR_LOG_FILES_CONFIG['caching'],
+            'maxBytes': 1024 * 1024 * 5,    # 5 MB
+            'backupCount': 4,
+            'delay': True,
+            'formatter': 'json',
+        },
+        # Handler for Celery tasks errors
+        'celery_tasks_errors_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': ERROR_LOG_FILES_CONFIG['celery_tasks'],
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 4,
+            'delay': True,
+            'formatter': 'json',
+        },
+        # Handler for wall configuration errors
+        'wall_config_errors_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': ERROR_LOG_FILES_CONFIG['wall_configuration'],
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 4,
+            'delay': True,
+            'formatter': 'json',
+        },
+        # Handler for wall creation errors
+        'wall_creation_errors_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': ERROR_LOG_FILES_CONFIG['wall_creation'],
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 4,
+            'delay': True,
+            'formatter': 'json',
+        },
+        # Console logging
+        'console_logger': {
+            'level': 'ERROR',
+            'class': 'logging.StreamHandler',
+            'formatter': 'json_stdout',
+        },
+    },
+    'loggers': {
+        'caching': {
+            'handlers': ['caching_errors_file', 'console_logger'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'celery_tasks': {
+            'handlers': ['celery_tasks_errors_file', 'console_logger'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'wall_configuration': {
+            'handlers': ['wall_config_errors_file', 'console_logger'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'wall_creation': {
+            'handlers': ['wall_creation_errors_file', 'console_logger'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
+
+# == Loging end ==
+
+# === Filesystem configuration end ===
 
 # Wall Configuration Settings
 MAX_HEIGHT = int(os.getenv('MAX_HEIGHT', 30))                                           # Maximum height of a wall section

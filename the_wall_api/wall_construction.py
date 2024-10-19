@@ -1,8 +1,8 @@
-import copy
+from copy import deepcopy
 import logging
 import os
 import re
-import secrets
+from secrets import token_hex
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -14,11 +14,9 @@ from typing import Any, Dict
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
-from the_wall_api.utils.env_utils import configure_env_logging
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
-log_settings = configure_env_logging()
-BUILD_SIM_LOGS_DIR = log_settings['BUILD_SIM_LOGS_DIR']
+BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
 MAX_HEIGHT = settings.MAX_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
@@ -33,7 +31,7 @@ class WallConstruction:
     """
     def __init__(self, wall_construction_config: list, sections_count: int, num_crews: int, simulation_type: str = SEQUENTIAL):
         self.wall_construction_config = wall_construction_config
-        self.testing_wall_construction_config = copy.deepcopy(wall_construction_config)     # For unit testing purposes
+        self.testing_wall_construction_config = deepcopy(wall_construction_config)     # For unit testing purposes
         self.simulation_type = simulation_type
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
 
@@ -45,7 +43,7 @@ class WallConstruction:
             timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
             self.filename = os.path.join(
                 BUILD_SIM_LOGS_DIR,
-                f'wall_construction_{timestamp}_{secrets.token_hex(4)}.log'
+                f'wall_construction_{timestamp}_{token_hex(4)}.log'
             )
             self.logger = self._setup_logger()
 
@@ -324,7 +322,7 @@ def set_simulation_params(
         num_crews, sections_count, wall_construction_config, wall_data
     )
     wall_data['num_crews'] = num_crews_final
-    wall_data['wall_construction_config'] = copy.deepcopy(wall_construction_config)
+    wall_data['wall_construction_config'] = deepcopy(wall_construction_config)
     wall_data['simulation_type'] = simulation_type
     wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
     wall_data['profile_config_hash_data'] = wall_config_hash_details['profile_config_hash_data']
@@ -369,7 +367,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
             simulation_type=wall_data['simulation_type']
         )
     except error_utils.WallConstructionError as tech_error:
-        error_utils.handle_unknown_error(wall_data, tech_error)
+        error_utils.handle_unknown_error(wall_data, tech_error, 'wall_creation')
         return
     wall_data['wall_construction'] = wall_construction
     wall_data['sim_calc_details'] = wall_construction.sim_calc_details
