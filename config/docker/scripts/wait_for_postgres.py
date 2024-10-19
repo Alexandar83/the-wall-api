@@ -2,25 +2,25 @@
 # app and running the migrations.
 # Avoids introduction of dependencies in Dockerfile.
 
-import socket
-import time
+from socket import create_connection, error as socket_error
+from time import time, sleep
 import os
 
 
 def wait_for_postgres(host, port, timeout=60):
-    start_time = time.time()
+    start_time = time()
     while True:
         try:
-            with socket.create_connection((host, port), timeout=2):
+            with create_connection((host, port), timeout=2):
                 print('PostgreSQL is ready!')
                 return True
-        except (OSError, socket.error):
-            time_passed = time.time() - start_time
+        except (OSError, socket_error):
+            time_passed = time() - start_time
             if time_passed >= timeout:
                 print('Error: Timeout while waiting for PostgreSQL')
                 return False
             print('Waiting for PostgreSQL...')
-            time.sleep(2)
+            sleep(2)
 
 
 if __name__ == '__main__':

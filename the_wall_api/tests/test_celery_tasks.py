@@ -5,7 +5,7 @@ from shutil import rmtree
 
 from django.conf import settings
 
-from the_wall_api.utils.file_utils import BUILD_SIM_LOGS_DIR, get_test_log_archive_details
+from the_wall_api.utils.celery_task_utils import BUILD_SIM_LOGS_DIR, get_test_log_archive_details
 from the_wall_api.utils.error_utils import get_error_id_from_task_result, extract_error_traceback
 from the_wall_api.tasks import archive_logs_task, clean_old_archives_task, log_error_task
 from the_wall_api.tests.test_utils import BaseTestcase

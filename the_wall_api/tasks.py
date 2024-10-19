@@ -1,6 +1,6 @@
 from celery import shared_task
 
-from the_wall_api.utils.file_utils import archive_logs, clean_old_archives, log_error
+from the_wall_api.utils.celery_task_utils import archive_logs, clean_old_archives, log_error
 
 
 # === Scheduled tasks ===

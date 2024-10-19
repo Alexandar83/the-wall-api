@@ -1,4 +1,4 @@
-import copy
+from copy import copy
 from inspect import currentframe
 from typing import Callable
 
@@ -145,7 +145,7 @@ class CacheTest(BaseTransactionTestcase):
             ice_used_sim = data['ice_used']
 
             # Redis cache value
-            wall_data_progress_day = copy.copy(self.wall_data)
+            wall_data_progress_day = copy(self.wall_data)
             wall_data_progress_day['request_day'] = day_index
             cached_profile_ice_usage, profile_ice_usage_redis_cache_key = (
                 storage_utils.fetch_daily_ice_usage_from_redis_cache(wall_data_progress_day, wall_profile_config_hash, profile_id)

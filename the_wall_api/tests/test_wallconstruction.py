@@ -1,4 +1,4 @@
-import copy
+from copy import deepcopy
 from inspect import currentframe
 from unittest.mock import patch
 
@@ -133,8 +133,8 @@ class SequentialVsConcurrentTest(BaseTestcase):
         sections_count = sum(len(profile) for profile in config)
 
         # Deep copy to ensure independent simulations
-        sequential_config = copy.deepcopy(config)
-        concurrent_config = copy.deepcopy(config)
+        sequential_config = deepcopy(config)
+        concurrent_config = deepcopy(config)
 
         # Avoid printing of big volumes of data
         config_output = config if 'Large' not in config_case else '[0] * (MAX_LENGTH / 2), [MAX_HEIGHT - 1] * (MAX_LENGTH / 2)'

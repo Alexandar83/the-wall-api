@@ -1,6 +1,6 @@
 from inspect import currentframe
 from queue import Queue
-import threading
+from threading import Thread
 from time import sleep
 
 from django.db import connection
@@ -38,7 +38,7 @@ class LockTestBase(BaseTestcase):
     def run_lock_test(self, try_to_acquire_lock_func, lock_key):
         """Run concurrent locking tests."""
         result_queue = Queue()
-        t1 = threading.Thread(target=try_to_acquire_lock_func, args=(lock_key, result_queue))
+        t1 = Thread(target=try_to_acquire_lock_func, args=(lock_key, result_queue))
         t1.start()
         sleep(2)  # Ensure the first thread acquires the lock
 
