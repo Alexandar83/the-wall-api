@@ -4,9 +4,34 @@ from django.core.validators import MinValueValidator
 from django.db.models import Q
 
 
+class WallConfigStatusEnum(models.TextChoices):
+    INITIALIZED = 'initialized', 'Initialized'
+    CELERY_CALCULATION = 'celery_calculation', 'Celery calculation'
+    ERROR = 'error', 'Error'
+    COMPLETED = 'completed', 'Completed'
+    READY_FOR_DELETION = 'ready_for_deletion', 'Ready for deletion'
+
+
+class WallConfig(models.Model):
+    """
+    wall configuration - source of all possible build simulations
+    """
+    wall_config_hash = models.CharField(max_length=64)
+    status = models.CharField(
+        max_length=25,
+        choices=WallConfigStatusEnum.choices,
+        default=WallConfigStatusEnum.INITIALIZED
+    )
+    deletion_initiated = models.BooleanField(default=False)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+
 class Wall(models.Model):
-    """The whole wall"""
+    """
+    A single wall build simulation
+    """
     # Hash the whole wall config with all profiles
+    wall_config = models.ForeignKey(WallConfig, on_delete=models.CASCADE)
     wall_config_hash = models.CharField(max_length=64)
     num_crews = models.IntegerField(validators=[MinValueValidator(0)])
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])

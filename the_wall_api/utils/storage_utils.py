@@ -10,7 +10,7 @@ from django.db import connection, transaction
 from django.db.models import Q
 from redis.exceptions import ConnectionError, TimeoutError
 
-from the_wall_api.models import WallProfileProgress, WallProfile, Wall
+from the_wall_api.models import WallConfig, Wall, WallConfigStatusEnum, WallProfile, WallProfileProgress
 from the_wall_api.utils import wall_config_utils, error_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
 
@@ -39,6 +39,16 @@ def get_or_create_cache(wall_data, request_type) -> None:
     # If no cached data is found, run the simulation
     run_simulation(wall_data)
     if wall_data['error_response']:
+        return
+
+    # Attempt to get/create the wall config object
+    wall_config_object = manage_wall_config_object(wall_data)
+    if isinstance(wall_config_object, WallConfig):
+        # Successful creation/fetch of the wall config object
+        wall_data['wall_config_object'] = wall_config_object
+    else:
+        # Either being initialized by another process
+        # or an error occurred during the creation
         return
 
     # Create the new cache data
@@ -247,6 +257,69 @@ def fetch_daily_ice_usage_from_db(
         error_utils.check_if_cached_on_another_day(wall_data, profile_id)
 
 
+def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
+    """WallConfig object management corresponding to its state."""
+    wall_config_hash = wall_data['wall_config_hash']
+    try:
+        # Already created
+        wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
+    except WallConfig.DoesNotExist:
+        # First request for this config - create it in the DB
+        wall_config_cache_key = get_wall_config_cache_key(wall_config_hash)
+        wall_config_db_lock_key = generate_db_lock_key(wall_config_cache_key)
+        db_lock_acquired = None
+        try:
+            db_lock_acquired = acquire_db_lock(wall_config_db_lock_key)
+            if not db_lock_acquired:
+                return 'Being initialized in another process'
+
+            with transaction.atomic():
+                # Create a new object with status INITIALIZED (default value)
+                wall_config_object = WallConfig.objects.create(wall_config_hash=wall_config_hash)
+
+        except Exception as wall_config_crtn_unkwn_err:
+            wall_config_object = f'{wall_config_crtn_unkwn_err.__class__.__name__}: {str(wall_config_crtn_unkwn_err)}'
+            error_utils.handle_unknown_error(wall_data, wall_config_crtn_unkwn_err, 'caching')
+        finally:
+            if db_lock_acquired:
+                release_db_lock(wall_config_db_lock_key)
+
+    if (
+        isinstance(wall_config_object, WallConfig) and
+        wall_config_object.status not in [WallConfigStatusEnum.COMPLETED, WallConfigStatusEnum.CELERY_CALCULATION]
+    ):
+        # Currently not being processed by Celery - send it for initialization
+        # TODO: Send the config to Celery for initialization
+        # skip this during testing
+        pass
+
+    return wall_config_object
+
+
+def get_wall_config_cache_key(wall_config_hash: str) -> str:
+    return f'wall_config_{wall_config_hash}'
+
+
+def generate_db_lock_key(cache_lock_key: str) -> List[int]:
+    """Generate two unique integers from a string key for PostgreSQL advisory locks."""
+    xxhash_64bit = xxhash.xxh64(cache_lock_key).intdigest()
+    lock_id1 = xxhash_64bit & 0xFFFFFFFF  # Lower 32 bits
+    lock_id2 = (xxhash_64bit >> 32) & 0xFFFFFFFF  # Upper 32 bits
+    return [lock_id1, lock_id2]
+
+
+def acquire_db_lock(wall_db_lock_key: List[int]) -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT pg_try_advisory_lock(%s, %s);', wall_db_lock_key)
+        db_lock_acquired = cursor.fetchone()
+        return bool(db_lock_acquired and db_lock_acquired[0])
+
+
+def release_db_lock(wall_db_lock_key: List[int]) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT pg_advisory_unlock(%s, %s);', wall_db_lock_key)
+
+
 def cache_wall(wall_data: Dict[str, Any]) -> None:
     """
     Creates a new Wall object.
@@ -268,6 +341,7 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
         with transaction.atomic():
             # Create the wall object in the DB
             wall = Wall.objects.create(
+                wall_config=wall_data['wall_config_object'],
                 wall_config_hash=wall_data['wall_config_hash'],
                 num_crews=wall_data['num_crews'],
                 total_cost=total_cost,
@@ -289,26 +363,6 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
     finally:
         if db_lock_acquired:
             release_db_lock(wall_db_lock_key)
-
-
-def generate_db_lock_key(cache_lock_key: str) -> List[int]:
-    """Generate two unique integers from a string key for PostgreSQL advisory locks."""
-    xxhash_64bit = xxhash.xxh64(cache_lock_key).intdigest()
-    lock_id1 = xxhash_64bit & 0xFFFFFFFF  # Lower 32 bits
-    lock_id2 = (xxhash_64bit >> 32) & 0xFFFFFFFF  # Upper 32 bits
-    return [lock_id1, lock_id2]
-
-
-def acquire_db_lock(wall_db_lock_key: List[int]) -> bool:
-    with connection.cursor() as cursor:
-        cursor.execute('SELECT pg_try_advisory_lock(%s, %s);', wall_db_lock_key)
-        db_lock_acquired = cursor.fetchone()
-        return bool(db_lock_acquired and db_lock_acquired[0])
-
-
-def release_db_lock(wall_db_lock_key: List[int]) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute('SELECT pg_advisory_unlock(%s, %s);', wall_db_lock_key)
 
 
 def format_value_for_redis(type: str, value_in: Any) -> Any:
