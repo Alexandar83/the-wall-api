@@ -1,7 +1,7 @@
 from decimal import Decimal
 from inspect import currentframe
 
-from the_wall_api.models import Wall, WallProfile, WallProfileProgress
+from the_wall_api.models import Wall, WallConfig, WallProfile, WallProfileProgress
 from the_wall_api.tests.test_utils import BaseTestcase
 from django.core.exceptions import ValidationError
 
@@ -10,9 +10,15 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
     description = 'Unique constraint tests for Wall profile objects'
 
     def setUp(self):
-        # Set up the wall instance
+        self.wall_config_hash = 'some_unique_hash'
+        # Set up the wall config instance
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash,
+        )
+        # Set up a wall instance
         self.wall = Wall.objects.create(
-            wall_config_hash='some_unique_hash',
+            wall_config=self.wall_config_object,
+            wall_config_hash=self.wall_config_hash,
             num_crews=5,
             total_cost=Decimal('10000.00'),
             construction_days=10,
@@ -153,12 +159,47 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
 
+class WallConfigUniqueConstraintTest(BaseTestcase):
+    description = 'Unique constraint tests for WallConfig objects'
+
+    def setUp(self):
+        self.wall_config_hash = 'unique_hash'
+
+    def test_wall_config_unique_together(self):
+        """Test that a duplicate wall_config with the same wall_config_hash raises a ValidationError."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+
+        # First WallConfig creation should succeed
+        WallConfig.objects.create(wall_config_hash=self.wall_config_hash)
+
+        # Attempt to create another WallConfig with the same wall_config_hash should raise a ValidationError
+        passed = False
+        error_occurred = False
+        try:
+            duplicate_wall_config = WallConfig(wall_config_hash=self.wall_config_hash)
+            duplicate_wall_config.full_clean()
+            actual_error = 'None'
+        except ValidationError as vldtn_err:
+            passed = True
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+        except Exception as err:
+            error_occurred = True
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
+
+        self.log_test_result(passed, self.wall_config_hash, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
+
+
 class WallUniqueConstraintTest(BaseTestcase):
     description = 'Unique constraint tests for Wall objects'
 
     def setUp(self):
+        self.wall_config_hash = 'unique_hash'
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash,
+        )
         # Set up the wall instance
         self.wall_data = {
+            'wall_config': self.wall_config_object,
             'wall_config_hash': 'unique_hash',
             'num_crews': 5,
             'total_cost': Decimal('10000.00'),
@@ -193,9 +234,15 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
     description = 'Unique constraint tests for wall profile progress objects'
 
     def setUp(self):
-        # Set up the wall and wall profile
+        self.wall_config_hash = 'some_unique_hash'
+        # Set up the wall config instance
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash,
+        )
+        # Set up a wall and a wall profile
         self.wall = Wall.objects.create(
-            wall_config_hash='some_unique_hash',
+            wall_config=self.wall_config_object,
+            wall_config_hash=self.wall_config_hash,
             num_crews=5,
             total_cost=Decimal('10000.00'),
             construction_days=10,
@@ -239,9 +286,15 @@ class CascadeDeletionTest(BaseTestcase):
     description = 'Cascade deletion tests'
 
     def setUp(self):
+        self.wall_config_hash = 'test_wall_hash_12345'
+        # Set up the wall config instance
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash,  # Unique hash for filtering
+        )
         # Set up a wall instance with related profiles and progress, using unique identifiers
         self.wall = Wall.objects.create(
-            wall_config_hash='test_wall_hash_12345',  # Unique hash for filtering
+            wall_config=self.wall_config_object,
+            wall_config_hash=self.wall_config_hash,  # Unique hash for filtering
             num_crews=3,
             total_cost=Decimal('5000.00'),
             construction_days=7,
@@ -256,6 +309,46 @@ class CascadeDeletionTest(BaseTestcase):
             day=1,
             ice_used=200,
         )
+
+    def test_cascade_deletion_of_wall_config(self):
+        """Test that deleting a WallConfig deletes related Wall, WallProfile and WallProfileProgress records."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        input_data = {
+            'wall': str(self.wall),
+            'wall_profile': str(self.wall_profile),
+            'wall_profile_progress': str(self.wall_profile_progress),
+        }
+        passed = True
+        actual_error = 'Validation passed'
+
+        try:
+            # Ensure that only the specific objects created for this test exist
+            wall_config_object_exists = WallConfig.objects.filter(wall_config_hash=self.wall_config_hash).exists()
+            wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
+            wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+
+            self.assertTrue(wall_config_object_exists)
+            self.assertTrue(wall_exists)
+            self.assertTrue(wall_profile_exists)
+            self.assertTrue(wall_profile_progress_exists)
+
+            # Delete the wall config and test cascade deletion
+            self.wall_config_object.delete()
+
+            # Check that the specific related objects are deleted
+            wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
+            wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
+            wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+
+            self.assertFalse(wall_exists)
+            self.assertFalse(wall_profile_exists)
+            self.assertFalse(wall_profile_progress_exists)
+        except Exception as err:
+            passed = False
+            actual_error = f'{err.__class__.__name__}: {str(err)}'
+
+        self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source)
 
     def test_cascade_deletion_of_wall(self):
         """Test that deleting a Wall deletes related WallProfiles and WallProfileProgress records."""

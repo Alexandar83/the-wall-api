@@ -16,7 +16,7 @@ class WallConfig(models.Model):
     """
     wall configuration - source of all possible build simulations
     """
-    wall_config_hash = models.CharField(max_length=64)
+    wall_config_hash = models.CharField(max_length=64, unique=True)
     status = models.CharField(
         max_length=25,
         choices=WallConfigStatusEnum.choices,
