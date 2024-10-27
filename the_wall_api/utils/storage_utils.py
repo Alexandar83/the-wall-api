@@ -303,8 +303,9 @@ def get_wall_config_cache_key(wall_config_hash: str) -> str:
 def generate_db_lock_key(cache_lock_key: str) -> List[int]:
     """Generate two unique integers from a string key for PostgreSQL advisory locks."""
     xxhash_64bit = xxhash.xxh64(cache_lock_key).intdigest()
-    lock_id1 = xxhash_64bit & 0xFFFFFFFF  # Lower 32 bits
-    lock_id2 = (xxhash_64bit >> 32) & 0xFFFFFFFF  # Upper 32 bits
+    # Use 31 bits (0x7FFFFFFF) to keep values within PostgreSQL's signed 32-bit integer limit range
+    lock_id1 = (xxhash_64bit & 0x7FFFFFFF)
+    lock_id2 = ((xxhash_64bit >> 32) & 0x7FFFFFFF)
     return [lock_id1, lock_id2]
 
 
