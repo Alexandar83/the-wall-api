@@ -29,7 +29,10 @@ class WallConstruction:
     The concurrent implementation is done explicitly with a file (and not in the memory)
     to follow the task requirements
     """
-    def __init__(self, wall_construction_config: list, sections_count: int, num_crews: int, simulation_type: str = SEQUENTIAL):
+    def __init__(
+            self, wall_construction_config: list, sections_count: int, num_crews: int,
+            wall_config_hash: str, simulation_type: str = SEQUENTIAL
+    ):
         self.wall_construction_config = wall_construction_config
         self.testing_wall_construction_config = deepcopy(wall_construction_config)     # For unit testing purposes
         self.simulation_type = simulation_type
@@ -43,7 +46,7 @@ class WallConstruction:
             timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
             self.filename = os.path.join(
                 BUILD_SIM_LOGS_DIR,
-                f'wall_construction_{timestamp}_{token_hex(4)}.log'
+                f'{timestamp}_{wall_config_hash}_{num_crews}_{token_hex(4)}.log'
             )
             self.logger = self._setup_logger()
 
@@ -63,16 +66,22 @@ class WallConstruction:
         self.sim_calc_details = self._calc_sim_details()
 
     def _setup_logger(self):
+        """
+        Set up the logger dynamically.
+        Using the Django LOGGING config leads to Celery tasks hijacking
+        each other's loggers in concurrent mode.
+        """
         # Ensure the directory exists
         log_dir = os.path.dirname(self.filename)
         os.makedirs(log_dir, exist_ok=True)
 
         logger = logging.getLogger(self.filename)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
 
         # File handler
         file_handler = logging.FileHandler(self.filename, mode='w')
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.DEBUG)
 
         # Formatter
         formatter = logging.Formatter('%(asctime)s %(levelname)s [%(threadName)s] %(message)s')
@@ -220,34 +229,26 @@ class WallConstruction:
             f'New height: {height} ft - Ice used: {ICE_PER_FOOT} cbc. yrds. - '
             f'Cost: {self.daily_cost_section} gold drgns.'
         )
-        self.logger.info(message)
+        self.logger.debug(message)
 
     def log_section_completion(self, profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int) -> None:
         message = (
             f'FNSH_SCTN: Section ID: {profile_id}-{section_id} - DAY_{day} - finished. '
             f'Ice used: {total_ice_used} cbc. yrds. - Cost: {total_cost} gold drgns.'
         )
-        self.logger.info(message)
+        self.logger.debug(message)
 
     def extract_log_data(self) -> None:
-        try:
-            with open(self.filename, 'r') as log_file:
-                for line in log_file:
-                    try:
-                        # Extract profile_id, day, ice used, and cost
-                        match = re.search(
-                            r'HGHT_INCRS: Section ID: (\d+)-\d+ - DAY_(\d+) - .*Ice used: (\d+) cbc\. yrds\.', line)
-                        if match:
-                            profile_id, day, ice_used = map(int, match.groups())
+        with open(self.filename, 'r') as log_file:
+            for line in log_file:
+                # Extract profile_id, day, ice used, and cost
+                match = re.search(
+                    r'HGHT_INCRS: Section ID: (\d+)-\d+ - DAY_(\d+) - .*Ice used: (\d+) cbc\. yrds\.', line)
+                if match:
+                    profile_id, day, ice_used = map(int, match.groups())
 
-                            self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
-                            self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
-                    except Exception as e:
-                        self.logger.error(f'Error processing line in log file: {line}. Exception: {e}')
-        except IOError as e:
-            self.logger.error(f'Failed to open log file {self.filename}. IOError: {e}')
-        except Exception as e:
-            self.logger.error(f'Unexpected error: {e}')
+                    self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
+                    self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
 
     def _daily_ice_usage(self, profile_id: int, day: int) -> int:
         """
@@ -315,8 +316,10 @@ def set_simulation_params(
     """
     Set the simulation parameters for the wall_data dictionary.
     """
-    sections_count = sum(len(profile) for profile in wall_construction_config)
-    wall_data['sections_count'] = sections_count
+    sections_count = wall_data.get('sections_count')
+    if not sections_count:
+        sections_count = get_sections_count(wall_construction_config)
+        wall_data['sections_count'] = sections_count
 
     simulation_type, wall_config_hash_details, num_crews_final = evaluate_simulation_params(
         num_crews, sections_count, wall_construction_config, wall_data
@@ -324,15 +327,30 @@ def set_simulation_params(
     wall_data['num_crews'] = num_crews_final
     wall_data['wall_construction_config'] = deepcopy(wall_construction_config)
     wall_data['simulation_type'] = simulation_type
-    wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
+    wall_config_hash = wall_data.get('wall_config_hash')
+    if not wall_config_hash:
+        wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
     wall_data['profile_config_hash_data'] = wall_config_hash_details['profile_config_hash_data']
     wall_data['request_type'] = request_type
+
+
+def get_sections_count(wall_construction_config: list) -> int:
+    return sum(len(profile) for profile in wall_construction_config)
 
 
 def evaluate_simulation_params(
         num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
 ) -> tuple[str, dict, int]:
     # num_crews
+    simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count, wall_data)
+
+    # configuration hashes
+    wall_config_hash_details = generate_config_hash_details(wall_construction_config)
+
+    return simulation_type, wall_config_hash_details, num_crews_final
+
+
+def manage_num_crews(num_crews: int, sections_count: int, wall_data: Dict[str, Any] = {}) -> tuple[str, int]:
     if num_crews == 0:
         # No num_crews provided - sequential mode
         simulation_type = SEQUENTIAL
@@ -343,16 +361,14 @@ def evaluate_simulation_params(
         simulation_type = SEQUENTIAL
         num_crews_final = 0
         # For eventual future response message
-        wall_data['concurrent_not_needed'] = True
+        if wall_data:
+            wall_data['concurrent_not_needed'] = True
     else:
         # The crews are less than the number of sections
         simulation_type = CONCURRENT
         num_crews_final = num_crews
 
-    # configuration hashes
-    wall_config_hash_details = generate_config_hash_details(wall_construction_config)
-
-    return simulation_type, wall_config_hash_details, num_crews_final
+    return simulation_type, num_crews_final
 
 
 def run_simulation(wall_data: Dict[str, Any]) -> None:
@@ -364,6 +380,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
             wall_construction_config=wall_data['wall_construction_config'],
             sections_count=wall_data['sections_count'],
             num_crews=wall_data['num_crews'],
+            wall_config_hash=wall_data['wall_config_hash'],
             simulation_type=wall_data['simulation_type']
         )
     except error_utils.WallConstructionError as tech_error:
