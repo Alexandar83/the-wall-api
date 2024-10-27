@@ -1,14 +1,12 @@
 from copy import deepcopy
 from inspect import currentframe
-from unittest.mock import patch
+from typing import Any
 
-from the_wall_api.wall_construction import WallConstruction
-from the_wall_api.tests.test_utils import BaseTestcase
 from django.conf import settings
 
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils.wall_config_utils import validate_wall_config_format, WallConstructionError
-from the_wall_api.wall_construction import WallConstruction
+from the_wall_api.utils.wall_config_utils import hash_calc, validate_wall_config_format, WallConstructionError
+from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
@@ -81,10 +79,11 @@ class WallConstructionCreationTest(BaseTestcase):
         """Helper method to run wall construction tests and log results."""
         # Avoid printing of big volumes of data
         config_output = config if 'test_maximum_length_profile' not in test_case_source else '[[0] * MAX_WALL_PROFILE_SECTIONS]'
-        sections_count = sum(len(profile) for profile in config)
+        sections_count = get_sections_count(config)
+        wall_config_hash = hash_calc(config)
 
         try:
-            wall_construction = WallConstruction(config, sections_count, num_crews, simulation_type)
+            wall_construction = WallConstruction(config, sections_count, num_crews, wall_config_hash, simulation_type)
             profile_data = wall_construction.wall_profile_data
 
             if config:
@@ -111,73 +110,67 @@ class WallConstructionCreationTest(BaseTestcase):
                 actual_message=str(err), test_case_source=test_case_source, error_occurred=True
             )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_empty_profiles(self, mock_load_config):
-        mock_load_config.return_value = []
+    def test_empty_profiles(self):
+        config = []
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=0,
             simulation_type='sequential',
             expected_message='Empty profile list handled correctly',
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_minimum_section_heights(self, mock_load_config):
-        mock_load_config.return_value = [[0, 0, 0]]
+    def test_minimum_section_heights(self):
+        config = [[0, 0, 0]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=0,
             simulation_type='sequential',
             expected_message='Minimum section heights handled correctly',
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_single_section_profile(self, mock_load_config):
-        mock_load_config.return_value = [[15]]
+    def test_single_section_profile(self):
+        config = [[15]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=0,
             simulation_type='sequential',
             expected_message='Single section profile handled correctly',
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_mixed_profiles(self, mock_load_config):
-        mock_load_config.return_value = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
+    def test_mixed_profiles(self):
+        config = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=0,
             simulation_type='sequential',
             expected_message='Mixed profiles handled correctly',
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_concurrent_simulation(self, mock_load_config):
-        mock_load_config.return_value = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
+    def test_concurrent_simulation(self):
+        config = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=2,
             simulation_type='concurrent',
             expected_message='Concurrent simulation handled correctly',
             test_case_source=test_case_source
         )
 
-    @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
-    def test_maximum_length_profile(self, mock_load_config):
+    def test_maximum_length_profile(self):
         max_length_profile = [[0] * MAX_WALL_PROFILE_SECTIONS]
-        mock_load_config.return_value = max_length_profile
+        config = max_length_profile
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
-            config=mock_load_config.return_value,
+            config=config,
             num_crews=0,
             simulation_type='sequential',
             expected_message='Maximum length profile handled correctly',
@@ -192,7 +185,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
         """Compare a sequential with multiple concurrent simulations."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         test_case_source += ' - ' + config_case
-        sections_count = sum(len(profile) for profile in config)
+        sections_count = get_sections_count(config)
 
         # Deep copy to ensure independent simulations
         sequential_config = deepcopy(config)
@@ -209,7 +202,13 @@ class SequentialVsConcurrentTest(BaseTestcase):
         wall_config_hash = hash_calc(config)
 
         try:
-            wall_sequential = WallConstruction(sequential_config, sections_count, num_crews=0, simulation_type='sequential')
+            wall_sequential = WallConstruction(
+                wall_construction_config=sequential_config,
+                sections_count=sections_count,
+                num_crews=0,
+                wall_config_hash=wall_config_hash,
+                simulation_type='sequential'
+            )
         except Exception as wall_cnstrctn_err:
             # Unexpected sequential construction error - stop further tests
             self.log_wall_construction_error(wall_cnstrctn_err, 0, config_output, test_case_source)
@@ -238,8 +237,15 @@ class SequentialVsConcurrentTest(BaseTestcase):
     ) -> None:
         """Run sequential vs concurrent comparison for a given number of crews."""
         input_data = {'config': config_output, 'num_crews': num_crews}
+        wall_config_hash = hash_calc(concurrent_config)
         try:
-            wall_concurrent = WallConstruction(concurrent_config, sections_count, num_crews=num_crews, simulation_type='concurrent')
+            wall_concurrent = WallConstruction(
+                wall_construction_config=concurrent_config,
+                sections_count=sections_count,
+                num_crews=num_crews,
+                wall_config_hash=wall_config_hash,
+                simulation_type='concurrent'
+            )
             self.compare_total_wall_costs(wall_sequential, wall_concurrent, input_data, test_case_source)
             self.compare_profile_costs(wall_sequential, wall_concurrent, input_data, test_case_source)
         except AssertionError as assert_err:
