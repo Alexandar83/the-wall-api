@@ -99,6 +99,23 @@ def get_error_id_from_task_result(task_result) -> str:
     return error_id
 
 
+def send_log_error_async(error_type: str, error: Exception | None = None, error_message: str = '') -> str:
+    """Log error details asynchronously."""
+    if error is not None:
+        error_message_out = f'{error.__class__.__name__}: {str(error)}'
+        error_traceback = extract_error_traceback(error)
+    else:
+        error_message_out = ''
+        error_traceback = []
+
+    if error_message:
+        error_message_out = error_message
+
+    log_error_task.delay(error_type, error_message_out, error_traceback)    # type: ignore
+
+    return error_message_out
+
+
 def check_if_cached_on_another_day(wall_data: Dict[str, Any], profile_id: int) -> None:
     """
     In CONCURRENT mode there are days without profile daily ice usage,

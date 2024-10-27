@@ -1,23 +1,20 @@
+from typing import Callable
+
 from celery import shared_task
 
-from the_wall_api.utils.celery_task_utils import archive_logs, clean_old_archives, log_error
+from the_wall_api.utils.celery_task_utils import (
+    archive_logs, clean_old_archives, log_error,
+)
 
 
 # Helper Functions
-def execute_task_with_error_handling(task_func, *args, **kwargs) -> None:
+def execute_task_with_error_handling(task_func: Callable, *args, **kwargs) -> None:
+    from the_wall_api.utils.error_utils import send_log_error_async
+
     try:
         return task_func(*args, **kwargs)
     except Exception as unknwn_err:
-        send_log_error(unknwn_err)
-
-
-def send_log_error(unknwn_err: Exception) -> None:
-    """Logs the error details asynchronously."""
-    from the_wall_api.utils.error_utils import extract_error_traceback
-
-    error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
-    error_traceback = extract_error_traceback(unknwn_err)
-    log_error_task.delay('celery_tasks', error_message, error_traceback)    # type: ignore
+        send_log_error_async('celery_tasks', unknwn_err)
 
 
 # === Sequential tasks ===
