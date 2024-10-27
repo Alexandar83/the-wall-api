@@ -10,12 +10,12 @@ def setup_django_settings():
     """Setup Django settings module and Celery configuration."""
     if LIGHT_CELERY_CONFIG:
         # Lightweight Celery config without full app loading
-        from the_wall_api.utils.env_utils import configure_redis_url_and_celery_settings
+        from the_wall_api.utils.env_utils import configure_connections_settings
 
-        redis_url_and_celery_settings = configure_redis_url_and_celery_settings()
-        os.environ['CELERY_BROKER_URL'] = redis_url_and_celery_settings['CELERY_BROKER_URL']
-        os.environ['CELERY_RESULT_BACKEND'] = redis_url_and_celery_settings['CELERY_RESULT_BACKEND']
-        os.environ['CELERY_RESULT_EXPIRES'] = redis_url_and_celery_settings['CELERY_RESULT_EXPIRES']
+        connections_settings = configure_connections_settings()
+        os.environ['CELERY_BROKER_URL'] = connections_settings['CELERY_BROKER_URL']
+        os.environ['CELERY_RESULT_BACKEND'] = connections_settings['CELERY_RESULT_BACKEND']
+        os.environ['CELERY_RESULT_EXPIRES'] = connections_settings['CELERY_RESULT_EXPIRES']
 
     else:
         # Full app loaded - setup Django settings

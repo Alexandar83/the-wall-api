@@ -15,7 +15,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from the_wall_api.utils.env_utils import ACTIVE_TESTING, configure_redis_url_and_celery_settings, PROJECT_MODE  # noqa: F401
+from the_wall_api.utils.env_utils import ACTIVE_TESTING, configure_connections_settings, PROJECT_MODE  # noqa: F401
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,28 +35,25 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 # === Database configuration ===
+DATABASES = {
+    'default': {
+        'ENGINE': os.getenv('DB_ENGINE'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
+        'OPTIONS': {
+            'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', 10)),
+            'options': f'-c statement_timeout={int(os.getenv("DB_STATEMENT_TIMEOUT", 5000))}',
+        }
+    }
+}
 if PROJECT_MODE in ['dev', 'prod_v1']:
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv('DB_ENGINE'),
-            'NAME': os.getenv('POSTGRES_DB'),
-            'USER': os.getenv('POSTGRES_USER'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
-        }
-    }
+    DATABASES['default']['NAME'] = os.getenv('POSTGRES_DB')
+    DATABASES['default']['USER'] = os.getenv('POSTGRES_USER')
+    DATABASES['default']['PASSWORD'] = os.getenv('POSTGRES_PASSWORD')
 elif PROJECT_MODE == 'prod_v2':
-    DATABASES = {
-        'default': {
-            'ENGINE': os.getenv('DB_ENGINE'),
-            'NAME': open(os.environ['POSTGRES_DB_FILE']).read().strip(),
-            'USER': open(os.environ['POSTGRES_USER_FILE']).read().strip(),
-            'PASSWORD': open(os.environ['POSTGRES_PASSWORD_FILE']).read().strip(),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
-        }
-    }
+    DATABASES['default']['NAME'] = open(os.environ['POSTGRES_DB_FILE']).read().strip()
+    DATABASES['default']['USER'] = open(os.environ['POSTGRES_USER_FILE']).read().strip()
+    DATABASES['default']['PASSWORD'] = open(os.environ['POSTGRES_PASSWORD_FILE']).read().strip()
 
 # === Database configuration end ===
 
@@ -71,17 +68,17 @@ TEST_LOGGING_LEVEL = os.getenv('TEST_LOGGING_LEVEL', 'NO-LOGGING')
 
 # === Redis Configuration ===
 
-redis_url_and_celery_settings = configure_redis_url_and_celery_settings()
+connections_settings = configure_connections_settings(DATABASES)
 
-REDIS_URL = redis_url_and_celery_settings['REDIS_URL']
+REDIS_URL = connections_settings['REDIS_URL']
 REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = int(os.getenv('REDIS_CACHE_TRANSIENT_DATA_TIMEOUT', 60 * 60 * 24 * 7))
 REDIS_SOCKET_CONNECT_TIMEOUT = int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', 2))
 REDIS_SOCKET_TIMEOUT = int(os.getenv('REDIS_SOCKET_TIMEOUT', 2))
 
 # === Celery Configuration ===
-CELERY_BROKER_URL = redis_url_and_celery_settings['CELERY_BROKER_URL']
-CELERY_RESULT_BACKEND = redis_url_and_celery_settings['CELERY_RESULT_BACKEND']
-CELERY_RESULT_EXPIRES = int(redis_url_and_celery_settings['CELERY_RESULT_EXPIRES'])
+CELERY_BROKER_URL = connections_settings['CELERY_BROKER_URL']
+CELERY_RESULT_BACKEND = connections_settings['CELERY_RESULT_BACKEND']
+CELERY_RESULT_EXPIRES = int(connections_settings['CELERY_RESULT_EXPIRES'])
 
 CACHES = {
     'default': {

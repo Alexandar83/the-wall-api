@@ -5,7 +5,7 @@ ACTIVE_TESTING = True if 'test' in sys.argv else False
 PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
 
 
-def configure_redis_url_and_celery_settings() -> dict:
+def configure_connections_settings(DATABASES=None) -> dict:
     result = {}
 
     REDIS_URL = os.getenv('REDIS_URL')
@@ -14,6 +14,13 @@ def configure_redis_url_and_celery_settings() -> dict:
     REDIS_DB_NUMBER_CELERY = os.getenv('REDIS_DB_NUMBER_CELERY', '2')
 
     STARTED_FROM_CELERY_SERVICE = os.getenv('STARTED_FROM_CELERY_SERVICE', 'False') == 'True'
+
+    # --Note 1--
+    # On dev. the app is not containerized:
+    # 'redis' and 'postgres' are not properly resolved locally from the Django dev server and
+    # localhost is not accessible in the Celery services
+    if PROJECT_MODE == 'dev' and STARTED_FROM_CELERY_SERVICE and DATABASES:
+        DATABASES['default']['HOST'] = 'postgres'
 
     if REDIS_URL is not None:
         # Inject the password in the url for prod
@@ -30,9 +37,7 @@ def configure_redis_url_and_celery_settings() -> dict:
         CELERY_BROKER_URL = REDIS_URL.replace('REDIS_DB_NUMBER', REDIS_DB_NUMBER_CELERY)
 
         if PROJECT_MODE == 'dev' and STARTED_FROM_CELERY_SERVICE:
-            # On dev. the app is not containerized:
-            # 'redis' is not properly resolved locally from the Django dev server and
-            # localhost is not accessible in the Celery services
+            # See --Note 1--
             CELERY_BROKER_URL = CELERY_BROKER_URL.replace('localhost', 'redis')
         # Temporary store the task results for evaluations (testing)
         CELERY_RESULT_BACKEND = CELERY_BROKER_URL
