@@ -78,7 +78,10 @@ class WallConstructionCreationTest(BaseTestcase):
     ) -> None:
         """Helper method to run wall construction tests and log results."""
         # Avoid printing of big volumes of data
-        config_output = config if 'test_maximum_length_profile' not in test_case_source else '[[0] * MAX_WALL_PROFILE_SECTIONS]'
+        if 'test_maximum_length_profile' not in test_case_source:
+            config_output = config
+        else:
+            config_output = '[[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH'
         sections_count = get_sections_count(config)
         wall_config_hash = hash_calc(config)
 
@@ -166,8 +169,7 @@ class WallConstructionCreationTest(BaseTestcase):
         )
 
     def test_maximum_length_profile(self):
-        max_length_profile = [[0] * MAX_WALL_PROFILE_SECTIONS]
-        config = max_length_profile
+        config = [[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=config,
@@ -192,13 +194,19 @@ class SequentialVsConcurrentTest(BaseTestcase):
         concurrent_config = deepcopy(config)
 
         # Avoid printing of big volumes of data
-        if 'Large' not in config_case:
+        if 'Long wall' not in config_case:
             config_output = config
-        else:
+            range_args = (1, 10)
+        elif 'max length' not in config_case:
+            range_args = (1, 10, 3)
             config_output = (
-                '[0] * (MAX_WALL_PROFILE_SECTIONS / 2), [MAX_SECTION_HEIGHT - 1] '
-                '* (MAX_WALL_PROFILE_SECTIONS / 2)'
+                '[[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +'
+                '[[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]'
             )
+        else:
+            config_output = '[[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]'
+            range_args = (9, 10)
+
         wall_config_hash = hash_calc(config)
 
         try:
@@ -214,7 +222,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
             self.log_wall_construction_error(wall_cnstrctn_err, 0, config_output, test_case_source)
             return
 
-        for num_crews in range(1, 10):
+        for num_crews in range(*range_args):
             self.run_comparison_tests(
                 wall_sequential, concurrent_config, sections_count, num_crews, config_output, test_case_source
             )
@@ -296,13 +304,14 @@ class SequentialVsConcurrentTest(BaseTestcase):
                         f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
                     )
                 )
-            self.log_test_result(
-                passed=True,
-                input_data=input_data,
-                expected_message=sequential_profile_cost,
-                actual_message=concurrent_profile_cost,
-                test_case_source=test_case_source
-            )
+        expected_message = 'Sequential proile costs match the concurrent values'
+        self.log_test_result(
+            passed=True,
+            input_data=input_data,
+            expected_message=expected_message,
+            actual_message=expected_message,
+            test_case_source=test_case_source
+        )
 
     def test_compare_sequential_and_concurrent(self):
         test_cases = [
@@ -330,11 +339,15 @@ class SequentialVsConcurrentTest(BaseTestcase):
                 ]
             },
             {
-                'config_case': 'Large profile with many sections',
-                'config': [
-                    [0] * int(MAX_WALL_PROFILE_SECTIONS / 2),
-                    [MAX_SECTION_HEIGHT - 1] * int(MAX_WALL_PROFILE_SECTIONS / 2)
-                ]
+                'config_case': 'Long wall with many profiles',
+                'config': (
+                    [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +
+                    [[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]
+                )
+            },
+            {
+                'config_case': 'Long wall with max length',
+                'config': [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]
             }
         ]
 
