@@ -51,19 +51,31 @@ def create_technical_error_response(request_params: Dict[str, Any], error_id: st
     return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def handle_unknown_error(wall_data: Dict[str, Any], unknwn_err: Exception, error_type: str) -> None:
+def handle_unknown_error(wall_data: Dict[str, Any], unknwn_err: Exception | str, error_type: str) -> None:
+    request_params, request_info, error_message, error_traceback = get_log_error_task_params(wall_data, unknwn_err)
+
+    task_result = log_error_task.delay(error_type, error_message, error_traceback, request_info=request_info)  # type: ignore
+    error_id = get_error_id_from_task_result(task_result)
+    wall_data['error_response'] = create_technical_error_response(request_params, error_id, error_message)
+
+
+def get_log_error_task_params(
+        wall_data: Dict[str, Any], unknwn_err: Exception | str
+) -> tuple[Dict[str, Any], Dict[str, Any], str, list[str]]:
     request_params = get_request_params(wall_data)
     request_info = {
         'request_type': wall_data.get('request_type', 'root'),
         'request_params': request_params
     }
 
-    error_traceback = extract_error_traceback(unknwn_err)
-    error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+    if isinstance(unknwn_err, Exception):
+        error_traceback = extract_error_traceback(unknwn_err)
+        error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+    else:
+        error_traceback = []
+        error_message = unknwn_err
 
-    task_result = log_error_task.delay(error_type, error_message, error_traceback, request_info=request_info)  # type: ignore
-    error_id = get_error_id_from_task_result(task_result)
-    wall_data['error_response'] = create_technical_error_response(request_params, error_id, error_message)
+    return request_params, request_info, error_message, error_traceback
 
 
 def extract_error_traceback(error: Exception) -> list[str]:

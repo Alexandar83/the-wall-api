@@ -28,8 +28,9 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 # Copy the whole app
 COPY . /app
 
+# Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 
 USER appuser
 
@@ -46,8 +47,10 @@ RUN pip install --no-cache-dir -r filtered-requirements.txt
 COPY . /app
 
 # Create a Celery beat schedule folder for mounting only in the beat service
+# Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions for the folders
 RUN mkdir -p /var/lib/celery/data && \
+mkdir -p /app/logs && \
 chown -R appuser:appuser /app && \
 chown -R appuser:appuser /var/lib/celery/data
 

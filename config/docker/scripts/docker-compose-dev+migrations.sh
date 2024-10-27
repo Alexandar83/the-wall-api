@@ -21,6 +21,7 @@ docker-compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml run -
 echo "=== STAGE 3 ==="
 echo "PostgreSQL is ready, running migrations..."
 echo
+python manage.py makemigrations the_wall_api
 python manage.py migrate
 echo
 

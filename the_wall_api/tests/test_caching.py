@@ -4,6 +4,7 @@ from typing import Callable
 
 from django.core.cache import cache
 
+from the_wall_api.models import WallConfig
 from the_wall_api.utils import storage_utils, wall_config_utils
 from the_wall_api.tests.test_utils import BaseTransactionTestcase
 from the_wall_api.wall_construction import initialize_wall_data, set_simulation_params, run_simulation
@@ -43,6 +44,16 @@ class CacheTest(BaseTransactionTestcase):
 
         # Construction simulation
         run_simulation(self.wall_data)
+
+        # Attempt to get/create the wall config object
+        wall_config_object = storage_utils.manage_wall_config_object(self.wall_data)
+        if isinstance(wall_config_object, WallConfig):
+            # Successful creation/fetch of the wall config object
+            self.wall_data['wall_config_object'] = wall_config_object
+        else:
+            # Either being initialized by another process
+            # or an error occurred during the creation
+            return
 
         if not skip_cache_wall:
             # Commit test data

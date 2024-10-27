@@ -11,6 +11,7 @@ from django.db.models import Q
 from redis.exceptions import ConnectionError, TimeoutError
 
 from the_wall_api.models import WallConfig, Wall, WallConfigStatusEnum, WallProfile, WallProfileProgress
+from the_wall_api.tasks import orchestrate_wall_config_processing_task
 from the_wall_api.utils import wall_config_utils, error_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
 
@@ -21,9 +22,11 @@ REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 def fetch_wall_data(
     wall_data: Dict[str, Any], num_crews: int, profile_id: int | None = None, request_type: str = ''
 ):
-    wall_construction_config = wall_config_utils.get_wall_construction_config(wall_data, profile_id)
-    if wall_data['error_response']:
-        return
+    wall_construction_config = wall_data.get('wall_construction_config', [])
+    if not wall_construction_config:
+        wall_construction_config = wall_config_utils.get_wall_construction_config(wall_data, profile_id)
+        if wall_data['error_response']:
+            return
 
     set_simulation_params(wall_data, num_crews, wall_construction_config, request_type)
 
@@ -68,7 +71,7 @@ def collect_cached_data(wall_data: Dict[str, Any], request_type: str) -> None:
 
     request_type = wall_data['request_type']
     try:
-        if request_type == 'costoverview':
+        if request_type in ['costoverview', 'create_wall_task']:
             fetch_wall_cost(wall_data, cached_result)
         elif request_type == 'costoverview/profile_id':
             fetch_wall_profile_cost(wall_data, cached_result)
@@ -89,19 +92,29 @@ def fetch_wall_cost(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) ->
     fetch_wall_cost_from_db(wall_data, cached_result, wall_redis_key)
 
 
-def fetch_wall_cost_from_redis_cache(wall_data: Dict[str, Any]) -> tuple[int, str]:
+def fetch_wall_cost_from_redis_cache(wall_data: Dict[str, Any]) -> tuple[int | None, str]:
     """
     Fetch a cached Wall from the Redis cache.
     Both simulation types store the same cost.
     """
     wall_redis_key = get_wall_cache_key(wall_data)
-    cached_wall_cost = cache.get(wall_redis_key)
+    if wall_data['request_type'] != 'create_wall_task':
+        cached_wall_cost = cache.get(wall_redis_key)
+    else:
+        # Call from the Celery computation worker - no Redis cache is used
+        cached_wall_cost = None
 
     return cached_wall_cost, wall_redis_key
 
 
 def get_wall_cache_key(wall_data: Dict[str, Any]) -> str:
-    return f'wall_cost_{wall_data["wall_config_hash"]}'
+    if wall_data['request_type'] != 'create_wall_task':
+        # NOTE-1: App call - optimized query
+        return f'wall_cost_{wall_data["wall_config_hash"]}'
+    else:
+        # NOTE-2: Celery computation task call - full query to check if the wall
+        # construction is already cached in the DB with the provided num_crews
+        return f'wall_cost_{wall_data["wall_config_hash"]}_{wall_data["num_crews"]}'
 
 
 def fetch_wall_cost_from_db(wall_data: Dict[str, Any], cached_result: Dict[str, Any], wall_redis_key: str) -> None:
@@ -109,11 +122,22 @@ def fetch_wall_cost_from_db(wall_data: Dict[str, Any], cached_result: Dict[str, 
     Fetch a cached Wall from the DB.
     Both simulation types store the same cost.
     """
-    wall = Wall.objects.filter(wall_config_hash=wall_data['wall_config_hash']).first()
+    request_type = wall_data['request_type']
+    if request_type != 'create_wall_task':
+        # See NOTE-1
+        wall = Wall.objects.filter(wall_config_hash=wall_data['wall_config_hash']).first()
+    else:
+        # See NOTE-2
+        try:
+            wall = Wall.objects.get(wall_config_hash=wall_data['wall_config_hash'], num_crews=wall_data['num_crews'])
+        except Wall.DoesNotExist:
+            wall = None
+
     if wall:
         cached_result['wall_total_cost'] = wall.total_cost
-        # Refresh the Redis cache
-        set_redis_cache(wall_redis_key, wall.total_cost)
+        if request_type != 'create_wall_task':
+            # Refresh the Redis cache
+            set_redis_cache(wall_redis_key, wall.total_cost)
 
 
 def fetch_wall_profile_cost(wall_data: Dict[str, Any], cached_result: Dict[str, Any]) -> None:
@@ -260,6 +284,7 @@ def fetch_daily_ice_usage_from_db(
 def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
     """WallConfig object management corresponding to its state."""
     wall_config_hash = wall_data['wall_config_hash']
+    wall_construction_config = wall_data['wall_construction_config']
     try:
         # Already created
         wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
@@ -276,7 +301,6 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
             with transaction.atomic():
                 # Create a new object with status INITIALIZED (default value)
                 wall_config_object = WallConfig.objects.create(wall_config_hash=wall_config_hash)
-
         except Exception as wall_config_crtn_unkwn_err:
             wall_config_object = f'{wall_config_crtn_unkwn_err.__class__.__name__}: {str(wall_config_crtn_unkwn_err)}'
             error_utils.handle_unknown_error(wall_data, wall_config_crtn_unkwn_err, 'caching')
@@ -284,14 +308,19 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
             if db_lock_acquired:
                 release_db_lock(wall_config_db_lock_key)
 
-    if (
-        isinstance(wall_config_object, WallConfig) and
-        wall_config_object.status not in [WallConfigStatusEnum.COMPLETED, WallConfigStatusEnum.CELERY_CALCULATION]
-    ):
-        # Currently not being processed by Celery - send it for initialization
-        # TODO: Send the config to Celery for initialization
-        # skip this during testing
-        pass
+    if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
+        if wall_config_object.status == WallConfigStatusEnum.INITIALIZED:
+            # Skip during testing
+            if not settings.ACTIVE_TESTING:
+                orchestrate_wall_config_processing_task.delay(
+                    wall_config_hash=wall_config_hash,
+                    wall_construction_config=wall_construction_config,
+                    sections_count=wall_data['sections_count'],
+                )    # type: ignore
+        elif wall_config_object.status == WallConfigStatusEnum.ERROR:
+            # Error from past processing attempt
+            unknwn_err = f'WallConfig object {wall_config_hash} is with {WallConfigStatusEnum.ERROR} status.'
+            error_utils.handle_unknown_error(wall_data, unknwn_err, 'caching')
 
     return wall_config_object
 
@@ -349,15 +378,18 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
                 construction_days=wall_data['sim_calc_details']['construction_days'],
             )
 
-            # Deferred Redis cache
-            wall_redis_data.append((
-                wall_cache_key,
-                format_value_for_redis('cost', total_cost)
-            ))
+            if wall_data['request_type'] != 'create_wall_task':
+                # Deferred Redis cache
+                wall_redis_data.append((
+                    wall_cache_key,
+                    format_value_for_redis('cost', total_cost)
+                ))
             process_wall_profiles(wall_data, wall, wall_data['simulation_type'], wall_redis_data)
 
-            # Commit deferred Redis cache after a successful DB transaction
-            transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
+            if wall_data['request_type'] != 'create_wall_task':
+                # Commit deferred Redis cache after a successful DB transaction
+                # Redis cache not managed for Celery computation config tasks
+                transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
 
     except Exception as wall_crtn_unkwn_err:
         error_utils.handle_unknown_error(wall_data, wall_crtn_unkwn_err, 'caching')
@@ -381,7 +413,7 @@ def process_wall_profiles(
     """
     cached_wall_profile_hashes = []
 
-    for profile_id, profile_data in wall_data['wall_construction'].wall_profile_data.items():
+    for profile_id, profile_data in wall_data['sim_calc_details']['profile_daily_details'].items():
         wall_profile_config_hash = wall_data['profile_config_hash_data'][profile_id]
 
         if simulation_type == wall_config_utils.SEQUENTIAL:
@@ -394,14 +426,14 @@ def process_wall_profiles(
 
         # Proceed to create the wall profile
         cache_wall_profile_to_db(
-            wall, wall_data, profile_id, profile_data,
-            wall_profile_config_hash, simulation_type, wall_redis_data
+            wall, wall_data, profile_id, profile_data, wall_profile_config_hash,
+            simulation_type, wall_redis_data
         )
 
 
 def cache_wall_profile_to_db(
-        wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any,
-        wall_profile_config_hash: str, simulation_type: str, wall_redis_data: list[tuple[str, int]]
+        wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any, wall_profile_config_hash: str,
+        simulation_type: str, wall_redis_data: list[tuple[str, int]]
 ) -> None:
     """
     Create a new WallProfile object and save it to the database.
@@ -421,17 +453,19 @@ def cache_wall_profile_to_db(
     # Create the wall profile object
     wall_profile = WallProfile.objects.create(**wall_profile_creation_kwargs)
 
-    # Deferred Redis cache
-    wall_redis_data.append(
-        (
-            get_wall_profile_cache_key(wall_profile_config_hash),
-            format_value_for_redis('cost', wall_profile_cost)
+    if wall_data['request_type'] != 'create_wall_task':
+        # Deferred Redis cache
+        wall_redis_data.append(
+            (
+                get_wall_profile_cache_key(wall_profile_config_hash),
+                format_value_for_redis('cost', wall_profile_cost)
+            )
         )
-    )
 
     # Proceed to create the wall profile progress
     cache_wall_profile_progress_to_db(
-        wall_data, wall_profile, wall_profile_config_hash, profile_id, profile_data, wall_redis_data
+        wall_data, wall_profile, wall_profile_config_hash, profile_id,
+        profile_data, wall_redis_data
     )
 
 
@@ -450,13 +484,14 @@ def cache_wall_profile_progress_to_db(
             ice_used=data['ice_used']
         )
 
-        # Deferred Redis cache
-        wall_redis_data.append(
-            (
-                get_daily_ice_usage_cache_key(wall_data, wall_profile_config_hash, day_index, profile_id),
-                data['ice_used']
+        if wall_data['request_type'] != 'create_wall_task':
+            # Deferred Redis cache
+            wall_redis_data.append(
+                (
+                    get_daily_ice_usage_cache_key(wall_data, wall_profile_config_hash, day_index, profile_id),
+                    data['ice_used']
+                )
             )
-        )
 
 
 def commit_deferred_redis_cache(wall_redis_data: list[tuple[str, Any]]) -> None:

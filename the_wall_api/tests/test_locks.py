@@ -28,6 +28,7 @@ class LockTestBase(BaseTestcase):
             'day': 2,
             'sim_calc_details': {'total_cost': 10000, 'construction_days': 10},
             'simulation_type': CONCURRENT,
+            'request_type': 'test_locks',
         }
         self.sleep_time = 3
 

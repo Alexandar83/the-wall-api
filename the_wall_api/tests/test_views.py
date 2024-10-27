@@ -8,8 +8,8 @@ from rest_framework import status
 
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
-from the_wall_api.utils.wall_config_utils import load_wall_profiles_from_config, CONCURRENT
-from the_wall_api.wall_construction import WallConstruction
+from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
+from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
 
 class ViewTest(BaseTestcase):
@@ -19,6 +19,7 @@ class ViewTest(BaseTestcase):
     def setUp(self):
         # Load the wall profiles configuration to determine the maximum valid profile_id
         self.wall_construction_config = load_wall_profiles_from_config()
+        self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.max_profile_id = len(self.wall_construction_config)
         self.max_days_per_profile = {
             index + 1: settings.MAX_SECTION_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config)
@@ -41,8 +42,9 @@ class ViewTest(BaseTestcase):
     def get_invalid_days_for_profile_concurrent(self, valid_profile_id: int, valid_num_crews: int) -> List[int]:
         wall_construction = WallConstruction(
             wall_construction_config=self.wall_construction_config,
-            sections_count=sum(len(profile) for profile in self.wall_construction_config),
+            sections_count=get_sections_count(self.wall_construction_config),
             num_crews=valid_num_crews,
+            wall_config_hash=self.wall_config_hash,
             simulation_type=CONCURRENT
         )
         profile_days = wall_construction.sim_calc_details['profile_daily_details'][valid_profile_id]
