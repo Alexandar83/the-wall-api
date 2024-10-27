@@ -6,8 +6,70 @@ from the_wall_api.wall_construction import WallConstruction
 from the_wall_api.tests.test_utils import BaseTestcase
 from django.conf import settings
 
-MAX_HEIGHT = settings.MAX_HEIGHT
-MAX_LENGTH = settings.MAX_LENGTH
+from the_wall_api.tests.test_utils import BaseTestcase
+from the_wall_api.utils.wall_config_utils import validate_wall_config_format, WallConstructionError
+from the_wall_api.wall_construction import WallConstruction
+
+MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
+MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
+
+
+class WallConfigFormatTest(BaseTestcase):
+    description = 'Wall config format tests'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.invalid_wall_config_msg = 'Invalid wall configuration file.'
+
+    def evaluate_wall_config_test_result(self, test_data: Any, expected_error: str, test_case_source: str) -> None:
+        try:
+            with self.assertRaises(WallConstructionError) as validation_error_context:
+                validate_wall_config_format(test_data, self.invalid_wall_config_msg)
+            actual_result = str(validation_error_context.exception)
+        except AssertionError:
+            actual_result = f'Expected Error \"{expected_error}\" was not raised!'
+
+        passed = expected_error in actual_result
+
+        self.log_test_result(
+            passed=passed,
+            input_data=str(test_data),
+            expected_message=expected_error,
+            actual_message=actual_result,
+            test_case_source=test_case_source
+        )
+
+    def test_invalid_wall_format_not_list(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = '[Not a list]'
+        self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
+
+    def test_invalid_wall_length(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = [0] * (MAX_WALL_LENGTH + 1)
+        self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum wall length of', test_case_source)
+
+    def test_invalid_profile_format_not_list(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = ['[Not a list]']
+        self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
+
+    def test_invalid_section_count(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = [[0] * (MAX_WALL_PROFILE_SECTIONS + 1)]
+        self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum number of sections', test_case_source)
+
+    def test_invalid_section_height_format_not_int(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = [['Not an int']]
+        self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
+
+    def test_invalid_section_height(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_data = [[MAX_SECTION_HEIGHT + 1]]
+        self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum section height', test_case_source)
 
 
 class WallConstructionCreationTest(BaseTestcase):
@@ -18,7 +80,7 @@ class WallConstructionCreationTest(BaseTestcase):
     ) -> None:
         """Helper method to run wall construction tests and log results."""
         # Avoid printing of big volumes of data
-        config_output = config if 'test_maximum_length_profile' not in test_case_source else '[[0] * MAX_LENGTH]'
+        config_output = config if 'test_maximum_length_profile' not in test_case_source else '[[0] * MAX_WALL_PROFILE_SECTIONS]'
         sections_count = sum(len(profile) for profile in config)
 
         try:
@@ -32,7 +94,7 @@ class WallConstructionCreationTest(BaseTestcase):
                 # iterate over wall_construction.testing_wall_construction_config
                 for profile in wall_construction.testing_wall_construction_config:
                     for section in profile:
-                        self.assertEqual(section, settings.MAX_HEIGHT)
+                        self.assertEqual(section, settings.MAX_SECTION_HEIGHT)
 
             self.log_test_result(
                 passed=True, input_data=config_output, expected_message=expected_message,
@@ -87,7 +149,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
     def test_mixed_profiles(self, mock_load_config):
-        mock_load_config.return_value = [[0, 15, MAX_HEIGHT - 1], [25, 10]]
+        mock_load_config.return_value = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
@@ -99,7 +161,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
     def test_concurrent_simulation(self, mock_load_config):
-        mock_load_config.return_value = [[0, 15, MAX_HEIGHT - 1], [25, 10]]
+        mock_load_config.return_value = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
             config=mock_load_config.return_value,
@@ -111,7 +173,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     @patch('the_wall_api.utils.wall_config_utils.load_wall_profiles_from_config')
     def test_maximum_length_profile(self, mock_load_config):
-        max_length_profile = [[0] * MAX_LENGTH]
+        max_length_profile = [[0] * MAX_WALL_PROFILE_SECTIONS]
         mock_load_config.return_value = max_length_profile
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
         self.run_wall_construction_test(
@@ -137,7 +199,14 @@ class SequentialVsConcurrentTest(BaseTestcase):
         concurrent_config = deepcopy(config)
 
         # Avoid printing of big volumes of data
-        config_output = config if 'Large' not in config_case else '[0] * (MAX_LENGTH / 2), [MAX_HEIGHT - 1] * (MAX_LENGTH / 2)'
+        if 'Large' not in config_case:
+            config_output = config
+        else:
+            config_output = (
+                '[0] * (MAX_WALL_PROFILE_SECTIONS / 2), [MAX_SECTION_HEIGHT - 1] '
+                '* (MAX_WALL_PROFILE_SECTIONS / 2)'
+            )
+        wall_config_hash = hash_calc(config)
 
         try:
             wall_sequential = WallConstruction(sequential_config, sections_count, num_crews=0, simulation_type='sequential')
@@ -147,7 +216,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
             return
 
         for num_crews in range(1, 10):
-            self.run_comparison_tests(wall_sequential, concurrent_config, sections_count, num_crews, config_output, test_case_source)
+            self.run_comparison_tests(
+                wall_sequential, concurrent_config, sections_count, num_crews, config_output, test_case_source
+            )
 
     def log_wall_construction_error(
             self, wall_cnstrctn_err: Exception, num_crews: int, config_output: list | str, test_case_source: str
@@ -202,16 +273,22 @@ class SequentialVsConcurrentTest(BaseTestcase):
         )
 
     def compare_profile_costs(
-            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction, input_data: dict, test_case_source: str
+            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction,
+            input_data: dict, test_case_source: str
     ) -> None:
         """Compare the profile costs of sequential and concurrent simulations."""
         for profile_id, sequential_profile_cost in wall_sequential.sim_calc_details['profile_costs'].items():
             concurrent_profile_cost = wall_concurrent.sim_calc_details['profile_costs'].get(profile_id, 0)
             input_data['profile_id'] = profile_id
-            with self.subTest('Compare profile costs', config=input_data['config'], num_crews=input_data['num_crews'], profile_id=profile_id):
+            with self.subTest(
+                'Compare profile costs', config=input_data['config'], num_crews=input_data['num_crews'], profile_id=profile_id
+            ):
                 self.assertEqual(
                     sequential_profile_cost, concurrent_profile_cost,
-                    msg=f'Difference in profile costs: Profile {profile_id}: Sequential: {sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
+                    msg=(
+                        f'Difference in profile costs: Profile {profile_id}: Sequential: '
+                        f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
+                    )
                 )
             self.log_test_result(
                 passed=True,
@@ -226,9 +303,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
             {
                 'config_case': 'Basic case with small profiles',
                 'config': [
-                    [0, 15, MAX_HEIGHT - 1],
-                    [10, 20, MAX_HEIGHT - 1],
-                    [5, 25, MAX_HEIGHT - 1]
+                    [0, 15, MAX_SECTION_HEIGHT - 1],
+                    [10, 20, MAX_SECTION_HEIGHT - 1],
+                    [5, 25, MAX_SECTION_HEIGHT - 1]
                 ]
             },
             {
@@ -241,16 +318,16 @@ class SequentialVsConcurrentTest(BaseTestcase):
             {
                 'config_case': 'Profiles with mixed minimum and maximum sections',
                 'config': [
-                    [0, MAX_HEIGHT - 1, 15],
-                    [MAX_HEIGHT - 1, 0, 25],
+                    [0, MAX_SECTION_HEIGHT - 1, 15],
+                    [MAX_SECTION_HEIGHT - 1, 0, 25],
                     [15, 15, 15]
                 ]
             },
             {
                 'config_case': 'Large profile with many sections',
                 'config': [
-                    [0] * int(MAX_LENGTH / 2),
-                    [MAX_HEIGHT - 1] * int(MAX_LENGTH / 2)
+                    [0] * int(MAX_WALL_PROFILE_SECTIONS / 2),
+                    [MAX_SECTION_HEIGHT - 1] * int(MAX_WALL_PROFILE_SECTIONS / 2)
                 ]
             }
         ]

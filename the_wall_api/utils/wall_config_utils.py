@@ -14,8 +14,9 @@ from the_wall_api.utils.error_utils import (
 
 SEQUENTIAL = 'sequential'
 CONCURRENT = 'concurrent'
-MAX_LENGTH = settings.MAX_LENGTH
-MAX_HEIGHT = settings.MAX_HEIGHT
+MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
+MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
 COST_ROUNDING = Decimal('.01')
 
 
@@ -48,17 +49,36 @@ def load_wall_profiles_from_config() -> list:
     except (json.JSONDecodeError, FileNotFoundError):
         raise WallConstructionError(invalid_wall_config_msg)
 
-    if not isinstance(result, list):
-        raise WallConstructionError(invalid_wall_config_msg)
-
-    for profile in result:
-        if not isinstance(profile, list) or len(profile) > MAX_LENGTH:
-            raise WallConstructionError(invalid_wall_config_msg)
-
-        if not all(isinstance(section_height, int) and 1 <= section_height <= MAX_HEIGHT for section_height in profile):
-            raise WallConstructionError(invalid_wall_config_msg)
+    validate_wall_config_format(result, invalid_wall_config_msg)
 
     return result
+
+
+def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config_msg: str) -> None:
+    if not isinstance(wall_config_file_data, list):
+        raise WallConstructionError(invalid_wall_config_msg)
+
+    if len(wall_config_file_data) > MAX_WALL_LENGTH:
+        raise WallConstructionError(f'The loaded wall config exceeds the maximum wall length of {MAX_WALL_LENGTH}.')
+
+    for profile in wall_config_file_data:
+        if not isinstance(profile, list):
+            raise WallConstructionError(invalid_wall_config_msg)
+
+        if len(profile) > MAX_WALL_PROFILE_SECTIONS:
+            raise WallConstructionError(
+                f'Wall config profile({profile}) exceeds the maximum number of sections of {MAX_WALL_PROFILE_SECTIONS}.'
+            )
+
+        for section_number, section_height in enumerate(profile, start=1):
+            if not isinstance(section_height, int):
+                raise WallConstructionError(invalid_wall_config_msg)
+
+            if section_height > MAX_SECTION_HEIGHT:
+                raise WallConstructionError(
+                    f'Wall config profile({profile}) section({section_number}) '
+                    f'height exceeds the maximum section height of {MAX_SECTION_HEIGHT}.'
+                )
 
 
 def generate_config_hash_details(wall_construction_config: list) -> dict:

@@ -21,7 +21,7 @@ class ViewTest(BaseTestcase):
         self.wall_construction_config = load_wall_profiles_from_config()
         self.max_profile_id = len(self.wall_construction_config)
         self.max_days_per_profile = {
-            index + 1: settings.MAX_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config)
+            index + 1: settings.MAX_SECTION_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config)
         }
 
     def get_valid_profile_ids(self) -> List[int]:

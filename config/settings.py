@@ -336,8 +336,9 @@ LOGGING = {
 # === Filesystem configuration end ===
 
 # Wall Configuration Settings
-MAX_HEIGHT = int(os.getenv('MAX_HEIGHT', 30))                                           # Maximum height of a wall section
-MAX_LENGTH = int(os.getenv('MAX_LENGTH', 2000))                                         # Maximum lenght of a wall profile
+MAX_SECTION_HEIGHT = int(os.getenv('MAX_SECTION_HEIGHT', 30))                           # Maximum height of a wall section
+MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 5))              # Maximum sections in a wall profile
+MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 2000))                               # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
 

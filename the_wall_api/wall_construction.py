@@ -17,7 +17,7 @@ from the_wall_api.utils import error_utils
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
-MAX_HEIGHT = settings.MAX_HEIGHT
+MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
 
@@ -97,11 +97,11 @@ class WallConstruction:
         for profile_index, profile in enumerate(self.wall_construction_config):
             day = 1
             daily_ice_usage = {}
-            # Increment the heights of all sections until they reach MAX_HEIGHT
-            while any(height < MAX_HEIGHT for height in profile):
+            # Increment the heights of all sections until they reach MAX_SECTION_HEIGHT
+            while any(height < MAX_SECTION_HEIGHT for height in profile):
                 ice_used = 0
                 for i, height in enumerate(profile):
-                    if height < MAX_HEIGHT:
+                    if height < MAX_SECTION_HEIGHT:
                         ice_used += ICE_PER_FOOT
                         profile[i] += 1  # Increment the height of the section
                         self.testing_wall_construction_config[profile_index][i] = profile[i]
@@ -181,7 +181,7 @@ class WallConstruction:
         total_ice_used = 0
         total_cost = 0
 
-        while height < MAX_HEIGHT:
+        while height < MAX_SECTION_HEIGHT:
             # Perform daily increment
             height += 1
             self.thread_days[thread.name] += 1
@@ -193,7 +193,7 @@ class WallConstruction:
             self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
 
             # Log the section finalization
-            if height == MAX_HEIGHT:
+            if height == MAX_SECTION_HEIGHT:
                 self.log_section_completion(profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost)
 
             # Synchronize with the other crews at the end of the day
