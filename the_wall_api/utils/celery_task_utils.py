@@ -146,20 +146,24 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
 
 
 def orchestrate_wall_config_processing(
-        wall_config_hash: str, wall_construction_config: list,
-        sections_count: int, active_testing: bool = False
+        wall_config_hash: str, wall_construction_config: list, sections_count: int,
+        num_crews_source: int | None = None, active_testing: bool = False
 ) -> tuple[str, list]:
     """Cache in the DB all possible build simulations for the passed wall configuration."""
     def core_processing() -> tuple[str, list]:
         wall_config_object, task_group_result = create_task_group(
-            wall_config_hash, wall_construction_config, sections_count, active_testing
+            wall_config_hash, wall_construction_config, sections_count,
+            num_crews_source, active_testing
         )
         return monitor_task_group(wall_config_object, task_group_result)
 
     return execute_core_task_logic_with_error_handling(core_processing)
 
 
-def create_task_group(wall_config_hash: str, wall_construction_config: list, sections_count: int, active_testing: bool):
+def create_task_group(
+        wall_config_hash: str, wall_construction_config: list, sections_count: int,
+        num_crews_source: int | None, active_testing: bool
+):
     from celery import group
     from django.db import transaction
 
@@ -182,11 +186,15 @@ def create_task_group(wall_config_hash: str, wall_construction_config: list, sec
         wall_config_object.status = WallConfigStatusEnum.CELERY_CALCULATION
         wall_config_object.save()
 
+    # Exclude the source num_crews, which comes from the process,
+    # initiating the orchestrate wall config processing task
+    # to avoid race conditions
+    num_crews_list = [num_crews for num_crews in range(sections_count) if num_crews != num_crews_source]
     task_group = group(
         # num_crews = max sections count is effectively sequential mode (num_crews = 0)
         create_wall_task.s(
             num_crews, wall_config_hash, wall_construction_config, sections_count, active_testing
-        ) for num_crews in range(sections_count)    # type: ignore
+        ) for num_crews in num_crews_list    # type: ignore
     )
     task_group_result = task_group.apply_async()
 
@@ -303,7 +311,7 @@ def create_wall(
     try:
         fetch_wall_data(wall_data, num_crews, profile_id=None, request_type='create_wall_task')
         if wall_data['error_response']:
-            raise Exception(wall_data['error_response']['error'])
+            raise Exception(wall_data['error_response'].data.get('error'))
     except Exception as cmpttn_err:
         return send_log_error_async('celery_tasks', cmpttn_err), result_wall_data
     else:

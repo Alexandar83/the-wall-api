@@ -8,6 +8,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, transaction
 from django.db.models import Q
+from django.db.utils import IntegrityError
 from redis.exceptions import ConnectionError, TimeoutError
 
 from the_wall_api.models import WallConfig, Wall, WallConfigStatusEnum, WallProfile, WallProfileProgress
@@ -316,6 +317,7 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
                     wall_config_hash=wall_config_hash,
                     wall_construction_config=wall_construction_config,
                     sections_count=wall_data['sections_count'],
+                    num_crews_source=wall_data['num_crews'],
                 )    # type: ignore
         elif wall_config_object.status == WallConfigStatusEnum.ERROR:
             # Error from past processing attempt
@@ -369,14 +371,20 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
             return
 
         with transaction.atomic():
-            # Create the wall object in the DB
-            wall = Wall.objects.create(
-                wall_config=wall_data['wall_config_object'],
-                wall_config_hash=wall_data['wall_config_hash'],
-                num_crews=wall_data['num_crews'],
-                total_cost=total_cost,
-                construction_days=wall_data['sim_calc_details']['construction_days'],
-            )
+            try:
+                # Create the wall object in the DB
+                wall = Wall.objects.create(
+                    wall_config=wall_data['wall_config_object'],
+                    wall_config_hash=wall_data['wall_config_hash'],
+                    num_crews=wall_data['num_crews'],
+                    total_cost=total_cost,
+                    construction_days=wall_data['sim_calc_details']['construction_days'],
+                )
+            except IntegrityError as intgrty_err:
+                # Rare case - log it to keep track of ocurence frequency
+                error_type = 'caching' if wall_data['request_type'] != 'create_wall_task' else 'celery_tasks'
+                error_utils.send_log_error_async(error_type, error=intgrty_err)
+                return
 
             if wall_data['request_type'] != 'create_wall_task':
                 # Deferred Redis cache
