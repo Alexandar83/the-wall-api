@@ -59,7 +59,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 perform_ping_check=False,
                 concurrency=cls.worker_count,
                 pool=pool,
-                logfile='dev/null'  # Discard Celery console logs - Unix
+                logfile='/dev/null'  # Discard Celery console logs - Unix
             )
             cls.test_celery_worker.__enter__()
 
@@ -80,9 +80,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
 
     def setUp(self):
         self.wall_construction_config = load_wall_profiles_from_config()
-        # self.wall_construction_config = [
-        #     [[0] * 10] * 2000,
-        # ]
+
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.sections_count = get_sections_count(self.wall_construction_config)
         self.input_data = {
@@ -196,14 +194,14 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         expected_message = 'Wall config processed successfully'
 
-        actual_message, task_results = self.process_orchestrate_task(test_case_source)
+        task_result_message, task_results = self.process_orchestrate_task(test_case_source)
 
-        if actual_message != 'OK':
+        if task_result_message != 'OK':
             self.log_test_result(
                 passed=False,
                 input_data=self.input_data,
                 expected_message=expected_message,
-                actual_message=actual_message,
+                actual_message=task_result_message,
                 test_case_source=test_case_source
             )
             return
@@ -218,6 +216,3 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             actual_message=actual_message,
             test_case_source=test_case_source
         )
-
-    def test_to_delete(self):
-        pass

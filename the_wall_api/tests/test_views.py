@@ -31,9 +31,21 @@ class ViewTest(BaseTestcase):
     def get_invalid_profile_ids(self) -> List[int]:
         return [int(pid) for pid in generate_valid_values() if int(pid) > self.max_profile_id]
 
-    def get_valid_days_for_profile(self, profile_id: int) -> List[int]:
+    def get_valid_days_for_profile_sequential(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
         return [int(day) for day in generate_valid_values() if 1 <= int(day) <= max_day]
+
+    def get_valid_days_for_profile_concurrent(self, valid_profile_id: int, valid_num_crews: int) -> List[int]:
+        wall_construction = WallConstruction(
+            wall_construction_config=self.wall_construction_config,
+            sections_count=get_sections_count(self.wall_construction_config),
+            num_crews=valid_num_crews,
+            wall_config_hash=self.wall_config_hash,
+            simulation_type=CONCURRENT
+        )
+        profile_days = wall_construction.sim_calc_details['profile_daily_details'][valid_profile_id]
+        max_day = self.max_days_per_profile.get(valid_profile_id, 0)
+        return [day for day in generate_valid_values() if isinstance(day, int) and min(profile_days) <= int(day) <= max_day]
 
     def get_invalid_days_for_profile_sequential(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
@@ -137,9 +149,12 @@ class DailyIceUsageViewTest(ViewTest):
         valid_num_crews = self.get_valid_num_crews()
 
         for profile_id in valid_profile_ids:
-            valid_days = self.get_valid_days_for_profile(profile_id)
-            for day in valid_days:
-                for num_crews in valid_num_crews:
+            for num_crews in valid_num_crews:
+                if num_crews == 0:
+                    valid_days = self.get_valid_days_for_profile_sequential(profile_id)
+                else:
+                    valid_days = self.get_valid_days_for_profile_concurrent(profile_id, num_crews)
+                for day in valid_days:
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                         self.execute_test_case(
                             status.HTTP_200_OK, test_case_source, profile_id, day, num_crews,
@@ -185,7 +200,7 @@ class DailyIceUsageViewTest(ViewTest):
     def test_daily_ice_usage_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
-        day = self.get_valid_days_for_profile(profile_id)[0]
+        day = self.get_valid_days_for_profile_sequential(profile_id)[0]
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]

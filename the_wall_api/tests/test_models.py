@@ -165,7 +165,7 @@ class WallConfigUniqueConstraintTest(BaseTestcase):
     def setUp(self):
         self.wall_config_hash = 'unique_hash'
 
-    def test_wall_config_unique_together(self):
+    def test_wall_config_unique_constraint(self):
         """Test that a duplicate wall_config with the same wall_config_hash raises a ValidationError."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
 
