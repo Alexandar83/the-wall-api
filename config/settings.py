@@ -338,6 +338,9 @@ MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 5))      
 MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 1000))                               # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
+MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = int(                                       # Maximum allowed number of crews in the wall configuration task
+    os.getenv('MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS', 100)
+)
 
 # Common settings
 API_VERSION = os.getenv('API_VERSION', 'v1')

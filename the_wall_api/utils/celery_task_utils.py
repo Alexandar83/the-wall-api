@@ -165,11 +165,14 @@ def create_task_group(
         num_crews_source: int | None, active_testing: bool
 ):
     from celery import group
+    from django.conf import settings
     from django.db import transaction
 
     from the_wall_api.models import WallConfig, WallConfigStatusEnum
     from the_wall_api.tasks import log_error_task
     create_wall_task = import_wall_task(active_testing)
+
+    MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = settings.MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS
 
     with transaction.atomic():
         # Attempt to acquire a lock immediately (no timeout)
@@ -189,7 +192,8 @@ def create_task_group(
     # Exclude the source num_crews, which comes from the process,
     # initiating the orchestrate wall config processing task
     # to avoid race conditions
-    num_crews_list = [num_crews for num_crews in range(sections_count) if num_crews != num_crews_source]
+    max_allowed_num_crews_count = min(sections_count, MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS + 1)
+    num_crews_list = [num_crews for num_crews in range(max_allowed_num_crews_count) if num_crews != num_crews_source]
     task_group = group(
         # num_crews = max sections count is effectively sequential mode (num_crews = 0)
         create_wall_task.s(
