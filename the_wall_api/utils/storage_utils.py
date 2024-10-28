@@ -285,7 +285,6 @@ def fetch_daily_ice_usage_from_db(
 def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
     """WallConfig object management corresponding to its state."""
     wall_config_hash = wall_data['wall_config_hash']
-    wall_construction_config = wall_data['wall_construction_config']
     try:
         # Already created
         wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
@@ -315,7 +314,7 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
             if not settings.ACTIVE_TESTING:
                 orchestrate_wall_config_processing_task.delay(
                     wall_config_hash=wall_config_hash,
-                    wall_construction_config=wall_construction_config,
+                    wall_construction_config=wall_data['initial_wall_construction_config'],
                     sections_count=wall_data['sections_count'],
                     num_crews_source=wall_data['num_crews'],
                 )    # type: ignore

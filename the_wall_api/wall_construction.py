@@ -326,6 +326,7 @@ def set_simulation_params(
     )
     wall_data['num_crews'] = num_crews_final
     wall_data['wall_construction_config'] = deepcopy(wall_construction_config)
+    wall_data['initial_wall_construction_config'] = deepcopy(wall_construction_config)
     wall_data['simulation_type'] = simulation_type
     wall_config_hash = wall_data.get('wall_config_hash')
     if not wall_config_hash:
