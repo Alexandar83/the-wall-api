@@ -290,40 +290,53 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
         wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
     except WallConfig.DoesNotExist:
         # First request for this config - create it in the DB
-        wall_config_cache_key = get_wall_config_cache_key(wall_config_hash)
-        wall_config_db_lock_key = generate_db_lock_key(wall_config_cache_key)
-        db_lock_acquired = None
-        try:
-            db_lock_acquired = acquire_db_lock(wall_config_db_lock_key)
-            if not db_lock_acquired:
-                return 'Being initialized in another process'
-
-            with transaction.atomic():
-                # Create a new object with status INITIALIZED (default value)
-                wall_config_object = WallConfig.objects.create(wall_config_hash=wall_config_hash)
-        except Exception as wall_config_crtn_unkwn_err:
-            wall_config_object = f'{wall_config_crtn_unkwn_err.__class__.__name__}: {str(wall_config_crtn_unkwn_err)}'
-            error_utils.handle_unknown_error(wall_data, wall_config_crtn_unkwn_err, 'caching')
-        finally:
-            if db_lock_acquired:
-                release_db_lock(wall_config_db_lock_key)
+        wall_config_object = create_new_wall_config(wall_data, wall_config_hash)
 
     if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
-        if wall_config_object.status == WallConfigStatusEnum.INITIALIZED:
-            # Skip during testing
-            if not settings.ACTIVE_TESTING:
-                orchestrate_wall_config_processing_task.delay(
-                    wall_config_hash=wall_config_hash,
-                    wall_construction_config=wall_data['initial_wall_construction_config'],
-                    sections_count=wall_data['sections_count'],
-                    num_crews_source=wall_data['num_crews'],
-                )    # type: ignore
-        elif wall_config_object.status == WallConfigStatusEnum.ERROR:
-            # Error from past processing attempt
-            unknwn_err = f'WallConfig object {wall_config_hash} is with {WallConfigStatusEnum.ERROR} status.'
-            error_utils.handle_unknown_error(wall_data, unknwn_err, 'caching')
+        handle_wall_config_status(wall_config_object, wall_data)
 
     return wall_config_object
+
+
+def create_new_wall_config(wall_data, wall_config_hash) -> WallConfig | str:
+    wall_config_cache_key = get_wall_config_cache_key(wall_config_hash)
+    wall_config_db_lock_key = generate_db_lock_key(wall_config_cache_key)
+    db_lock_acquired = None
+    try:
+        db_lock_acquired = acquire_db_lock(wall_config_db_lock_key)
+        if not db_lock_acquired:
+            return 'Being initialized in another process'
+
+        with transaction.atomic():
+            # Create a new object with status INITIALIZED (default value)
+            wall_config_object = WallConfig.objects.create(wall_config_hash=wall_config_hash)
+    except Exception as wall_config_crtn_unkwn_err:
+        wall_config_object = f'{wall_config_crtn_unkwn_err.__class__.__name__}: {str(wall_config_crtn_unkwn_err)}'
+        error_utils.handle_unknown_error(wall_data, wall_config_crtn_unkwn_err, 'caching')
+    finally:
+        if db_lock_acquired:
+            release_db_lock(wall_config_db_lock_key)
+
+    return wall_config_object
+
+
+def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[str, Any]) -> None:
+    if wall_config_object.status == WallConfigStatusEnum.INITIALIZED:
+        # Skip during testing
+        if not settings.ACTIVE_TESTING:
+            orchestrate_wall_config_processing_task.delay(
+                wall_config_hash=wall_config_object.wall_config_hash,
+                wall_construction_config=wall_data['initial_wall_construction_config'],
+                sections_count=wall_data['sections_count'],
+                num_crews_source=wall_data['num_crews'],
+            )    # type: ignore
+    elif wall_config_object.status == WallConfigStatusEnum.ERROR:
+        # Error from past processing attempt
+        unknwn_err = (
+            f'WallConfig object {wall_config_object.wall_config_hash} '
+            f'is with {WallConfigStatusEnum.ERROR} status.'
+        )
+        error_utils.handle_unknown_error(wall_data, unknwn_err, 'caching')
 
 
 def get_wall_config_cache_key(wall_config_hash: str) -> str:
@@ -358,9 +371,7 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
     """
     wall_cache_key = get_wall_cache_key(wall_data)
     wall_db_lock_key = generate_db_lock_key(wall_cache_key)
-    db_lock_acquired = None
-    total_cost = wall_data['sim_calc_details']['total_cost']
-    wall_redis_data = []
+    db_lock_acquired = False
 
     try:
         db_lock_acquired = acquire_db_lock(wall_db_lock_key)
@@ -369,40 +380,47 @@ def cache_wall(wall_data: Dict[str, Any]) -> None:
             # another process is creating the cache
             return
 
-        with transaction.atomic():
-            try:
-                # Create the wall object in the DB
-                wall = Wall.objects.create(
-                    wall_config=wall_data['wall_config_object'],
-                    wall_config_hash=wall_data['wall_config_hash'],
-                    num_crews=wall_data['num_crews'],
-                    total_cost=total_cost,
-                    construction_days=wall_data['sim_calc_details']['construction_days'],
-                )
-            except IntegrityError as intgrty_err:
-                # Rare case - log it to keep track of ocurence frequency
-                error_type = 'caching' if wall_data['request_type'] != 'create_wall_task' else 'celery_tasks'
-                error_utils.send_log_error_async(error_type, error=intgrty_err)
-                return
-
-            if wall_data['request_type'] != 'create_wall_task':
-                # Deferred Redis cache
-                wall_redis_data.append((
-                    wall_cache_key,
-                    format_value_for_redis('cost', total_cost)
-                ))
-            process_wall_profiles(wall_data, wall, wall_data['simulation_type'], wall_redis_data)
-
-            if wall_data['request_type'] != 'create_wall_task':
-                # Commit deferred Redis cache after a successful DB transaction
-                # Redis cache not managed for Celery computation config tasks
-                transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
+        perform_wall_transaction(wall_data, wall_cache_key)
 
     except Exception as wall_crtn_unkwn_err:
         error_utils.handle_unknown_error(wall_data, wall_crtn_unkwn_err, 'caching')
     finally:
         if db_lock_acquired:
             release_db_lock(wall_db_lock_key)
+
+
+def perform_wall_transaction(wall_data: Dict[str, Any], wall_cache_key: str) -> None:
+    total_cost = wall_data['sim_calc_details']['total_cost']
+    wall_redis_data = []
+
+    with transaction.atomic():
+        try:
+            # Create the wall object in the DB
+            wall = Wall.objects.create(
+                wall_config=wall_data['wall_config_object'],
+                wall_config_hash=wall_data['wall_config_hash'],
+                num_crews=wall_data['num_crews'],
+                total_cost=total_cost,
+                construction_days=wall_data['sim_calc_details']['construction_days'],
+            )
+        except IntegrityError as intgrty_err:
+            # Rare case - log it to keep track of ocurence frequency
+            error_type = 'caching' if wall_data['request_type'] != 'create_wall_task' else 'celery_tasks'
+            error_utils.send_log_error_async(error_type, error=intgrty_err)
+            return
+
+        if wall_data['request_type'] != 'create_wall_task':
+            # Deferred Redis cache
+            wall_redis_data.append((
+                wall_cache_key,
+                format_value_for_redis('cost', total_cost)
+            ))
+        process_wall_profiles(wall_data, wall, wall_data['simulation_type'], wall_redis_data)
+
+        if wall_data['request_type'] != 'create_wall_task':
+            # Commit deferred Redis cache after a successful DB transaction
+            # Redis cache not managed for Celery computation config tasks
+            transaction.on_commit(lambda: commit_deferred_redis_cache(wall_redis_data))
 
 
 def format_value_for_redis(type: str, value_in: Any) -> Any:
