@@ -238,7 +238,7 @@ def fetch_daily_ice_usage_from_redis_cache(
 
 
 def get_daily_ice_usage_cache_key(
-        wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int
+        wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int | None
 ) -> str:
     key_data = (
         f'dly_ice_usg_'
@@ -247,7 +247,7 @@ def get_daily_ice_usage_cache_key(
         f'{wall_profile_config_hash}_'
         f'{day}'
     )
-    if wall_data['simulation_type'] == wall_config_utils.CONCURRENT:
+    if wall_data['simulation_type'] == wall_config_utils.CONCURRENT and profile_id is not None:
         key_data += f'_{profile_id}'
 
     # profile_ice_usage_redis_cache_key = hash_calc(key_data)   # Potential future mem. usage optimisation

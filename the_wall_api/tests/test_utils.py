@@ -128,6 +128,17 @@ class BaseTestMixin:
             logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
             logger.info(' ')
 
+    @classmethod
+    def cache_clear(cls, func):
+        def wrapper(self, *args, **kwargs):
+            cache.clear()
+            result = func(self, *args, **kwargs)
+            cache.clear()
+
+            return result
+
+        return wrapper
+
     def _get_test_case_source(self, method_name: str) -> str:
         return f'{self.__module__} -> {method_name}'
 

@@ -22,17 +22,6 @@ class CacheTest(BaseTransactionTestcase):
         self.concurrency_switched = False
         self.redis_cache_status = None
 
-    @classmethod
-    def cache_clear(cls, func):
-        def wrapper(self, *args, **kwargs):
-            cache.clear()
-            result = func(self, *args, **kwargs)
-            cache.clear()
-
-            return result
-
-        return wrapper
-
     def initialize_test_data(self, num_crews: int = 0, skip_cache_wall: bool = False, cache_eviction: bool = False) -> None:
         # Request params
         self.num_crews = num_crews
@@ -198,7 +187,7 @@ class DailyIceUsageCacheTest(CacheTest):
 
         return ''
 
-    @CacheTest.cache_clear
+    @BaseTransactionTestcase.cache_clear
     def test_fetch_missing_data_sequential(self):
         """
         Sequential first request - assert all types of cache.
@@ -224,7 +213,7 @@ class DailyIceUsageCacheTest(CacheTest):
             expected_message = self.get_expected_message('missing_data')
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
-    @CacheTest.cache_clear
+    @BaseTransactionTestcase.cache_clear
     def test_fetch_missing_data_concurrent(self):
         """
         Concurrent first request - assert all types of cache.
@@ -250,7 +239,7 @@ class DailyIceUsageCacheTest(CacheTest):
             expected_message = self.get_expected_message('missing_data')
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
-    @CacheTest.cache_clear
+    @BaseTransactionTestcase.cache_clear
     def test_fetch_db_data_evicted_from_cache(self):
         """
         Simulate cache eviction from Redis and refresh from DB.
