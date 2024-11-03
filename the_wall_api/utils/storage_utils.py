@@ -42,7 +42,7 @@ def get_or_create_cache(wall_data, request_type) -> None:
 
     # If no cached data is found, run the simulation
     run_simulation(wall_data)
-    if wall_data['error_response']:
+    if wall_data['error_response'] or wall_data.get('celery_task_aborted'):
         return
 
     # Attempt to get/create the wall config object

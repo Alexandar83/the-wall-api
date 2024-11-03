@@ -1,16 +1,21 @@
-from copy import deepcopy
-import logging
-import os
-import re
-from secrets import token_hex
+# This module simulates the construction process of a wall, tracking material usage (ice) and costs.
+# It supports both sequential and concurrent simulation modes,and logs progressdata to showcase
+# the construction process.
 
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from datetime import datetime
 from itertools import count
+import logging
+import os
 from queue import Empty, Queue
+import re
+from secrets import token_hex
 from threading import Condition, Lock, Thread, current_thread
+from time import sleep
 from typing import Any, Dict
 
+from celery.contrib.abortable import AbortableTask
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
@@ -30,8 +35,8 @@ class WallConstruction:
     to follow the task requirements
     """
     def __init__(
-            self, wall_construction_config: list, sections_count: int, num_crews: int,
-            wall_config_hash: str, simulation_type: str = SEQUENTIAL
+        self, wall_construction_config: list, sections_count: int, num_crews: int,
+        wall_config_hash: str, simulation_type: str = SEQUENTIAL, celery_task: AbortableTask | None = None
     ):
         self.wall_construction_config = wall_construction_config
         self.testing_wall_construction_config = deepcopy(wall_construction_config)     # For unit testing purposes
@@ -39,31 +44,58 @@ class WallConstruction:
         self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
 
         if simulation_type == CONCURRENT:
-            self.max_crews = min(sections_count, num_crews)
-            self.thread_counter = count(1)
-            self.counter_lock = Lock()
-            self.thread_days = {}
-            timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
-            self.filename = os.path.join(
-                BUILD_SIM_LOGS_DIR,
-                f'{timestamp}_{wall_config_hash}_{num_crews}_{token_hex(4)}.log'
-            )
-            self.logger = self._setup_logger()
+            self.init_concurrent_config(sections_count, num_crews, wall_config_hash)
 
-            # Initialize the queue with sections
-            self.sections_queue = Queue()
-            for profile_id, profile in enumerate(self.wall_construction_config, 1):
-                for section_id, height in enumerate(profile, 1):
-                    self.sections_queue.put((profile_id, section_id, height))
+        # Celery task details
+        self.celery_task = celery_task
+        self.celery_task_id = celery_task.request.id if celery_task else None
+        self.celery_task_aborted = False
+        self.simulation_finished = False
+        self.start_abort_signal_listener_thread()
 
-            # Init a condition for crew threads synchronization
-            self.active_crews = self.max_crews
-            self.day_condition = Condition()
-            self.finished_crews_for_the_day = 0
-
+        # Initialize the wall profile data
         self.wall_profile_data = {}
         self.calc_wall_profile_data()
         self.sim_calc_details = self._calc_sim_details()
+
+    def start_abort_signal_listener_thread(self):
+        """
+        Start a separate thread to periodically check for task revocation.
+        """
+        if self.celery_task:
+            def check_aborted():
+                while not self.celery_task_aborted and not self.simulation_finished:
+                    if self.celery_task and self.celery_task.is_aborted(task_id=self.celery_task_id):
+                        self.celery_task_aborted = True
+                        break
+                    sleep(1)
+
+            abort_thread_check = Thread(target=check_aborted)
+            abort_thread_check.daemon = True
+            abort_thread_check.start()
+
+    def init_concurrent_config(self, sections_count: int, num_crews: int, wall_config_hash: str):
+        self.max_crews = min(sections_count, num_crews)
+        self.thread_counter = count(1)
+        self.counter_lock = Lock()
+        self.thread_days = {}
+        timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')
+        self.filename = os.path.join(
+            BUILD_SIM_LOGS_DIR,
+            f'{timestamp}_{wall_config_hash}_{num_crews}_{token_hex(4)}.log'
+        )
+        self.logger = self._setup_logger()
+
+        # Initialize the queue with sections
+        self.sections_queue = Queue()
+        for profile_id, profile in enumerate(self.wall_construction_config, 1):
+            for section_id, height in enumerate(profile, 1):
+                self.sections_queue.put((profile_id, section_id, height))
+
+        # Init a condition for crew threads synchronization
+        self.active_crews = self.max_crews
+        self.day_condition = Condition()
+        self.finished_crews_for_the_day = 0
 
     def _setup_logger(self):
         """
@@ -98,6 +130,8 @@ class WallConstruction:
         else:
             self.calc_wall_profile_data_sequential()
 
+        self.simulation_finished = True
+
     def calc_wall_profile_data_sequential(self) -> None:
         """
         Sequential construction process simulation.
@@ -114,10 +148,15 @@ class WallConstruction:
                         ice_used += ICE_PER_FOOT
                         profile[i] += 1  # Increment the height of the section
                         self.testing_wall_construction_config[profile_index][i] = profile[i]
+                        if self.celery_task_aborted:
+                            # Logging to stdout is muted in the workers
+                            print('Sequential simulation interrupted by a celery task abort signal!')
+                            return
 
                 # Keep track of daily ice usage
                 daily_ice_usage[day] = {'ice_used': ice_used}
                 day += 1
+
             # Store the results
             self.wall_profile_data[profile_index + 1] = daily_ice_usage
 
@@ -167,14 +206,13 @@ class WallConstruction:
 
             self.initialize_thread_days(thread)
             self.process_section(profile_id, section_id, height, thread)
+            if self.celery_task_aborted:
+                break
 
         # When there are no more sections available for the crew, relieve it
         with self.day_condition:
             self.active_crews -= 1
-            if self.finished_crews_for_the_day == self.active_crews:
-                # Reset the counter and notify all other threads
-                self.finished_crews_for_the_day = 0
-                self.day_condition.notify_all()
+            self.check_notify_all_workers_to_resume_work()
 
     def initialize_thread_days(self, thread: Thread) -> None:
         """
@@ -208,17 +246,17 @@ class WallConstruction:
             # Synchronize with the other crews at the end of the day
             self.end_of_day_synchronization()
 
+            if self.celery_task_aborted:
+                return
+
     def end_of_day_synchronization(self) -> None:
         """
         Synchronize threads at the end of the day.
         """
         with self.day_condition:
             self.finished_crews_for_the_day += 1
-            if self.finished_crews_for_the_day == self.active_crews:
-                # Last crew to reach this point resets the counter and notifies all others
-                self.finished_crews_for_the_day = 0
-                # Wake up all waiting threads
-                self.day_condition.notify_all()
+            if self.check_notify_all_workers_to_resume_work():
+                return
             else:
                 # Wait until all other crews are done with the current day
                 self.day_condition.wait()
@@ -238,7 +276,27 @@ class WallConstruction:
         )
         self.logger.debug(message)
 
+    def log_work_interrupted(self) -> None:
+        message = 'WRK_INTRRPTD: Work interrupted by a celery task abort signal.'
+        self.logger.debug(message)
+
+    def check_notify_all_workers_to_resume_work(self) -> bool:
+        if self.finished_crews_for_the_day == self.active_crews or self.celery_task_aborted:
+            # Last crew to reach this point resets the counter and notifies all others,
+            # or a revocation signal is received and the simulation is interrupted
+            self.finished_crews_for_the_day = 0
+            # Wake up all waiting threads
+            self.day_condition.notify_all()
+
+            return True
+
+        return False
+
     def extract_log_data(self) -> None:
+        if self.celery_task_aborted:
+            self.log_work_interrupted()
+            return
+
         with open(self.filename, 'r') as log_file:
             for line in log_file:
                 # Extract profile_id, day, ice used, and cost
@@ -382,7 +440,8 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
             sections_count=wall_data['sections_count'],
             num_crews=wall_data['num_crews'],
             wall_config_hash=wall_data['wall_config_hash'],
-            simulation_type=wall_data['simulation_type']
+            simulation_type=wall_data['simulation_type'],
+            celery_task=wall_data.get('celery_task'),
         )
     except error_utils.WallConstructionError as tech_error:
         error_utils.handle_unknown_error(wall_data, tech_error, 'wall_creation')
@@ -390,6 +449,8 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
     wall_data['wall_construction'] = wall_construction
     wall_data['sim_calc_details'] = wall_construction.sim_calc_details
     store_simulation_result(wall_data)
+    if wall_construction.celery_task_aborted:
+        wall_data['celery_task_aborted'] = True
 
 
 def store_simulation_result(wall_data):
