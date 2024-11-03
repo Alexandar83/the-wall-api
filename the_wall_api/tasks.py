@@ -1,10 +1,11 @@
 from typing import Callable
 
-from celery import shared_task
+from celery import shared_task, Task
+from celery.contrib.abortable import AbortableTask
 
 from the_wall_api.utils.celery_task_utils import (
     archive_logs, clean_old_archives, create_wall, log_error,
-    orchestrate_wall_config_processing
+    orchestrate_wall_config_processing, wall_config_deletion
 )
 
 
@@ -58,9 +59,18 @@ def orchestrate_wall_config_processing_task(*args, **kwargs) -> tuple[str, list]
     return execute_task_with_error_handling(orchestrate_wall_config_processing, *args, **kwargs)
 
 
+@shared_task(bind=True, base=AbortableTask, queue='computation_tasks')
+def create_wall_task(self, test_task: Task | None = None, *args, **kwargs) -> tuple[str, list]:
+    if not test_task:
+        task = self
+    else:
+        task = test_task
+    return execute_task_with_error_handling(create_wall, task, *args, **kwargs)
+
+
 @shared_task(queue='computation_tasks')
-def create_wall_task(*args, **kwargs) -> tuple[str, list]:
-    return execute_task_with_error_handling(create_wall, *args, **kwargs)
+def wall_config_deletion_task(*args, **kwargs) -> tuple[str, list]:
+    return execute_task_with_error_handling(wall_config_deletion, *args, **kwargs)
 
 
 # Test Tasks
@@ -69,9 +79,12 @@ def orchestrate_wall_config_processing_task_test(*args, **kwargs) -> tuple[str, 
     return orchestrate_wall_config_processing_task(*args, **kwargs)
 
 
+@shared_task(bind=True, base=AbortableTask, queue='test_queue')
+def create_wall_task_test(self, *args, **kwargs) -> tuple[str, list]:
+    return create_wall_task(self, *args, **kwargs)
+
+
 @shared_task(queue='test_queue')
-def create_wall_task_test(*args, **kwargs) -> tuple[str, list]:
-    return create_wall_task(*args, **kwargs)
-
-
+def wall_config_deletion_task_test(*args, **kwargs) -> tuple[str, list]:
+    return wall_config_deletion_task(*args, **kwargs)
 # === Concurrent tasks end ===
