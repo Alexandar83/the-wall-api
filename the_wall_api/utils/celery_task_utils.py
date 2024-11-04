@@ -9,7 +9,7 @@ from time import sleep, time
 from typing import Callable
 
 LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
-ABORT_WAIT_PERIOD = int(os.getenv('ABORT_WAIT_PERIOD', 30))
+ABORT_WAIT_PERIOD = int(os.getenv('ABORT_WAIT_PERIOD', 40))
 DELETION_RETRIES = 5
 
 if not LIGHT_CELERY_CONFIG:
@@ -356,9 +356,15 @@ def create_wall(
             return 'ABORTED', result_wall_data
 
         if active_testing:
+            if wall_data.get('sim_calc_details'):
+                sim_calc_details = wall_data['sim_calc_details']
+            elif wall_data.get('cached_result'):
+                sim_calc_details = 'cached_result'
+            else:
+                sim_calc_details = None
             result_wall_data = {
                 'num_crews': num_crews,
-                'sim_calc_details': wall_data['sim_calc_details'],
+                'sim_calc_details': sim_calc_details,
                 'profile_config_hash_data': wall_data['profile_config_hash_data'],
             }
 
