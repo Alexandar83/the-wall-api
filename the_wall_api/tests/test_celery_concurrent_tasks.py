@@ -7,6 +7,7 @@ from celery.result import AsyncResult
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Q
+from django.http import HttpResponse
 from django.urls import reverse
 from redis import Redis
 from rest_framework import status
@@ -42,54 +43,37 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         cls.redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
         cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
 
-        # Start the celery worker and instruct it to listen to 'test_queue'
+        # Start the celery workers and instruct them to listen to 'test_queue'
         if settings.PROJECT_MODE == 'dev':
-            # 'prefork' is not supported in dev (on Windows)
-            # Avoid 'gevent' dependency - not justified
-            pool = 'solo'
-            for i in range(1, cls.worker_count + 1):
-                worker_name = f'test_celery_worker_{i}'
-                worker = start_worker(
-                    celery_app,
-                    queues=[cls.test_queue_name],
-                    perform_ping_check=False,
-                    concurrency=1,
-                    pool=pool,
-                    logfile='nul'    # Discard Celery console logs - Windows
-                )
-                setattr(cls, worker_name, worker)
-                getattr(cls, worker_name).__enter__()
+            pool = 'solo'                   # 'prefork' is not supported in dev (on Windows); Avoid 'gevent' dependency - not justified
+            concurrency = 1
+            logfile = 'nul'                 # Discard Celery console logs - Windows
+            worker_count = cls.worker_count
         else:
-            # 'prefork' is well suited for the containerized app
-            pool = 'prefork'
-            cls.test_celery_worker = start_worker(
-                celery_app,
-                queues=[cls.test_queue_name],
-                perform_ping_check=False,
-                concurrency=cls.worker_count,
-                pool=pool,
-                logfile='/dev/null'  # Discard Celery console logs - Unix
-            )
-            cls.test_celery_worker.__enter__()
+            pool = 'prefork'                # 'prefork' is well suited for the containerized app
+            concurrency = cls.worker_count
+            logfile = '/dev/null'           # Discard Celery console logs - Unix
+            worker_count = 1
+        cls.workers = [
+            start_worker(
+                celery_app, queues=[cls.test_queue_name], concurrency=concurrency,
+                pool=pool, perform_ping_check=False, logfile=logfile
+            ) for _ in range(worker_count)
+        ]
+        for worker in cls.workers:
+            worker.__enter__()
 
     @classmethod
     def tearDownClass(cls):
         # Flush the test queue
         cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
-
         # Stop the celery workers
-        if settings.PROJECT_MODE == 'dev':
-            for i in range(1, cls.worker_count + 1):
-                worker_name = f'test_celery_worker_{i}'
-                getattr(cls, worker_name).__exit__(None, None, None)
-        else:
-            cls.test_celery_worker.__exit__(None, None, None)
-
+        for worker in cls.workers:
+            worker.__exit__(None, None, None)
         super().tearDownClass()
 
     def setUp(self):
         self.wall_construction_config = load_wall_profiles_from_config()
-
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.wall_profile_config_hash_data = {
             i: hash_calc(profile) for i, profile in enumerate(self.wall_construction_config, start=1)
@@ -99,11 +83,10 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             'wall_config_hash': self.wall_config_hash,
             'sections_count': self.sections_count
         }
-        self.wall_data = {
+        self.wall_config_object = manage_wall_config_object({
             'wall_config_hash': self.wall_config_hash,
             'wall_construction_config': self.wall_construction_config
-        }
-        self.wall_config_object = manage_wall_config_object(self.wall_data)
+        })
         self.active_testing = True
 
     def process_tasks(
@@ -127,7 +110,6 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         return actual_message, actual_result
 
     def send_celery_tasks(self, deletion: str | None) -> tuple[AsyncResult, AsyncResult | None]:
-        deletion_result = None
         wall_config_orchestration_result = orchestrate_wall_config_processing_task_test.delay(
             wall_config_hash=self.wall_config_hash,
             wall_construction_config=self.wall_construction_config,
@@ -135,14 +117,11 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             active_testing=self.active_testing
         )    # type: ignore
 
+        deletion_result = None
         if deletion:
             if deletion == 'sequential':
                 # Simulate that the deletion occurs after the whole wall config is processed
-                try:
-                    wall_config_orchestration_result.get()
-                except TimeoutError:
-                    # Handled in get_results()
-                    pass
+                wall_config_orchestration_result.get()
             if deletion == 'concurrent':
                 # Ensure the orchestration task has time to start
                 sleep(0.01)
@@ -153,50 +132,58 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         return wall_config_orchestration_result, deletion_result
 
     def process_normal_request(self, normal_request_num_crews: int | None) -> str | None:
-        if normal_request_num_crews:
-            day = 1
-            profile_id = 1
+        if not normal_request_num_crews:
+            return None
 
-            if normal_request_num_crews == 1:
-                sleep(5)
+        day = 1
+        profile_id = 1
 
-            wall = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
+        if normal_request_num_crews == 1:
+            sleep(5)
 
-            if normal_request_num_crews == 1 and not wall:
-                return 'Wall not created from the orchestration task yet!'
+        wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
 
-            if normal_request_num_crews > 1 and wall:
-                return 'Wall should not be created from the orchestration task befre the normal GET request!'
+        if normal_request_num_crews == 1 and not wall_exists:
+            return 'Wall not created from the orchestration task yet!'
 
-            wall_data = {
-                'wall_config_hash': self.wall_config_hash,
-                'num_crews': normal_request_num_crews,
-                'request_type': 'create_wall_task',
-                'simulation_type': CONCURRENT
-            }
-            daily_ice_usage_cache_key = get_daily_ice_usage_cache_key(
-                wall_data, self.wall_profile_config_hash_data[profile_id], day, profile_id
-            )
+        if normal_request_num_crews > 1 and wall_exists:
+            return 'Wall should not be created from the orchestration task befre the normal GET request!'
 
-            redis_daily_ice_usage_cache = cache.get(daily_ice_usage_cache_key)
+        redis_daily_ice_usage_cache, daily_ice_usage_cache_key = self.get_redis_cache_details(normal_request_num_crews, profile_id, day)
+        if redis_daily_ice_usage_cache:
+            return 'Wall Redis cache should not exist before the normal GET request!'
 
-            if redis_daily_ice_usage_cache:
-                return 'Wall Redis cache should not exist before the normal GET request!'
+        response = self.fetch_response(profile_id, day, normal_request_num_crews)
+        if response.status_code != status.HTTP_200_OK:
+            return f'Unexpected normal GET request response code: {response.status_code}!'
 
-            url_name = exposed_endpoints['daily-ice-usage']['name']
-            url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
-            params = {'num_crews': normal_request_num_crews}
-            response = self.client.get(url, params)
+        redis_daily_ice_usage_cache = cache.get(daily_ice_usage_cache_key)
+        if redis_daily_ice_usage_cache is None:
+            return 'Wall Redis cache should exist after the normal GET request!'
 
-            if response.status_code != status.HTTP_200_OK:
-                return f'Unexpected normal GET request response code: {response.status_code}!'
+        return 'OK'
 
-            redis_daily_ice_usage_cache = cache.get(daily_ice_usage_cache_key)
+    def get_redis_cache_details(self, normal_request_num_crews: int, profile_id: int, day: int) -> tuple[str, str]:
+        wall_data = {
+            'wall_config_hash': self.wall_config_hash,
+            'num_crews': normal_request_num_crews,
+            'request_type': 'create_wall_task',
+            'simulation_type': CONCURRENT
+        }
+        daily_ice_usage_cache_key = get_daily_ice_usage_cache_key(
+            wall_data, self.wall_profile_config_hash_data[profile_id], day, profile_id
+        )
+        redis_daily_ice_usage_cache = cache.get(daily_ice_usage_cache_key)
 
-            if redis_daily_ice_usage_cache is None:
-                return 'Wall Redis cache should exist after the normal GET request!'
+        return redis_daily_ice_usage_cache, daily_ice_usage_cache_key
 
-            return 'OK'
+    def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
+        url_name = exposed_endpoints['daily-ice-usage']['name']
+        url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
+        params = {'num_crews': normal_request_num_crews}
+        response = self.client.get(url, params)
+
+        return response
 
     def get_results(
         self, wall_config_orchestration_result: AsyncResult, normal_request_result: str | None, deletion: str | None,
@@ -206,17 +193,16 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         actual_result = []
         try:
             wall_config_orchestration_result.get()
-            if deletion_result is not None:
+            if deletion_result:
                 deletion_result.get()
         except TimeoutError:
-            actual_message = f'{test_case_source} timed out'
-            return actual_message, actual_result
+            return f'{test_case_source} timed out', actual_result
 
         if not deletion:
-            if normal_request_result is not None and normal_request_result != 'OK':
+            if normal_request_result and normal_request_result != 'OK':
                 return normal_request_result, []
             actual_message, actual_result = wall_config_orchestration_result.result
-        elif deletion_result is not None:
+        elif deletion_result:
             actual_deletion_message, actual_result = deletion_result.result
             actual_message = self.check_abort_signal_processed(actual_deletion_message, wall_config_orchestration_result, deletion)
         else:
@@ -231,15 +217,11 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             return actual_deletion_message
 
         actual_message, actual_result = wall_config_orchestration_result.result
-
-        if deletion == 'sequential':
-            if actual_message != 'OK':
-                return actual_message
-
+        if deletion == 'sequential' and actual_message != 'OK':
+            return actual_message
         if deletion == 'concurrent':
             if actual_message != 'Interrupted by a deletion task':
                 return actual_message
-
             if {} not in actual_result:
                 return 'Abort signal not processed!'
 
@@ -247,11 +229,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
 
     def evaluate_tasks_result(self, task_results: list, deletion: str | None = None) -> str:
         if deletion:
-            # Check if the deletion was successful
-            if not WallConfig.objects.filter(wall_config_hash=self.wall_config_hash).exists():
-                return self.deletion_task_success_msg
-            else:
-                return self.deletion_task_fail_msg
+            return self.evaluate_deletion()
 
         # Check if the processing of the wall config was successful
         if not isinstance(self.wall_config_object, WallConfig):
@@ -264,18 +242,22 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             if task_result['sim_calc_details'] == 'cached_result':
                 # A simultaneous normal API request has created the cache
                 continue
-
             # Check if the wall is in the DB
             wall = self.evaluate_wall_result(task_result)
             if not isinstance(wall, Wall):
                 return 'Wall not found.'
-
             # Check if all profiles are in the DB
             wall_profiles_evaluation_message = self.evaluate_wall_profiles(task_result, wall)
             if wall_profiles_evaluation_message != 'OK':
                 return wall_profiles_evaluation_message
 
         return self.orchstrt_wall_config_task_success_msg
+
+    def evaluate_deletion(self) -> str:
+        if not WallConfig.objects.filter(wall_config_hash=self.wall_config_hash).exists():
+            return self.deletion_task_success_msg
+        else:
+            return self.deletion_task_fail_msg
 
     def evaluate_wall_result(self, task_result: dict) -> Wall | None:
         try:
@@ -334,6 +316,28 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 )
         return 'OK'
 
+    def send_multiple_deletion_tasks(self, test_case_source) -> tuple[str, str]:
+        deletion_result_1 = wall_config_deletion_task_test.delay(
+            wall_config_hash=self.wall_config_hash,
+            active_testing=self.active_testing
+        )    # type: ignore
+
+        deletion_result_2 = wall_config_deletion_task_test.delay(
+            wall_config_hash=self.wall_config_hash,
+            active_testing=self.active_testing
+        )    # type: ignore
+
+        try:
+            deletion_result_1.get()
+            deletion_result_2.get()
+        except TimeoutError:
+            actual_message_1 = actual_message_2 = f'{test_case_source} timed out'
+        else:
+            actual_message_1, _ = deletion_result_1.result
+            actual_message_2, _ = deletion_result_2.result
+
+        return actual_message_1, actual_message_2
+
     def check_deletion_tasks_results(
         self, actual_message_1: str, actual_message_2: str, expected_message: str
     ) -> tuple[bool, str]:
@@ -365,27 +369,20 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             expected_message = self.deletion_task_success_msg
 
         task_result_message, task_results = self.process_tasks(test_case_source, deletion=deletion)
+        common_result_kwargs = {
+            'input_data': self.input_data,
+            'expected_message': expected_message,
+            'test_case_source': test_case_source
+        }
 
         if task_result_message != 'OK':
-            self.log_test_result(
-                passed=False,
-                input_data=self.input_data,
-                expected_message=expected_message,
-                actual_message=task_result_message,
-                test_case_source=test_case_source
-            )
+            self.log_test_result(passed=False, actual_message=task_result_message, **common_result_kwargs)
             return
 
         actual_message = self.evaluate_tasks_result(task_results, deletion)
 
         passed = actual_message == expected_message
-        self.log_test_result(
-            passed=passed,
-            input_data=self.input_data,
-            expected_message=expected_message,
-            actual_message=actual_message,
-            test_case_source=test_case_source
-        )
+        self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_wall_config_deletion_task_concurrent(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -398,28 +395,8 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
     def test_simultaneous_wall_config_deletion_tasks(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         expected_message = 'Deletion already initiated by another process.'
-
-        deletion_result_1 = wall_config_deletion_task_test.delay(
-            wall_config_hash=self.wall_config_hash,
-            active_testing=self.active_testing
-        )    # type: ignore
-
-        deletion_result_2 = wall_config_deletion_task_test.delay(
-            wall_config_hash=self.wall_config_hash,
-            active_testing=self.active_testing
-        )    # type: ignore
-
-        try:
-            deletion_result_1.get()
-            deletion_result_2.get()
-        except TimeoutError:
-            actual_message_1 = actual_message_2 = f'{test_case_source} timed out'
-        else:
-            actual_message_1, _ = deletion_result_1.result
-            actual_message_2, _ = deletion_result_2.result
-
+        actual_message_1, actual_message_2 = self.send_multiple_deletion_tasks(test_case_source)
         passed, actual_message_final = self.check_deletion_tasks_results(actual_message_1, actual_message_2, expected_message)
-
         self.log_test_result(
             passed=passed,
             input_data=self.input_data,
@@ -439,27 +416,20 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             test_case_source, normal_request_num_crews=normal_request_num_crews
         )
         expected_message = self.orchstrt_wall_config_task_success_msg
+        common_result_kwargs = {
+            'input_data': self.input_data,
+            'expected_message': expected_message,
+            'test_case_source': test_case_source
+        }
 
         if task_result_message != 'OK':
-            self.log_test_result(
-                passed=False,
-                input_data=self.input_data,
-                expected_message=expected_message,
-                actual_message=task_result_message,
-                test_case_source=test_case_source
-            )
+            self.log_test_result(passed=False, actual_message=task_result_message, **common_result_kwargs)
             return
 
         actual_message = self.evaluate_tasks_result(task_results, deletion=None)
 
         passed = actual_message == expected_message
-        self.log_test_result(
-            passed=passed,
-            input_data=self.input_data,
-            expected_message=expected_message,
-            actual_message=actual_message,
-            test_case_source=test_case_source
-        )
+        self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_simultaneous_orchestration_task_and_late_normal_request(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
