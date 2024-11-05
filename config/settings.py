@@ -96,6 +96,13 @@ CACHES = {
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_PRIORITY = {
+    'HIGH': 0,     # Highest
+    'MEDIUM': 5,
+    'LOW': 9
+}
+
 # === Redis Configuration end ===
 
 # Application definition

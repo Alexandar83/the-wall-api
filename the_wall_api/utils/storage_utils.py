@@ -17,6 +17,7 @@ from the_wall_api.utils import wall_config_utils, error_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
 
 
+CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 
 
@@ -324,11 +325,14 @@ def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[st
     if wall_config_object.status == WallConfigStatusEnum.INITIALIZED:
         # Skip during testing
         if not settings.ACTIVE_TESTING:
-            orchestrate_wall_config_processing_task.delay(
-                wall_config_hash=wall_config_object.wall_config_hash,
-                wall_construction_config=wall_data['initial_wall_construction_config'],
-                sections_count=wall_data['sections_count'],
-                num_crews_source=wall_data['num_crews'],
+            task_kwargs = {
+                'wall_config_hash': wall_config_object.wall_config_hash,
+                'wall_construction_config': wall_data['initial_wall_construction_config'],
+                'sections_count': wall_data['sections_count'],
+                'num_crews_source': wall_data['num_crews'],
+            }
+            orchestrate_wall_config_processing_task.apply_async(
+                kwargs=task_kwargs, priority=CELERY_TASK_PRIORITY['MEDIUM']
             )    # type: ignore
     elif wall_config_object.status == WallConfigStatusEnum.ERROR:
         # Error from past processing attempt

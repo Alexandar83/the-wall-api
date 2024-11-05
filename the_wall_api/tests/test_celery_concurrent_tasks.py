@@ -20,6 +20,7 @@ from the_wall_api.utils.storage_utils import get_daily_ice_usage_cache_key, mana
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
 from the_wall_api.wall_construction import get_sections_count, manage_num_crews
 
+CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 
@@ -110,12 +111,16 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         return actual_message, actual_result
 
     def send_celery_tasks(self, deletion: str | None) -> tuple[AsyncResult, AsyncResult | None]:
-        wall_config_orchestration_result = orchestrate_wall_config_processing_task_test.delay(
-            wall_config_hash=self.wall_config_hash,
-            wall_construction_config=self.wall_construction_config,
-            sections_count=self.sections_count,
-            active_testing=self.active_testing
-        )    # type: ignore
+        task_kwargs = {
+            'wall_config_hash': self.wall_config_hash,
+            'wall_construction_config': self.wall_construction_config,
+            'sections_count': self.sections_count,
+            'active_testing': self.active_testing
+        }
+
+        wall_config_orchestration_result = orchestrate_wall_config_processing_task_test.apply_async(
+            kwargs=task_kwargs, priority=CELERY_TASK_PRIORITY['MEDIUM']
+        )   # type: ignore
 
         deletion_result = None
         if deletion:
@@ -124,9 +129,9 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 wall_config_orchestration_result.get()
             if deletion == 'concurrent':
                 # Ensure the orchestration task has time to start
-                sleep(0.01)
-            deletion_result = wall_config_deletion_task_test.delay(
-                wall_config_hash=self.wall_config_hash
+                sleep(2)
+            deletion_result = wall_config_deletion_task_test.apply_async(
+                kwargs={'wall_config_hash': self.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
             )    # type: ignore
 
         return wall_config_orchestration_result, deletion_result
@@ -317,14 +322,20 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         return 'OK'
 
     def send_multiple_deletion_tasks(self, test_case_source) -> tuple[str, str]:
-        deletion_result_1 = wall_config_deletion_task_test.delay(
-            wall_config_hash=self.wall_config_hash,
-            active_testing=self.active_testing
+        deletion_task_1_kwargs = {
+            'wall_config_hash': self.wall_config_hash,
+            'active_testing': self.active_testing
+        }
+        deletion_result_1 = wall_config_deletion_task_test.apply_async(
+            kwargs=deletion_task_1_kwargs, priority=CELERY_TASK_PRIORITY['HIGH']
         )    # type: ignore
 
-        deletion_result_2 = wall_config_deletion_task_test.delay(
-            wall_config_hash=self.wall_config_hash,
-            active_testing=self.active_testing
+        deletion_task_2_kwargs = {
+            'wall_config_hash': self.wall_config_hash,
+            'active_testing': self.active_testing
+        }
+        deletion_result_2 = wall_config_deletion_task_test.apply_async(
+            kwargs=deletion_task_2_kwargs, priority=CELERY_TASK_PRIORITY['HIGH']
         )    # type: ignore
 
         try:

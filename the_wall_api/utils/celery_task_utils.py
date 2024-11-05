@@ -172,6 +172,7 @@ def create_task_group(
     from the_wall_api.tasks import log_error_task
     create_wall_task = import_wall_task(active_testing)
 
+    CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
     MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = settings.MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS
 
     with transaction.atomic():
@@ -199,7 +200,7 @@ def create_task_group(
             num_crews, wall_config_hash, wall_construction_config, sections_count, active_testing
         ) for num_crews in num_crews_list    # type: ignore
     )
-    task_group_result = task_group.apply_async()
+    task_group_result = task_group.apply_async(priority=CELERY_TASK_PRIORITY['LOW'])
 
     return wall_config_object, task_group_result
 
@@ -378,7 +379,7 @@ def wall_config_deletion(wall_config_hash: str, active_testing: bool = False) ->
         wall_config_object = init_wall_config_deletion(wall_config_hash, active_testing)
         if not isinstance(wall_config_object, WallConfig):
             return wall_config_object, []
-        return wall_config_delete(wall_config_object, active_testing)
+        return wall_config_delete(wall_config_object)
 
     return execute_core_task_logic_with_error_handling(core_deletion)
 
@@ -401,7 +402,7 @@ def init_wall_config_deletion(wall_config_hash: str, active_testing: bool):
     return wall_config_object
 
 
-def wall_config_delete(wall_config_object, active_testing: bool) -> tuple[str, list]:
+def wall_config_delete(wall_config_object) -> tuple[str, list]:
     from django.db import transaction
     from the_wall_api.models import WallConfig, WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async
