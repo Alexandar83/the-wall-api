@@ -60,7 +60,7 @@ def orchestrate_wall_config_processing_task(*args, **kwargs) -> tuple[str, list]
 
 
 @shared_task(bind=True, base=AbortableTask, queue='computation_tasks')
-def create_wall_task(self, test_task: Task | None = None, *args, **kwargs) -> tuple[str, list]:
+def create_wall_task(self, *args, test_task: Task | None = None, **kwargs) -> tuple[str, list]:
     if not test_task:
         task = self
     else:
@@ -81,7 +81,7 @@ def orchestrate_wall_config_processing_task_test(*args, **kwargs) -> tuple[str, 
 
 @shared_task(bind=True, base=AbortableTask, queue='test_queue')
 def create_wall_task_test(self, *args, **kwargs) -> tuple[str, list]:
-    return create_wall_task(self, *args, **kwargs)
+    return create_wall_task(*args, test_task=self, **kwargs)
 
 
 @shared_task(queue='test_queue')
