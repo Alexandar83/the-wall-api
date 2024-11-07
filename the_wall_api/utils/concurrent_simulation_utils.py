@@ -7,11 +7,13 @@ import os
 from queue import Queue, Empty
 import re
 from secrets import token_hex
-from threading import Condition, current_thread, Lock, Thread
+from threading import Condition, current_thread, Event, Lock, Thread
+from typing import Callable
 
 from django.conf import settings
 
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
+CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 
@@ -44,10 +46,16 @@ class ConcurrentWallBuilder:
             for section_id, height in enumerate(profile, 1):
                 self.sections_queue.put((profile_id, section_id, height))
 
-        # Init a condition for crew threads synchronization
-        self.active_crews = self.max_crews
-        self.day_condition = Condition()
-        self.finished_crews_for_the_day = 0
+        self.init_sim_mode_attributes()
+
+    def init_sim_mode_attributes(self) -> None:
+        if CONCURRENT_SIMULATION_MODE == 'thread_event':
+            self.day_event = Event()
+            self.day_event_lock = Lock()
+        else:
+            self.active_crews = self.max_crews
+            self.day_condition = Condition()
+            self.finished_crews_for_the_day = 0
 
     def _setup_logger(self):
         """
@@ -126,9 +134,8 @@ class ConcurrentWallBuilder:
                 break
 
         # When there are no more sections available for the crew, relieve it
-        with self.day_condition:
-            self.active_crews -= 1
-            self.check_notify_all_workers_to_resume_work()
+        manage_crew_release = self.get_manage_crew_release_func()
+        manage_crew_release()
 
     def initialize_thread_days(self, thread: Thread) -> None:
         """
@@ -160,15 +167,53 @@ class ConcurrentWallBuilder:
                 self.log_section_completion(profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost)
 
             # Synchronize with the other crews at the end of the day
-            self.end_of_day_synchronization()
+            end_of_day_synchronization = self.get_end_of_day_synchronization_func()
+            end_of_day_synchronization()
 
             if self.celery_task_aborted:
                 return
 
-    def end_of_day_synchronization(self) -> None:
-        """
-        Synchronize threads at the end of the day.
-        """
+# === Common logic ===
+    def get_manage_crew_release_func(self) -> Callable:
+        if CONCURRENT_SIMULATION_MODE == 'thread_event':
+            return self.manage_crew_release_thread_event
+
+        return self.manage_crew_release_thread_condition
+
+    def get_end_of_day_synchronization_func(self) -> Callable:
+        if CONCURRENT_SIMULATION_MODE == 'thread_event':
+            return self.end_of_day_synchronization_thread_event
+
+        return self.end_of_day_synchronization_thread_condition
+
+    def check_notify_all_workers_to_resume_work(self) -> bool:
+        if self.finished_crews_for_the_day == self.active_crews or self.celery_task_aborted:
+            # Last crew to reach this point resets the counter and notifies all others,
+            # or a revocation signal is received and the simulation is interrupted
+            self.finished_crews_for_the_day = 0
+
+            # Wake up all waiting threads
+            if CONCURRENT_SIMULATION_MODE == 'thread_event':
+                # Event
+                self.day_event.set()        # Wake up all waiting threads
+                self.day_event.clear()      # Reset the event for the next day
+            else:
+                # default - Condition
+                self.day_condition.notify_all()
+
+            return True
+
+        return False
+
+# === Common logic (end) ===
+
+# === Threading + Condition ===
+    def manage_crew_release_thread_condition(self) -> None:
+        with self.day_condition:
+            self.active_crews -= 1
+            self.check_notify_all_workers_to_resume_work()
+
+    def end_of_day_synchronization_thread_condition(self) -> None:
         with self.day_condition:
             self.finished_crews_for_the_day += 1
             if self.check_notify_all_workers_to_resume_work():
@@ -176,6 +221,24 @@ class ConcurrentWallBuilder:
             else:
                 # Wait until all other crews are done with the current day
                 self.day_condition.wait()
+
+# === Threading + Condition (end) ===
+
+# === Threading + event ===
+    def end_of_day_synchronization_thread_event(self) -> None:
+        with self.day_event_lock:
+            self.finished_crews_for_the_day += 1
+            other_crews_notified = self.check_notify_all_workers_to_resume_work()
+
+        if not other_crews_notified:
+            self.day_event.wait()
+
+    def manage_crew_release_thread_event(self) -> None:
+        with self.day_event_lock:
+            self.active_crews -= 1
+            self.check_notify_all_workers_to_resume_work()
+
+# === Threading + event (end) ===
 
     def log_section_progress(self, profile_id: int, section_id: int, day: int, height: int) -> None:
         message = (
@@ -211,15 +274,3 @@ class ConcurrentWallBuilder:
 
                     self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
                     self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
-
-    def check_notify_all_workers_to_resume_work(self) -> bool:
-        if self.finished_crews_for_the_day == self.active_crews or self.celery_task_aborted:
-            # Last crew to reach this point resets the counter and notifies all others,
-            # or a revocation signal is received and the simulation is interrupted
-            self.finished_crews_for_the_day = 0
-            # Wake up all waiting threads
-            self.day_condition.notify_all()
-
-            return True
-
-        return False
