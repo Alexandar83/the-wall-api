@@ -73,8 +73,11 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'daily_cost_section': self.daily_cost_section,
         }
 
-        self.build_kwargs['day_event'] = self.manager.Event()
-        self.build_kwargs['day_event_lock'] = self.manager.Lock()
+        if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
+            self.build_kwargs['day_condition'] = self.manager.Condition()
+        else:
+            self.build_kwargs['day_event'] = self.manager.Event()
+            self.build_kwargs['day_event_lock'] = self.manager.Lock()
 
         if settings.ACTIVE_TESTING:
             self.build_kwargs['testing_wall_construction_config_mprcss'] = self.convert_list(
@@ -294,24 +297,32 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 # === Common logic ===
     @staticmethod
     def get_manage_crew_release_func() -> Callable:
+        if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
+            return MultiprocessingWallBuilder.manage_crew_release_v3
         return MultiprocessingWallBuilder.manage_crew_release_v1_v2
 
     @staticmethod
     def get_end_of_day_synchronization_func() -> Callable:
+        if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
+            return MultiprocessingWallBuilder.end_of_day_synchronization_v3
         return MultiprocessingWallBuilder.end_of_day_synchronization_v1_v2
 
     @staticmethod
     def check_notify_all_workers_to_resume_work(
-        finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_event
+        finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss,
+        day_event=None, day_condition=None
     ) -> bool:
         if finished_crews_for_the_day.value == active_crews.value or celery_task_aborted_mprcss.value:
             # Last crew to reach this point resets the counter and notifies all others,
             # or a revocation signal is received and the simulation is interrupted
             finished_crews_for_the_day.value = 0
 
-            day_event.set()         # Wake up all waiting processes
-            sleep(0.01)             # Grace period to ensure the other processes register the event set
-            day_event.clear()       # Reset the event for the next day
+            if day_event:
+                day_event.set()         # Wake up all waiting processes
+                sleep(0.01)             # Grace period to ensure the other processes register the event set
+                day_event.clear()       # Reset the event for the next day
+            elif day_condition:
+                day_condition.notify_all()
 
             return True
 
@@ -346,3 +357,28 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             day_event.wait()
 
 # === v1, v2 Event sync. (end)===
+
+# === v3 Condition sync. ===
+    @staticmethod
+    def manage_crew_release_v3(
+        day_condition, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, **build_kwargs
+    ) -> None:
+        with day_condition:
+            active_crews.value -= 1
+            MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
+                finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_condition=day_condition
+            )
+
+    @staticmethod
+    def end_of_day_synchronization_v3(
+        day_condition, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, **build_kwargs
+    ) -> None:
+        with day_condition:
+            finished_crews_for_the_day.value += 1
+            if MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
+                finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_condition=day_condition
+            ):
+                return
+            else:
+                day_condition.wait()
+# === v3 Condition sync. (end)===
