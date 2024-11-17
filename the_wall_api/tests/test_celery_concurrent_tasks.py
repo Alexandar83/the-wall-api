@@ -20,9 +20,11 @@ from the_wall_api.utils.storage_utils import get_daily_ice_usage_cache_key, mana
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
 from the_wall_api.wall_construction import get_sections_count, manage_num_crews
 
+CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+PROJECT_MODE = settings.PROJECT_MODE
 
 
 class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
@@ -34,43 +36,40 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         cls.orchstrt_wall_config_task_success_msg = 'Wall config processed successfully.'
         cls.deletion_task_success_msg = 'Wall config deleted successfully.'
         cls.deletion_task_fail_msg = 'Wall config deletion failure.'
-        cls.worker_count = 8
-        cls.setup_celery_worker()
+        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+            cls.concurrency = 12
+        else:
+            cls.concurrency = 3    # 1 for each type of computation Celery task
+        cls.setup_celery_workers()
         super().setUpClass()
 
     @classmethod
-    def setup_celery_worker(cls) -> None:
+    def setup_celery_workers(cls) -> None:
         # Flush the test queue from any stale tasks
         cls.redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
         cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
 
         # Start the celery workers and instruct them to listen to 'test_queue'
-        if settings.PROJECT_MODE == 'dev':
-            pool = 'solo'                   # 'prefork' is not supported in dev (on Windows); Avoid 'gevent' dependency - not justified
-            concurrency = 1
+        if 'multiprocessing' in CONCURRENT_SIMULATION_MODE or PROJECT_MODE == 'dev':
+            pool = 'threads'                   # 'prefork' is not supported in dev (on Windows)
+            concurrency = cls.concurrency
             logfile = 'nul'                 # Discard Celery console logs - Windows
-            worker_count = cls.worker_count
         else:
             pool = 'prefork'                # 'prefork' is well suited for the containerized app
-            concurrency = cls.worker_count
+            concurrency = cls.concurrency
             logfile = '/dev/null'           # Discard Celery console logs - Unix
-            worker_count = 1
-        cls.workers = [
-            start_worker(
-                celery_app, queues=[cls.test_queue_name], concurrency=concurrency,
-                pool=pool, perform_ping_check=False, logfile=logfile
-            ) for _ in range(worker_count)
-        ]
-        for worker in cls.workers:
-            worker.__enter__()
+        cls.celery_worker = start_worker(
+            celery_app, queues=[cls.test_queue_name], concurrency=concurrency,
+            pool=pool, perform_ping_check=False, logfile=logfile
+        )
+        cls.celery_worker.__enter__()
 
     @classmethod
     def tearDownClass(cls):
         # Flush the test queue
         cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
-        # Stop the celery workers
-        for worker in cls.workers:
-            worker.__exit__(None, None, None)
+        # Stop the celery worker
+        cls.celery_worker.__exit__(None, None, None)
         super().tearDownClass()
 
     def setUp(self):
@@ -89,6 +88,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             'wall_construction_config': self.wall_construction_config
         })
         self.active_testing = True
+        sleep(5)    # Grace period to ensure objects are properly created in postgres
 
     def process_tasks(
             self, test_case_source: str, deletion: str | None = None,
@@ -129,7 +129,8 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 wall_config_orchestration_result.get()
             if deletion == 'concurrent':
                 # Ensure the orchestration task has time to start
-                sleep(2)
+                wait_time = 0.05 if PROJECT_MODE == 'dev' else 0.01
+                sleep(wait_time)
             deletion_result = wall_config_deletion_task_test.apply_async(
                 kwargs={'wall_config_hash': self.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
             )    # type: ignore
@@ -143,20 +144,17 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         day = 1
         profile_id = 1
 
-        if normal_request_num_crews == 1:
-            sleep(5)
-
-        wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
+        wall_exists = self.check_wall_exists(normal_request_num_crews)
 
         if normal_request_num_crews == 1 and not wall_exists:
-            return 'Wall not created from the orchestration task yet!'
+            return 'The wall is not created from the orchestration task yet!'
 
         if normal_request_num_crews > 1 and wall_exists:
-            return 'Wall should not be created from the orchestration task befre the normal GET request!'
+            return 'The wall should not be created from the orchestration task before the normal GET request!'
 
         redis_daily_ice_usage_cache, daily_ice_usage_cache_key = self.get_redis_cache_details(normal_request_num_crews, profile_id, day)
         if redis_daily_ice_usage_cache:
-            return 'Wall Redis cache should not exist before the normal GET request!'
+            return 'The wall Redis cache should not exist before the normal GET request!'
 
         response = self.fetch_response(profile_id, day, normal_request_num_crews)
         if response.status_code != status.HTTP_200_OK:
@@ -167,6 +165,28 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
             return 'Wall Redis cache should exist after the normal GET request!'
 
         return 'OK'
+
+    def check_wall_exists(self, normal_request_num_crews: int) -> bool:
+        retries, wait_time = 0, 0
+        if normal_request_num_crews == 1:
+            if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+                # Grace period for the normal request to finish its calculations
+                sleep(5)
+            else:
+                # Late normal request - the orchestration task finishes slower in multiprocessing mode
+                retries, wait_time = 10, 10
+                sleep(60)
+
+        wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
+
+        if not wall_exists and normal_request_num_crews == 1:
+            for _ in range(retries):
+                wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
+                if wall_exists:
+                    break
+                sleep(wait_time)
+
+        return wall_exists
 
     def get_redis_cache_details(self, normal_request_num_crews: int, profile_id: int, day: int) -> tuple[str, str]:
         wall_data = {

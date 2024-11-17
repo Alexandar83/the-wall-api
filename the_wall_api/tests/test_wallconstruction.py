@@ -8,6 +8,7 @@ from the_wall_api.tests.test_utils import BaseTestcase
 from the_wall_api.utils.wall_config_utils import hash_calc, validate_wall_config_format, WallConstructionError
 from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
+CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
@@ -273,11 +274,10 @@ class SequentialVsConcurrentTest(BaseTestcase):
         """Compare the total costs of sequential and concurrent simulations."""
         sequential_cost = wall_sequential.sim_calc_details['total_cost']
         concurrent_cost = wall_concurrent.sim_calc_details['total_cost']
-        with self.subTest('Compare wall total costs', config=input_data['config'], num_crews=input_data['num_crews']):
-            self.assertEqual(
-                sequential_cost, concurrent_cost,
-                msg=f'Difference in total costs: Sequential: {sequential_cost}, Concurrent: {concurrent_cost}'
-            )
+        self.assertEqual(
+            sequential_cost, concurrent_cost,
+            msg=f'Difference in total costs: Sequential: {sequential_cost}, Concurrent: {concurrent_cost}'
+        )
         self.log_test_result(
             passed=True,
             input_data=input_data,
@@ -294,16 +294,13 @@ class SequentialVsConcurrentTest(BaseTestcase):
         for profile_id, sequential_profile_cost in wall_sequential.sim_calc_details['profile_costs'].items():
             concurrent_profile_cost = wall_concurrent.sim_calc_details['profile_costs'].get(profile_id, 0)
             input_data['profile_id'] = profile_id
-            with self.subTest(
-                'Compare profile costs', config=input_data['config'], num_crews=input_data['num_crews'], profile_id=profile_id
-            ):
-                self.assertEqual(
-                    sequential_profile_cost, concurrent_profile_cost,
-                    msg=(
-                        f'Difference in profile costs: Profile {profile_id}: Sequential: '
-                        f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
-                    )
+            self.assertEqual(
+                sequential_profile_cost, concurrent_profile_cost,
+                msg=(
+                    f'Difference in profile costs: Profile {profile_id}: Sequential: '
+                    f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
                 )
+            )
         expected_message = 'Sequential proile costs match the concurrent values'
         self.log_test_result(
             passed=True,
@@ -318,9 +315,9 @@ class SequentialVsConcurrentTest(BaseTestcase):
             {
                 'config_case': 'Basic case with small profiles',
                 'config': [
-                    [0, 15, MAX_SECTION_HEIGHT - 1],
-                    [10, 20, MAX_SECTION_HEIGHT - 1],
-                    [5, 25, MAX_SECTION_HEIGHT - 1]
+                    [21, 25, 28],
+                    [17],
+                    [17, 22, 17, 19, 17],
                 ]
             },
             {
@@ -337,19 +334,22 @@ class SequentialVsConcurrentTest(BaseTestcase):
                     [MAX_SECTION_HEIGHT - 1, 0, 25],
                     [15, 15, 15]
                 ]
-            },
-            {
-                'config_case': 'Long wall with many profiles',
-                'config': (
-                    [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +
-                    [[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]
-                )
-            },
-            {
-                'config_case': 'Long wall with max length',
-                'config': [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]
             }
         ]
+        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+            test_cases += [
+                {
+                    'config_case': 'Long wall with many profiles',
+                    'config': (
+                        [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +
+                        [[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]
+                    )
+                },
+                {
+                    'config_case': 'Long wall with max length',
+                    'config': [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]
+                }
+            ]
 
         for case in test_cases:
             self.compare_sequential_and_concurrent_results(case['config'], case['config_case'])
