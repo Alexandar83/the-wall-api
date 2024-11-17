@@ -14,6 +14,7 @@ from typing import Union
 from django.conf import settings
 
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
+CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_MULTIPROCESSING_NUM_CREWS = settings.MAX_MULTIPROCESSING_NUM_CREWS
 
@@ -31,7 +32,12 @@ class BaseWallBuilder(ABC):
             f'{timestamp}_{self.wall_config_hash}_{self.num_crews}_{token_hex(4)}.log'
         )
         self.sections_queue = self.init_sections_queue()
-        self.max_crews = min(self.sections_count, self.num_crews)
+        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+            self.max_crews = min(self.sections_count, self.num_crews)
+        else:
+            # Restrict the max number of crews for multiprocessing according to the
+            # CPU limitations
+            self.max_crews = min(self.sections_count, self.num_crews, MAX_MULTIPROCESSING_NUM_CREWS)
 
     @abstractmethod
     def create_queue(self) -> Union[Queue, mprcss_Queue]:
@@ -66,7 +72,9 @@ class BaseWallBuilder(ABC):
                     self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
 
     @staticmethod
-    def setup_logger(filename: str) -> logging.Logger:
+    def setup_logger(
+        filename: str, queue: Union[Queue, mprcss_Queue, None] = None, manage_formatter: bool = True, source_name: str = ''
+    ) -> logging.Logger:
         """
         Set up the logger dynamically.
         Using the Django LOGGING config leads to Celery tasks hijacking
@@ -76,15 +84,25 @@ class BaseWallBuilder(ABC):
         log_dir = os.path.dirname(filename)
         os.makedirs(log_dir, exist_ok=True)
 
-        logger = logging.getLogger(filename)
+        if queue is None:
+            logger_name = filename
+        else:
+            logger_name = 'qlistener_logger' + filename
+
+        logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
         logger.propagate = False
 
-        handler = logging.FileHandler(filename, mode='w')
+        if queue:
+            handler = logging.handlers.QueueHandler(queue)
+        else:
+            handler = logging.FileHandler(filename, mode='w')
         handler.setLevel(logging.DEBUG)
 
-        formatter = logging.Formatter('%(asctime)s %(levelname)s [%(threadName)s] %(message)s')
-        handler.setFormatter(formatter)
+        if manage_formatter:
+            # Formatter
+            formatter = logging.Formatter(f'%(asctime)s %(levelname)s [%({source_name})s] %(message)s')
+            handler.setFormatter(formatter)
 
         # Handler to the logger
         logger.addHandler(handler)

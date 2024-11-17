@@ -18,7 +18,7 @@ class ThreadingWallBuilder(BaseWallBuilder):
     def __init__(self, wall_construction):
         super().__init__(wall_construction)
         self.init_concurrent_config()
-        self.logger = BaseWallBuilder.setup_logger(self.filename)
+        self.logger = BaseWallBuilder.setup_logger(self.filename, source_name='threadName')
         self.start_abort_signal_listener_thread()
 
     def init_concurrent_config(self):

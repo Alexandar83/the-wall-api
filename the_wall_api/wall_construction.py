@@ -3,6 +3,7 @@
 # the construction process.
 
 from copy import deepcopy
+from multiprocessing import Value, Manager
 from threading import Thread
 from time import sleep
 from typing import Any, Dict
@@ -11,9 +12,11 @@ from celery.contrib.abortable import AbortableTask
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
+from the_wall_api.utils.concurrency_utils.multiprocessing_utils import MultiprocessingWallBuilder
 from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
+CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
@@ -44,6 +47,7 @@ class WallConstruction:
         self.celery_task = celery_task
         self.celery_task_id = celery_task.request.id if celery_task else None
         self.celery_task_aborted = False
+        self.manage_celery_task_aborted_mprcss()
         self.simulation_finished = False
         self.start_abort_signal_listener_thread()
 
@@ -51,6 +55,20 @@ class WallConstruction:
         self.wall_profile_data = {}
         self.calc_wall_profile_data()
         self.sim_calc_details = self._calc_sim_details()
+
+    def manage_celery_task_aborted_mprcss(self):
+        # Threading
+        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+            from types import SimpleNamespace
+            self.celery_task_aborted_mprcss = SimpleNamespace(value=False)
+        # Multiprocessing
+        elif self.is_manager_required():
+            self.celery_task_aborted_mprcss = Manager().Value('b', False)
+        else:
+            self.celery_task_aborted_mprcss = Value('b', False)
+
+    def is_manager_required(self) -> bool:
+        return bool(self.celery_task)
 
     def start_abort_signal_listener_thread(self):
         """
@@ -61,18 +79,20 @@ class WallConstruction:
                 while not self.celery_task_aborted and not self.simulation_finished:
                     if self.celery_task and self.celery_task.is_aborted(task_id=self.celery_task_id):
                         self.celery_task_aborted = True
+                        self.celery_task_aborted_mprcss.value = True
                         break
                     sleep(1)
 
             abort_thread_check = Thread(target=check_aborted)
-            abort_thread_check.daemon = True
             abort_thread_check.start()
 
     def calc_wall_profile_data(self):
         if self.simulation_type == SEQUENTIAL:
             self.calc_wall_profile_data_sequential()
-        else:
+        elif 'threading' in CONCURRENT_SIMULATION_MODE:
             ThreadingWallBuilder(self).calc_wall_profile_data_concurrent()
+        else:
+            MultiprocessingWallBuilder(self).calc_wall_profile_data_concurrent()
         self.simulation_finished = True
 
     def calc_wall_profile_data_sequential(self) -> None:
