@@ -50,7 +50,7 @@ services:
   celery_worker_1:
     image: ghcr.io/alexandar83/the-wall-api:latest
     container_name: celery_worker_1_prod
-    command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
+    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env

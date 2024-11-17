@@ -32,6 +32,7 @@ temp_files
 config/docker
 !config/docker/scripts/wait_for_celery_worker.py
 !config/docker/scripts/wait_for_postgres.py
+!config/docker/scripts/start_celery_computation_worker.sh
 poetry.lock
 pyproject.toml
 config/envs

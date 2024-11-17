@@ -41,7 +41,7 @@ services:
       context: ../..
       dockerfile: ./config/docker/Dockerfile.dev
       target: the_wall_api_image
-    command: sh -c "celery -A config worker --loglevel=info --queues=computation_tasks"
+    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
     volumes:
       - ../..:/app
     env_file:
