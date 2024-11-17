@@ -8,9 +8,13 @@ from shutil import copyfileobj
 from time import sleep, time
 from typing import Callable
 
-LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
-ABORT_WAIT_PERIOD = int(os.getenv('ABORT_WAIT_PERIOD', 40))
+ABORT_WAIT_PERIOD = int(os.getenv('ABORT_WAIT_PERIOD', 60))
+CONCURRENT_SIMULATION_MODE = os.getenv('CONCURRENT_SIMULATION_MODE', 'threading_v1')
+if 'multiprocessing' in CONCURRENT_SIMULATION_MODE:
+    # Longer finishing times for multiprocessing
+    ABORT_WAIT_PERIOD *= 3
 DELETION_RETRIES = 5
+LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
 
 if not LIGHT_CELERY_CONFIG:
     from django.conf import settings
@@ -176,7 +180,9 @@ def create_task_group(
     MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = settings.MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS
 
     with transaction.atomic():
-        wall_config_object = WallConfig.objects.select_for_update().get(wall_config_hash=wall_config_hash)
+        wall_config_object = execute_db_query_with_retries(
+            lambda: WallConfig.objects.select_for_update().get(wall_config_hash=wall_config_hash)
+        )
 
         if wall_config_object.status != WallConfigStatusEnum.INITIALIZED:
             error_message = f'Not processed, current status: {wall_config_object.status}.'
@@ -205,6 +211,22 @@ def create_task_group(
     return wall_config_object, task_group_result
 
 
+def execute_db_query_with_retries(query_callable: Callable):
+    """Helper function to avoid DB errors due to DB commit latency."""
+    from the_wall_api.models import WallConfig
+
+    retries = 5
+    while True:
+        try:
+            return query_callable()
+        except WallConfig.DoesNotExist:
+            retries -= 1
+            if retries <= 0:
+                raise
+            else:
+                sleep(0.5)
+
+
 def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list]:
     if not task_group_result:
         result = wall_config_object if isinstance(wall_config_object, str) else 'Task group initialization error.'
@@ -216,7 +238,9 @@ def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list
             # have failed or have been aborted
             return finalize_wall_config(wall_config_object, task_group_result)
 
-        wall_config_object.refresh_from_db()
+        execute_db_query_with_retries(
+            lambda: wall_config_object.refresh_from_db()
+        )
         if wall_config_object.deletion_initiated:
             # Deletion initiated
             abort_task_group(task_group_result)
