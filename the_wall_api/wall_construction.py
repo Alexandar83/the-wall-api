@@ -68,7 +68,7 @@ class WallConstruction:
             self.celery_task_aborted_mprcss = Value('b', False)
 
     def is_manager_required(self) -> bool:
-        return bool(self.celery_task)
+        return CONCURRENT_SIMULATION_MODE != 'multiprocessing_v1' or bool(self.celery_task)
 
     def start_abort_signal_listener_thread(self):
         """

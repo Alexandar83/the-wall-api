@@ -354,6 +354,7 @@ MAX_MULTIPROCESSING_NUM_CREWS = int(os.getenv('MAX_MULTIPROCESSING_NUM_CREWS', 1
 # threading_v1 - condition sync.
 # threading_v2 - even sync.
 # multiprocessing_v1 - multiprocessing Process + Event sync.
+# multiprocessing_v2 - multiprocessing ProcessPoolExecutor + Manager().Event sync.
 CONCURRENT_SIMULATION_MODE = os.getenv(
     'CONCURRENT_SIMULATION_MODE', 'threading_v1'
 )

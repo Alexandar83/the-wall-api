@@ -294,11 +294,11 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 # === Common logic ===
     @staticmethod
     def get_manage_crew_release_func() -> Callable:
-        return MultiprocessingWallBuilder.manage_crew_release_v1
+        return MultiprocessingWallBuilder.manage_crew_release_v1_v2
 
     @staticmethod
     def get_end_of_day_synchronization_func() -> Callable:
-        return MultiprocessingWallBuilder.end_of_day_synchronization_v1
+        return MultiprocessingWallBuilder.end_of_day_synchronization_v1_v2
 
     @staticmethod
     def check_notify_all_workers_to_resume_work(
@@ -319,9 +319,9 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
 # === Common logic (end) ===
 
-# === v1 Event sync. ===
+# === v1, v2 Event sync. ===
     @staticmethod
-    def manage_crew_release_v1(
+    def manage_crew_release_v1_v2(
         day_event_lock, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss,
         day_event, **build_kwargs
     ) -> None:
@@ -332,7 +332,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             )
 
     @staticmethod
-    def end_of_day_synchronization_v1(
+    def end_of_day_synchronization_v1_v2(
         day_event_lock, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss,
         day_event, **build_kwargs
     ) -> None:
@@ -345,4 +345,4 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         if not other_crews_notified:
             day_event.wait()
 
-# === v1 Event sync. (end)===
+# === v1, v2 Event sync. (end)===
