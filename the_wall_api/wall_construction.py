@@ -11,7 +11,7 @@ from celery.contrib.abortable import AbortableTask
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
-from the_wall_api.utils.concurrent_simulation_utils import ConcurrentWallBuilder
+from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
@@ -26,6 +26,9 @@ class WallConstruction:
     The concurrent implementation is done explicitly with a file (and not in the memory)
     to follow the task requirements
     """
+
+    daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
+
     def __init__(
         self, wall_construction_config: list, sections_count: int, num_crews: int,
         wall_config_hash: str, simulation_type: str = SEQUENTIAL, celery_task: AbortableTask | None = None
@@ -36,7 +39,6 @@ class WallConstruction:
         self.num_crews = num_crews
         self.wall_config_hash = wall_config_hash
         self.simulation_type = simulation_type
-        self.daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
 
         # Celery task details
         self.celery_task = celery_task
@@ -67,11 +69,10 @@ class WallConstruction:
             abort_thread_check.start()
 
     def calc_wall_profile_data(self):
-        if self.simulation_type == CONCURRENT:
-            ConcurrentWallBuilder(self).calc_wall_profile_data_concurrent()
-        else:
+        if self.simulation_type == SEQUENTIAL:
             self.calc_wall_profile_data_sequential()
-
+        else:
+            ThreadingWallBuilder(self).calc_wall_profile_data_concurrent()
         self.simulation_finished = True
 
     def calc_wall_profile_data_sequential(self) -> None:
@@ -146,7 +147,7 @@ class WallConstruction:
 
 
 def initialize_wall_data(
-        profile_id: int | None = None, day: int | None = None, request_num_crews: int | None = None
+    profile_id: int | None = None, day: int | None = None, request_num_crews: int | None = None
 ) -> Dict[str, Any]:
     """
     Initialize the wall_data dictionary to hold various control data
@@ -163,7 +164,7 @@ def initialize_wall_data(
 
 
 def set_simulation_params(
-        wall_data: Dict[str, Any], num_crews: int, wall_construction_config: list, request_type: str
+    wall_data: Dict[str, Any], num_crews: int, wall_construction_config: list, request_type: str
 ) -> None:
     """
     Set the simulation parameters for the wall_data dictionary.
@@ -192,7 +193,7 @@ def get_sections_count(wall_construction_config: list) -> int:
 
 
 def evaluate_simulation_params(
-        num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
+    num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
 ) -> tuple[str, dict, int]:
     # num_crews
     simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count, wall_data)

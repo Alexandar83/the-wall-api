@@ -348,8 +348,12 @@ ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))       
 MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = int(                                       # Maximum allowed number of crews in the wall configuration task
     os.getenv('MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS', 100)
 )
-CONCURRENT_SIMULATION_MODE = os.getenv(                                                 # For switching between different simulation implementations
-    'CONCURRENT_SIMULATION_MODE', 'thread_condition'                                        # <'thread_condition', 'thread_event'>
+
+# Switching between different simulation implementations
+# threading_v1 - condition sync.
+# threading_v2 - even sync.
+CONCURRENT_SIMULATION_MODE = os.getenv(
+    'CONCURRENT_SIMULATION_MODE', 'threading_v1'
 )
 
 # Common settings
