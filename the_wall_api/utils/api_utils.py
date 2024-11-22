@@ -33,7 +33,26 @@ exposed_endpoints = {
         'path': f'{endpoint_prefix}/redoc/',
         'name': 'redoc',
     },
-
+    'user-create': {
+        'path': f'{endpoint_prefix}/auth/users/',
+        'name': 'user-create',
+    },
+    'user-delete': {
+        'path': f'{endpoint_prefix}/auth/users/me/<username>/',
+        'name': 'user-delete',
+    },
+    'user-set-password': {
+        'path': f'{endpoint_prefix}/auth/users/set_password/',
+        'name': 'user-set-password',
+    },
+    'token-login': {
+        'path': f'{endpoint_prefix}/auth/token/login/',
+        'name': 'token-login',
+    },
+    'token-logout': {
+        'path': f'{endpoint_prefix}/auth/token/logout/',
+        'name': 'token-logout',
+    },
 }
 
 # **Externalized parameters for extend_schema**

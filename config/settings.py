@@ -117,7 +117,9 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'the_wall_api',
-    'drf_spectacular'
+    'drf_spectacular',
+    'rest_framework.authtoken',
+    'djoser',
 ]
 
 MIDDLEWARE = [
@@ -196,6 +198,9 @@ REST_FRAMEWORK = {
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
     'DEFAULT_VERSION': 'v1',
     'ALLOWED_VERSIONS': ['v1'],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ]
 }
 
 SPECTACULAR_SETTINGS = {
