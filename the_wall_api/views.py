@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
 from the_wall_api.utils import api_utils
+from the_wall_api.utils.open_api_schema_utils import open_api_parameters, open_api_resposnes
 from the_wall_api.utils.storage_utils import fetch_wall_data
 from the_wall_api.wall_construction import initialize_wall_data
 
@@ -19,8 +20,8 @@ class DailyIceUsageView(APIView):
         tags=['daily-ice-usage'],
         summary='Get daily ice usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
-        parameters=api_utils.daily_ice_usage_parameters + [api_utils.num_crews_parameter],
-        responses=api_utils.daily_ice_usage_responses
+        parameters=open_api_parameters.daily_ice_usage_parameters + [open_api_parameters.num_crews_parameter],
+        responses=open_api_resposnes.daily_ice_usage_responses
     )
     def get(self, request: HttpRequest, profile_id: int, day: int) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
@@ -65,8 +66,8 @@ class CostOverviewView(APIView):
         operation_id='get_cost_overview',
         summary='Get cost overview',
         description='Retrieve the total wall construction cost.',
-        parameters=[api_utils.num_crews_parameter],
-        responses=api_utils.cost_overview_responses
+        parameters=[open_api_parameters.num_crews_parameter],
+        responses=open_api_resposnes.cost_overview_responses
     )
     def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
@@ -115,8 +116,8 @@ class CostOverviewProfileidView(CostOverviewView):
         operation_id='get_cost_overview_profile_id',
         summary='Get cost overview for a profile',
         description='Retrieve the total cost for a specific wall profile.',
-        parameters=api_utils.cost_overview_profile_id_parameters + [api_utils.num_crews_parameter],
-        responses=api_utils.cost_overview_profile_id_responses
+        parameters=open_api_parameters.cost_overview_profile_id_parameters + [open_api_parameters.num_crews_parameter],
+        responses=open_api_resposnes.cost_overview_profile_id_responses
     )
     def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
         return super().get(request, profile_id)
