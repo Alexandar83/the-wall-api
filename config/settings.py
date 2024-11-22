@@ -203,6 +203,10 @@ REST_FRAMEWORK = {
     ]
 }
 
+DJOSER = {
+    'USER_ID_FIELD': 'username',
+}
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'The Wall API',
     'DESCRIPTION': 'Wall construction tracker.',

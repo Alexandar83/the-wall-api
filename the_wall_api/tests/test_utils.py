@@ -101,6 +101,8 @@ class BaseTestMixin:
     test_group_counter = 0
     # Padding for output messages alignment
     padding = 20
+    username = 'testuser'
+    password = 'G7m@zK#1qP'
 
     @classmethod
     def setUpClass(cls):
