@@ -1,5 +1,4 @@
 # Wall configuration loading and config hashing
-
 from decimal import Decimal
 import hashlib
 import json
@@ -14,6 +13,7 @@ from the_wall_api.utils.error_utils import (
 
 SEQUENTIAL = 'sequential'
 CONCURRENT = 'concurrent'
+INVALID_WALL_CONFIG_MSG = 'Invalid wall configuration file!'
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
@@ -40,30 +40,42 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
 
 
 def load_wall_profiles_from_config() -> list:
-    invalid_wall_config_msg = 'Invalid wall configuration file.'
     result = []
 
     try:
         with open(settings.WALL_CONFIG_PATH, 'r') as file:
             result = json.load(file)
     except (json.JSONDecodeError, FileNotFoundError):
-        raise WallConstructionError(invalid_wall_config_msg)
+        raise WallConstructionError(INVALID_WALL_CONFIG_MSG)
 
-    validate_wall_config_format(result, invalid_wall_config_msg)
+    validate_wall_config_format(result, INVALID_WALL_CONFIG_MSG)
 
     return result
 
 
+def validate_wall_config_file(wall_data: Dict[str, Any]) -> list | None:
+    wall_config_file_data = None
+    uploaded_file = wall_data['wall_config_file']
+    try:
+        file_content = uploaded_file.read()
+        wall_config_file_data = json.loads(file_content)
+        validate_wall_config_format(wall_config_file_data, INVALID_WALL_CONFIG_MSG)
+    except Exception as wall_config_err:
+        handle_unknown_error(wall_data, wall_config_err, 'wall_configuration')
+
+    return wall_config_file_data
+
+
 def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config_msg: str) -> None:
     if not isinstance(wall_config_file_data, list):
-        raise WallConstructionError(invalid_wall_config_msg)
+        raise WallConstructionError(f'{invalid_wall_config_msg} Must be a list of nested lists of integers.')
 
     if len(wall_config_file_data) > MAX_WALL_LENGTH:
         raise WallConstructionError(f'The loaded wall config exceeds the maximum wall length of {MAX_WALL_LENGTH}.')
 
     for profile in wall_config_file_data:
         if not isinstance(profile, list):
-            raise WallConstructionError(invalid_wall_config_msg)
+            raise WallConstructionError(f'{invalid_wall_config_msg} The data in each profile must be a list of integers.')
 
         if len(profile) > MAX_WALL_PROFILE_SECTIONS:
             raise WallConstructionError(
@@ -72,7 +84,7 @@ def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config
 
         for section_number, section_height in enumerate(profile, start=1):
             if not isinstance(section_height, int):
-                raise WallConstructionError(invalid_wall_config_msg)
+                raise WallConstructionError(f'{invalid_wall_config_msg} The data in each profile must be a list of integers.')
 
             if section_height > MAX_SECTION_HEIGHT:
                 raise WallConstructionError(

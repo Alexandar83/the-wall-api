@@ -180,10 +180,22 @@ def validate_day_within_range(wall_data: Dict[str, Any]) -> None:
 def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
     request_params = {}
 
-    for param in ['request_profile_id', 'request_day', 'request_num_crews']:
+    if wall_data.get('request_type') == 'wallconfig-files/upload':
+        param_list = ['config_id']
+    else:
+        param_list = ['request_profile_id', 'request_day', 'request_num_crews']
+
+    for param in param_list:
         val = wall_data.get(param)
         if val is not None:
             param = param.replace('request_', '')
             request_params[param] = val
 
     return request_params
+
+
+def manage_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
+    wall_data['error_response'] = Response(
+        'A deletion of an existing wall config is being processed - please try again.',
+        status=status.HTTP_503_SERVICE_UNAVAILABLE
+    )

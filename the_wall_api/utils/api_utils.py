@@ -18,6 +18,10 @@ exposed_endpoints = {
         'path': f'{endpoint_prefix}/cost-overview/<profile_id>/',
         'name': f'cost-overview-profile-{settings.API_VERSION}',
     },
+    'wallconfig-files-upload': {
+        'path': f'{endpoint_prefix}/wallconfig-files/upload/',
+        'name': f'wallconfig-files-upload-{settings.API_VERSION}',
+    },
     'schema': {
         'path': f'{endpoint_prefix}/schema/',
         'name': 'schema',

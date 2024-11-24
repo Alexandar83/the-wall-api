@@ -11,9 +11,9 @@ from django.db.models import Q
 from django.db.utils import IntegrityError
 from redis.exceptions import ConnectionError, TimeoutError
 
-from the_wall_api.models import WallConfig, Wall, WallConfigStatusEnum, WallProfile, WallProfileProgress
+from the_wall_api.models import Wall, WallConfig, WallConfigFile, WallConfigStatusEnum, WallProfile, WallProfileProgress
 from the_wall_api.tasks import orchestrate_wall_config_processing_task
-from the_wall_api.utils import wall_config_utils, error_utils
+from the_wall_api.utils import error_utils, wall_config_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
 
 
@@ -281,6 +281,51 @@ def fetch_daily_ice_usage_from_db(
         set_redis_cache(profile_ice_usage_redis_cache_key, wall_profile_progress.ice_used)
     except WallProfileProgress.DoesNotExist:
         error_utils.check_if_cached_on_another_day(wall_data, profile_id)
+
+
+def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
+    # Uploaded file validation
+    wall_construction_config = wall_config_utils.validate_wall_config_file(wall_data)
+    if wall_data['error_response']:
+        return
+
+    # Fetch or create the WallConfig object
+    wall_data['wall_config_hash'] = wall_config_utils.hash_calc(wall_construction_config)
+    wall_config_object = manage_wall_config_object(wall_data)
+    if wall_data['error_response']:
+        return
+
+    if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
+        create_new_wall_config_file(wall_data, wall_config_object)
+    else:
+        error_utils.manage_wall_config_deletion_in_progress(wall_data)
+
+
+def create_new_wall_config_file(wall_data, wall_config_object) -> None:
+    wall_config_file_cache_key = get_wall_config_file_cache_key(wall_data['wall_config_hash'])
+    wall_config_file_db_lock_key = generate_db_lock_key(wall_config_file_cache_key)
+    db_lock_acquired = None
+    try:
+        db_lock_acquired = acquire_db_lock(wall_config_file_db_lock_key)
+        if not db_lock_acquired:
+            # Being created in another process
+            return
+
+        with transaction.atomic():
+            WallConfigFile.objects.create(
+                user=wall_data['user'],
+                wall_config=wall_config_object,
+                config_id=wall_data['config_id'],
+            )
+    except Exception as wall_config_file_crtn_unkwn_err:
+        error_utils.handle_unknown_error(wall_data, wall_config_file_crtn_unkwn_err, 'caching')
+    finally:
+        if db_lock_acquired:
+            release_db_lock(wall_config_file_db_lock_key)
+
+
+def get_wall_config_file_cache_key(wall_config_hash: str) -> str:
+    return f'wall_config_file_{wall_config_hash}'
 
 
 def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:

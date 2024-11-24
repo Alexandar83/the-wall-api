@@ -1,11 +1,14 @@
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+
+CONFIG_ID_MAX_LENGTH = 30
 
 
 class WallConfigStatusEnum(models.TextChoices):
@@ -28,6 +31,16 @@ class WallConfig(models.Model):
     )
     deletion_initiated = models.BooleanField(default=False)
     date_created = models.DateTimeField(auto_now_add=True)
+
+
+class WallConfigFile(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wall_config_files')
+    wall_config = models.ForeignKey(WallConfig, on_delete=models.CASCADE, related_name='wall_config_files')
+    config_id = models.CharField(max_length=CONFIG_ID_MAX_LENGTH)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'wall_config', 'config_id')
 
 
 class Wall(models.Model):

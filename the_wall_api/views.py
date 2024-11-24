@@ -6,12 +6,48 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
 
-from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
+from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import open_api_parameters, open_api_resposnes
-from the_wall_api.utils.storage_utils import fetch_wall_data
+from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config_file_upload
 from the_wall_api.wall_construction import initialize_wall_data
+
+
+class WallConfigFileView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = WallConfigFileUploadSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        config_id = serializer.validated_data['config_id']                  # type: ignore
+        wall_config_file = serializer.validated_data['wall_config_file']    # type: ignore
+
+        wall_data = {
+            'request_type': 'wallconfig-files/upload',
+            'user': request.user,
+            'wall_config_file': wall_config_file,
+            'config_id': config_id,
+            'error_response': None
+        }
+        manage_wall_config_file_upload(wall_data)
+        if wall_data['error_response']:
+            return wall_data['error_response']
+
+        return self.build_upload_response(config_id)
+
+    def build_upload_response(self, config_id):
+        response_data = {
+            'config_id': config_id,
+            'details': f'Wall config <{config_id}> uploaded successfully.'
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class DailyIceUsageView(APIView):
