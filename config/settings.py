@@ -210,8 +210,13 @@ DJOSER = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'The Wall API',
     'DESCRIPTION': 'Wall construction tracker.',
-    'VERSION': '',  # Set your API version here
+    'VERSION': '',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        # Select Schema tab by default in the Request body examples section
+        'defaultModelRendering': 'model',
+    },
+    'OAS_VERSION': '3.1.0',
 }
 
 APPEND_SLASH = True

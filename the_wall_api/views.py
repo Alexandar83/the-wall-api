@@ -15,10 +15,11 @@ from the_wall_api.wall_construction import initialize_wall_data
 
 
 class DailyIceUsageView(APIView):
+    authentication_classes = []
 
     @extend_schema(
         tags=['daily-ice-usage'],
-        summary='Get daily ice usage',
+        summary='Get Daily Ice Usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
         parameters=open_api_parameters.daily_ice_usage_parameters + [open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.daily_ice_usage_responses
@@ -60,11 +61,12 @@ class DailyIceUsageView(APIView):
 
 
 class CostOverviewView(APIView):
+    authentication_classes = []
 
     @extend_schema(
         tags=['cost-overview'],
         operation_id='get_cost_overview',
-        summary='Get cost overview',
+        summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
         parameters=[open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.cost_overview_responses
@@ -110,11 +112,12 @@ class CostOverviewView(APIView):
 
 
 class CostOverviewProfileidView(CostOverviewView):
+    authentication_classes = []
 
     @extend_schema(
         tags=['cost-overview'],
         operation_id='get_cost_overview_profile_id',
-        summary='Get cost overview for a profile',
+        summary='Get Profile Cost Overview',
         description='Retrieve the total cost for a specific wall profile.',
         parameters=open_api_parameters.cost_overview_profile_id_parameters + [open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.cost_overview_profile_id_responses
