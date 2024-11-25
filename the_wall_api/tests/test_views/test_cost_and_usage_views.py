@@ -5,7 +5,7 @@ from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 
-from the_wall_api.tests.base_test_views import BaseViewTest
+from the_wall_api.tests.test_views.base_test_views import BaseViewTest
 from the_wall_api.tests.test_utils import generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
