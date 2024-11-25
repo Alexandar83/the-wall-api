@@ -11,7 +11,9 @@ from django.db.models import Q
 from django.db.utils import IntegrityError
 from redis.exceptions import ConnectionError, TimeoutError
 
-from the_wall_api.models import Wall, WallConfig, WallConfigFile, WallConfigStatusEnum, WallProfile, WallProfileProgress
+from the_wall_api.models import (
+    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum, WallProfile, WallProfileProgress
+)
 from the_wall_api.tasks import orchestrate_wall_config_processing_task
 from the_wall_api.utils import error_utils, wall_config_utils
 from the_wall_api.wall_construction import run_simulation, set_simulation_params
@@ -312,7 +314,7 @@ def create_new_wall_config_file(wall_data, wall_config_object) -> None:
             return
 
         with transaction.atomic():
-            WallConfigFile.objects.create(
+            WallConfigReference.objects.create(
                 user=wall_data['user'],
                 wall_config=wall_config_object,
                 config_id=wall_data['config_id'],

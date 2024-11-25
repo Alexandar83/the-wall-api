@@ -9,17 +9,17 @@ from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
+from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import open_api_parameters, open_api_resposnes
 from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config_file_upload
 from the_wall_api.wall_construction import initialize_wall_data
 
 
-class WallConfigFileView(APIView):
+class WallConfigReferenceView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-    serializer_class = WallConfigFileUploadSerializer
+    serializer_class = WallConfigReferenceUploadSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})

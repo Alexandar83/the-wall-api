@@ -33,7 +33,7 @@ class WallConfig(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
 
 
-class WallConfigFile(models.Model):
+class WallConfigReference(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wall_config_files')
     wall_config = models.ForeignKey(WallConfig, on_delete=models.CASCADE, related_name='wall_config_files')
     config_id = models.CharField(max_length=CONFIG_ID_MAX_LENGTH)
