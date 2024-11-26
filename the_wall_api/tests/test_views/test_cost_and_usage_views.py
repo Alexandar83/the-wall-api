@@ -15,6 +15,7 @@ from the_wall_api.wall_construction import get_sections_count, WallConstruction
 class CostAndUsageViewTest(BaseViewTest):
 
     def setUp(self):
+        super().setUp()
         # Load the wall profiles configuration to determine the maximum valid profile_id
         self.wall_construction_config = load_wall_profiles_from_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
@@ -69,10 +70,15 @@ class CostAndUsageViewTest(BaseViewTest):
         self, profile_id: int | None = None, day: int | None = None, num_crews: int | None = None
     ) -> tuple[str, dict, dict]:
         url = self.prepare_url(profile_id, day)
-        params = {'num_crews': num_crews} if num_crews is not None else {}
+        if num_crews is not None:
+            request_params = {
+                'query_params': {'num_crews': num_crews}
+            }
+        else:
+            request_params = {}
         input_data = {key: value for key, value in [('profile_id', profile_id), ('day', day), ('num_crews', num_crews)] if value is not None}
 
-        return url, params, input_data
+        return url, request_params, input_data
 
     def prepare_url(self, profile_id: int | None, day: int | None) -> str:
         if profile_id is not None and day is not None:
@@ -102,7 +108,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
                 for day in valid_days:
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                         self.execute_test_case(
-                            status.HTTP_200_OK, test_case_source, consistency_test,
+                            self.client_get_method, status.HTTP_200_OK, test_case_source, consistency_test,
                             profile_id, day, num_crews,
                         )
 
@@ -119,7 +125,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
         for invalid_profile_id in invalid_profile_ids:
             with self.subTest(invalid_profile_id=invalid_profile_id):
                 self.execute_test_case(
-                    status.HTTP_400_BAD_REQUEST, test_case_source,
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
                     profile_id=invalid_profile_id, day=day, num_crews=num_crews
                 )
 
@@ -133,7 +139,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
         for invalid_day in invalid_days:
             with self.subTest(invalid_day=invalid_day):
                 self.execute_test_case(
-                    status.HTTP_400_BAD_REQUEST, test_case_source,
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
                     profile_id=profile_id, day=invalid_day, num_crews=num_crews
                 )
 
@@ -147,7 +153,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
         for invalid_day in invalid_days:
             with self.subTest(invalid_day=invalid_day):
                 self.execute_test_case(
-                    status.HTTP_404_NOT_FOUND, test_case_source,
+                    self.client_get_method, status.HTTP_404_NOT_FOUND, test_case_source,
                     profile_id=profile_id, day=invalid_day, num_crews=num_crews
                 )
 
@@ -160,7 +166,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
             invalid_num_crews = invalid_num_crews_group[0]
             with self.subTest(invalid_num_crews=invalid_num_crews):
                 self.execute_test_case(
-                    status.HTTP_400_BAD_REQUEST, test_case_source,
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
                     profile_id=profile_id, day=day, num_crews=invalid_num_crews
                 )
 
@@ -178,7 +184,7 @@ class CostOverviewViewTest(CostAndUsageViewTest):
         for num_crews in valid_num_crews:
             with self.subTest(num_crews=num_crews):
                 self.execute_test_case(
-                    status.HTTP_200_OK, test_case_source, num_crews=num_crews,
+                    self.client_get_method, status.HTTP_200_OK, test_case_source, num_crews=num_crews,
                     consistency_test=consistency_test
                 )
 
@@ -192,7 +198,10 @@ class CostOverviewViewTest(CostAndUsageViewTest):
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
             with self.subTest(invalid_num_crews=invalid_num_crews):
-                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, num_crews=invalid_num_crews)
+                self.execute_test_case(
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
+                    num_crews=invalid_num_crews
+                )
 
 
 class CostOverviewProfileidViewTest(CostAndUsageViewTest):
@@ -210,8 +219,8 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
             for num_crews in valid_num_crews:
                 with self.subTest(profile_id=profile_id, num_crews=num_crews):
                     self.execute_test_case(
-                        status.HTTP_200_OK, test_case_source, profile_id=profile_id, num_crews=num_crews,
-                        consistency_test=consistency_test
+                        self.client_get_method, status.HTTP_200_OK, test_case_source, profile_id=profile_id,
+                        num_crews=num_crews, consistency_test=consistency_test
                     )
 
     def test_cost_overview_profileid_results_consistency(self):
@@ -226,7 +235,10 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
         for invalid_profile_id in invalid_profile_ids:
             for num_crews in valid_num_crews:
                 with self.subTest(invalid_profile_id=invalid_profile_id, num_crews=num_crews):
-                    self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=invalid_profile_id, num_crews=num_crews)
+                    self.execute_test_case(
+                        self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
+                        profile_id=invalid_profile_id, num_crews=num_crews
+                    )
 
     def test_cost_overview_profileid_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -235,4 +247,7 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
             with self.subTest(invalid_num_crews=invalid_num_crews):
-                self.execute_test_case(status.HTTP_400_BAD_REQUEST, test_case_source, profile_id=profile_id, num_crews=invalid_num_crews)
+                self.execute_test_case(
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
+                    profile_id=profile_id, num_crews=invalid_num_crews
+                )

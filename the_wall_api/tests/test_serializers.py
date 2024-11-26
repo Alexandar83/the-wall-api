@@ -1,10 +1,14 @@
 from inspect import currentframe
 from typing import Any, Type
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import serializers
 from rest_framework.serializers import ListSerializer, Serializer, ValidationError
+from rest_framework.test import APIRequestFactory
 
-from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer
+from the_wall_api.serializers import (
+    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
+)
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 
 
@@ -16,19 +20,19 @@ def extract_error_detail(actual_errors: Any, field_name: str) -> Any:
             return error_detail[0] if error_detail else None
         return error_detail
     else:
-        return str(actual_errors)  # Fallback to string representation if structure is unexpected
+        return str(actual_errors)
 
 
 class SerializerTest(BaseTestcase):
 
     def validate_and_log(
-            self, serializer_class: Type[Serializer],
-            input_data: dict, expected_errors: dict, test_case_source: str
+        self, serializer_class: Type[Serializer], input_data: dict,
+        expected_errors: dict, test_case_source: str, serializer_params: dict
     ) -> None:
         """Handles validation and logging of results."""
         actual_errors = None
         expect_errors = bool(expected_errors)
-        serializer = serializer_class(data=input_data)
+        serializer = serializer_class(**serializer_params)
 
         try:
             if expect_errors:
@@ -40,14 +44,14 @@ class SerializerTest(BaseTestcase):
                 self.validate_without_errors(serializer)
                 actual_errors = None
 
-            self.log_test_serializer_result(True, input_data, expected_errors, actual_errors, test_case_source)
+            self.log_test_serializer_result(input_data, expected_errors, actual_errors, test_case_source)
 
         except AssertionError as assrtn_err:
-            self.log_test_serializer_result(False, input_data, expected_errors, str(assrtn_err), test_case_source)
+            self.log_test_serializer_result(input_data, expected_errors, str(assrtn_err), test_case_source)
 
         except Exception as err:
             actual_errors = f'{err.__class__.__name__}: {str(err)}'
-            self.log_test_serializer_result(False, input_data, expected_errors, actual_errors, test_case_source, error_occured=True)
+            self.log_test_serializer_result(input_data, expected_errors, actual_errors, test_case_source, error_occured=True)
 
     def validate_with_errors(self, serializer: Serializer | ListSerializer, input_data: dict) -> ValidationError:
         try:
@@ -63,13 +67,15 @@ class SerializerTest(BaseTestcase):
         self.assertTrue(is_valid)
 
     def log_test_serializer_result(
-            self, passed: bool, input_data: dict, expected_errors: dict,
-            actual_errors: Any, test_case_source: str, error_occured: bool = False
+        self, input_data: dict, expected_errors: dict,
+        actual_errors: Any, test_case_source: str, error_occured: bool = False
     ):
-        expected_message = ', '.join(expected_errors.values()) if expected_errors else 'No errors expected, validation passed'
-        actual_message = 'Validation passed' if not actual_errors else ', '.join(
+        validation_passed_msg = 'Validation passed'
+        expected_message = ', '.join(expected_errors.values()) if expected_errors else validation_passed_msg
+        actual_message = validation_passed_msg if not actual_errors else ', '.join(
             [str(extract_error_detail(actual_errors, field)) for field in expected_errors.keys()]
         )
+        passed = expected_message == actual_message
         self.log_test_result(passed, input_data, expected_message, actual_message, test_case_source, error_occurred=error_occured)
 
 
@@ -84,7 +90,10 @@ class CostOverviewSerializerTest(SerializerTest):
             input_data = {'profile_id': profile_id}
             expected_errors = {}
             with self.subTest(profile_id=profile_id):
-                self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
+                self.validate_and_log(
+                    CostOverviewSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data}
+                )
 
     def test_profile_id_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -100,7 +109,10 @@ class CostOverviewSerializerTest(SerializerTest):
                 input_data = {'profile_id': profile_id}
                 expected_errors = {'profile_id': error_message}
                 with self.subTest(profile_id=profile_id):
-                    self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
+                    self.validate_and_log(
+                        CostOverviewSerializer, input_data, expected_errors,
+                        test_case_source, serializer_params={'data': input_data}
+                    )
 
     def test_num_crews_valid(self):
         valid_values = generate_valid_values()
@@ -110,7 +122,10 @@ class CostOverviewSerializerTest(SerializerTest):
             input_data = {'num_crews': num_crews}
             expected_errors = {}
             with self.subTest(num_crews=num_crews):
-                self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
+                self.validate_and_log(
+                    CostOverviewSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data}
+                )
 
     def test_num_crews_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -120,7 +135,10 @@ class CostOverviewSerializerTest(SerializerTest):
                 input_data = {'num_crews': num_crews}
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(num_crews=num_crews):
-                    self.validate_and_log(CostOverviewSerializer, input_data, expected_errors, test_case_source)
+                    self.validate_and_log(
+                        CostOverviewSerializer, input_data, expected_errors,
+                        test_case_source, serializer_params={'data': input_data}
+                    )
 
 
 class DailyIceUsageSerializerTest(SerializerTest):
@@ -138,7 +156,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     'day': day_error_message,
                 }
                 with self.subTest(profile_id=profile_id, day=day):
-                    self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                    self.validate_and_log(
+                        DailyIceUsageSerializer, input_data, expected_errors,
+                        test_case_source, serializer_params={'data': input_data}
+                    )
 
     def num_crews_invalid_inner(self, profile_id, day, test_case_source):
         """Helper function to test all combinations of profile and day values."""
@@ -147,7 +168,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 input_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
-                    self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                    self.validate_and_log(
+                        DailyIceUsageSerializer, input_data, expected_errors,
+                        test_case_source, serializer_params={'data': input_data}
+                    )
 
     def test_both_fields_valid(self):
         valid_values = generate_valid_values()
@@ -158,7 +182,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 input_data = {'profile_id': profile_id, 'day': day}
                 expected_errors = {}
                 with self.subTest(profile_id=profile_id, day=day):
-                    self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                    self.validate_and_log(
+                        DailyIceUsageSerializer, input_data, expected_errors,
+                        test_case_source, serializer_params={'data': input_data}
+                    )
 
     def test_only_day_valid(self):
         valid_values = generate_valid_values()
@@ -170,7 +197,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     input_data = {'profile_id': profile_id, 'day': day}
                     expected_errors = {'profile_id': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
-                        self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                        self.validate_and_log(
+                            DailyIceUsageSerializer, input_data, expected_errors,
+                            test_case_source, serializer_params={'data': input_data}
+                        )
 
     def test_only_profile_id_valid(self):
         valid_values = generate_valid_values()
@@ -182,7 +212,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     input_data = {'profile_id': profile_id, 'day': day}
                     expected_errors = {'day': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
-                        self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                        self.validate_and_log(
+                            DailyIceUsageSerializer, input_data, expected_errors,
+                            test_case_source, serializer_params={'data': input_data}
+                        )
 
     def test_both_fields_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
@@ -207,7 +240,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     input_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
                     expected_errors = {}
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
-                        self.validate_and_log(DailyIceUsageSerializer, input_data, expected_errors, test_case_source)
+                        self.validate_and_log(
+                            DailyIceUsageSerializer, input_data, expected_errors,
+                            test_case_source, serializer_params={'data': input_data}
+                        )
 
     def test_num_crews_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -215,3 +251,84 @@ class DailyIceUsageSerializerTest(SerializerTest):
         for profile_id in generate_valid_values():
             for day in generate_valid_values():
                 self.num_crews_invalid_inner(profile_id, day, test_case_source)
+
+
+class WallConfigReferenceUploadSerializerTest(SerializerTest):
+    description = 'Wall config reference upload serializer tests'
+
+    def setUp(self):
+        # Test context
+        factory = APIRequestFactory()
+        test_request = factory.post('/', {}, content_type='application/json')
+        test_request.user = self.create_test_user(
+            client=self.client, username=self.username, password=self.password
+        )
+        self.test_context = {'request': test_request}
+
+        # Valid test data
+        self.valid_config_id = 'valid_config_id'
+        self.valid_wall_config_file = SimpleUploadedFile(
+            'wall_config.json', b'[]', content_type='application/json'
+        )
+
+    def test_valid_upload(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        input_data = {'config_id': self.valid_config_id, 'wall_config_file': self.valid_wall_config_file}
+        expected_errors = {}
+
+        self.validate_and_log(
+            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+        )
+
+    def test_no_file_supplied(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        expected_errors = {'wall_config_file': 'No file was submitted.'}
+        input_data = {'config_id': self.valid_config_id}
+
+        self.validate_and_log(
+            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+        )
+
+    def test_invalid_file(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        for error_type, (error_message, invalid_wall_config_file) in invalid_input_groups['wall_config_file'].items():
+            if error_type != 'non_serializable_data':
+                expected_errors = {'wall_config_file': error_message}
+            else:
+                expected_errors = {'non_field_errors': error_message}
+
+            input_data = {'config_id': self.valid_config_id, 'wall_config_file': invalid_wall_config_file}
+            with self.subTest(wall_config_file=invalid_wall_config_file):
+                self.validate_and_log(
+                    WallConfigReferenceUploadSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+                )
+
+    def test_no_config_id_supplied(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        input_data = {'wall_config_file': self.valid_wall_config_file}
+        expected_errors = {'config_id': 'This field is required.'}
+
+        self.validate_and_log(
+            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+        )
+
+    def test_invalid_config_id(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        for error_type, (error_message, invalid_config_id) in invalid_input_groups['config_id'].items():
+            input_data = {'config_id': invalid_config_id, 'wall_config_file': self.valid_wall_config_file}
+            expected_errors = {'config_id': error_message}
+
+            with self.subTest(config_id=invalid_config_id):
+                self.validate_and_log(
+                    WallConfigReferenceUploadSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+                )

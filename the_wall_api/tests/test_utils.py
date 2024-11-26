@@ -1,10 +1,17 @@
 import logging
 
-from django.core.cache import cache
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, TransactionTestCase
+from django.test.client import Client
 from django.test.runner import DiscoverRunner
+from django.urls import reverse
 from rest_framework.exceptions import ErrorDetail
+
+from the_wall_api.models import CONFIG_ID_MAX_LENGTH
+from the_wall_api.utils.api_utils import exposed_endpoints
 
 # Group all invalid input characters by serializer error message
 invalid_input_groups = {
@@ -37,7 +44,43 @@ invalid_input_groups = {
         ErrorDetail(string='A valid integer is required.', code='invalid'): [
             3.14, '3.14', 'string', '$', '@', '#', '!', '%', '^', '&', '*', '(', ')', '<', '>', '?', '[]', '{}', '\\', '|', ';', ':', ',', '.', '/', [], {}, '',
         ],
-    }
+    },
+    'wall_config_file': {
+        'invalid_extension': (
+            ErrorDetail(string='File extension “txt” is not allowed. Allowed extensions are: json.', code='invalid_extension'),
+            SimpleUploadedFile('wall_config.txt', b'[]', content_type='application/json'),
+        ),
+        'non_serializable_data': (
+            ErrorDetail(string='Invalid JSON file format.', code='invalid'),
+            SimpleUploadedFile('wall_config.json', b'[[1, 2, 3], [1, 2]', content_type='application/json'),
+        ),
+        'empty_file': (
+            ErrorDetail(string='The submitted file is empty.', code='empty'),
+            SimpleUploadedFile('wall_config.json', b'', content_type='application/json'),
+        ),
+        'null_object': (
+            ErrorDetail(string='This field may not be null.', code='null'),
+            None,
+        ),
+        'not_a_file_object': (
+            ErrorDetail(string='The submitted data was not a file. Check the encoding type on the form.', code='invalid'),
+            'not_a_file_object',
+        ),
+    },
+    'config_id': {
+        'invalid_length': (
+            ErrorDetail(string='Ensure this field has no more than 30 characters.', code='max_length'),
+            'a' * (CONFIG_ID_MAX_LENGTH + 1),
+        ),
+        'null_object': (
+            ErrorDetail(string='This field may not be null.', code='null'),
+            None,
+        ),
+        'empty_string': (
+            ErrorDetail(string='This field may not be blank.', code='blank'),
+            '',
+        ),
+    },
 }
 
 
@@ -140,6 +183,27 @@ class BaseTestMixin:
             return result
 
         return wrapper
+
+    @classmethod
+    def create_test_user(cls, client: Client, username: str, password: str):
+        client.post(
+            path=reverse(exposed_endpoints['user-create']['name']),
+            data={'username': username, 'password': password}
+        )
+        User = get_user_model()
+        test_user = User.objects.get(username=username)
+
+        return test_user
+
+    @classmethod
+    def generate_test_user_token(cls, client: Client, username: str, password: str) -> str:
+        response = client.post(
+            path=reverse(exposed_endpoints['token-login']['name']),
+            data={'username': username, 'password': password}
+        )
+        response_data = response.json()
+
+        return response_data['auth_token']
 
     def _get_test_case_source(self, method_name: str) -> str:
         return f'{self.__module__} -> {method_name}'
