@@ -25,13 +25,13 @@ class WallConfigReferenceView(APIView):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        config_id = serializer.validated_data['config_id']                  # type: ignore
-        wall_config_file = serializer.validated_data['wall_config_file']    # type: ignore
+        config_id = serializer.validated_data['config_id']                      # type: ignore
+        wall_config_file_data = serializer.context['wall_config_file_data']     # type: ignore
 
         wall_data = {
             'request_type': 'wallconfig-files/upload',
             'user': request.user,
-            'wall_config_file': wall_config_file,
+            'wall_config_file_data': wall_config_file_data,
             'config_id': config_id,
             'error_response': None
         }

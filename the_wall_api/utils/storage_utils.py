@@ -286,13 +286,13 @@ def fetch_daily_ice_usage_from_db(
 
 
 def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
-    # Uploaded file validation
-    wall_construction_config = wall_config_utils.validate_wall_config_file(wall_data)
+    # Uploaded config data validation
+    wall_config_utils.validate_wall_config_file_data(wall_data)
     if wall_data['error_response']:
         return
 
     # Fetch or create the WallConfig object
-    wall_data['wall_config_hash'] = wall_config_utils.hash_calc(wall_construction_config)
+    wall_data['wall_config_hash'] = wall_config_utils.hash_calc(wall_data['wall_config_file_data'])
     wall_config_object = manage_wall_config_object(wall_data)
     if wall_data['error_response']:
         return

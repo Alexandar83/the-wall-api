@@ -53,17 +53,11 @@ def load_wall_profiles_from_config() -> list:
     return result
 
 
-def validate_wall_config_file(wall_data: Dict[str, Any]) -> list | None:
-    wall_config_file_data = None
-    uploaded_file = wall_data['wall_config_file']
+def validate_wall_config_file_data(wall_data: Dict[str, Any]) -> None:
     try:
-        file_content = uploaded_file.read()
-        wall_config_file_data = json.loads(file_content)
-        validate_wall_config_format(wall_config_file_data, INVALID_WALL_CONFIG_MSG)
+        validate_wall_config_format(wall_data['wall_config_file_data'], INVALID_WALL_CONFIG_MSG)
     except Exception as wall_config_err:
         handle_unknown_error(wall_data, wall_config_err, 'wall_configuration')
-
-    return wall_config_file_data
 
 
 def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config_msg: str) -> None:

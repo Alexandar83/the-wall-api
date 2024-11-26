@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.core.validators import MinValueValidator, FileExtensionValidator
 from rest_framework import serializers
@@ -31,7 +33,7 @@ class WallConfigReferenceUploadSerializer(serializers.Serializer):
         required=True,
         validators=[FileExtensionValidator(allowed_extensions=['json'])]
     )
-    config_id = serializers.CharField(required=True, max_length=CONFIG_ID_MAX_LENGTH)
+    config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
     class Meta:
         fields = ['wall_config_file', 'config_id']
@@ -49,5 +51,13 @@ class WallConfigReferenceUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 f'Wall config "{attrs["config_id"]}" already exists for user "{user.username}"'
             )
+
+        try:
+            uploaded_file = attrs['wall_config_file']
+            file_content = uploaded_file.read().decode('utf-8')
+            wall_config_file_data = json.loads(file_content)
+            self.context['wall_config_file_data'] = wall_config_file_data
+        except json.JSONDecodeError:
+            raise serializers.ValidationError('Invalid JSON file format.')
 
         return attrs
