@@ -195,7 +195,10 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def manage_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
+    error_response = {
+        'error': 'A deletion of an existing wall config is being processed - please try again.'
+    }
     wall_data['error_response'] = Response(
-        'A deletion of an existing wall config is being processed - please try again.',
+        error_response,
         status=status.HTTP_503_SERVICE_UNAVAILABLE
     )

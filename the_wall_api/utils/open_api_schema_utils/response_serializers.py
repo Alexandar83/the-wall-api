@@ -14,6 +14,35 @@ wall_app_error_response_serializer = inline_serializer(
     }
 )
 
+# *WallConfigFileUploadView*
+wall_config_file_upload_response_serializer = inline_serializer(
+    name='WallConfigFileUploadResponse',
+    fields={
+        'config_id': serializers.CharField(),
+        'details': serializers.CharField(),
+    }
+)
+wall_config_file_upload_400_response_serializer = inline_serializer(
+    name='WallConfigFileUploadError400Response',
+    fields={
+        'wall_config_file': serializers.ListField(child=serializers.CharField(), required=False),
+        'config_id': serializers.ListField(child=serializers.CharField(), required=False),
+        'non_field_errors': serializers.ListField(child=serializers.CharField(), required=False),
+    }
+)
+wall_config_file_upload_401_response_serializer = inline_serializer(
+    name='WallConfigFileUploadError401Response',
+    fields={
+        'detail': serializers.CharField(),
+    }
+)
+wall_config_file_upload_503_response_serializer = inline_serializer(
+    name='WallConfigFileUploadError503Response',
+    fields={
+        'error': serializers.CharField(),
+    }
+)
+
 # *DailyIceUsageView*
 daily_ice_usage_response_serializer = inline_serializer(
     name='DailyIceUsageResponse',
@@ -34,7 +63,6 @@ cost_overview_profile_id_response_serializer = inline_serializer(
         'details': serializers.CharField(),
     }
 )
-
 cost_overview_response_serializer = inline_serializer(
     name='CostOverviewResponse',
     fields={
@@ -64,8 +92,14 @@ create_user_error_response_serializer = inline_serializer(
     }
 )
 # = Delete user =
-delete_user_error_response_serializer = inline_serializer(
-    name='DeleteUserErrorResponse',
+delete_user_400_response_serializer = inline_serializer(
+    name='DeleteUserError400Response',
+    fields={
+        'current_password': serializers.ListField(child=serializers.CharField()),
+    }
+)
+delete_user_401_response_serializer = inline_serializer(
+    name='DeleteUserError401Response',
     fields={
         'detail': serializers.CharField(required=False),
         'current_password': serializers.ListField(child=serializers.CharField(), required=False),

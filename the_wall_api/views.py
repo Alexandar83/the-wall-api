@@ -9,9 +9,13 @@ from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from the_wall_api.serializers import CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
+from the_wall_api.serializers import (
+    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
+)
 from the_wall_api.utils import api_utils
-from the_wall_api.utils.open_api_schema_utils import open_api_parameters, open_api_resposnes
+from the_wall_api.utils.open_api_schema_utils import (
+    open_api_parameters, open_api_resposnes, open_api_schemas
+)
 from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config_file_upload
 from the_wall_api.wall_construction import initialize_wall_data
 
@@ -21,6 +25,17 @@ class WallConfigReferenceView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = WallConfigReferenceUploadSerializer
 
+    @extend_schema(
+        tags=['wallconfig-files'],
+        summary='Upload Wall Configuration File',
+        description=(
+            'Allows users to upload wall configuration files, which are '
+            'parsed and stored as structured data in the database. \n\nThe processed data can be '
+            'accessed through the `daily-ice-usage`, `cost-overview`, and `cost-overview-profile` endpoints.'
+        ),
+        request=open_api_schemas.wallconfig_file_upload_schema,
+        responses=open_api_resposnes.wallconfig_file_upload_responses
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if not serializer.is_valid():
