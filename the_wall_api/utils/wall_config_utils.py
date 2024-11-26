@@ -55,7 +55,7 @@ def load_wall_profiles_from_config() -> list:
 
 def validate_wall_config_file_data(wall_data: Dict[str, Any]) -> None:
     try:
-        validate_wall_config_format(wall_data['wall_config_file_data'], INVALID_WALL_CONFIG_MSG)
+        validate_wall_config_format(wall_data['initial_wall_construction_config'], INVALID_WALL_CONFIG_MSG)
     except Exception as wall_config_err:
         handle_unknown_error(wall_data, wall_config_err, 'wall_configuration')
 

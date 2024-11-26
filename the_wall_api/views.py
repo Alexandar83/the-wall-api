@@ -31,7 +31,7 @@ class WallConfigReferenceView(APIView):
         wall_data = {
             'request_type': 'wallconfig-files/upload',
             'user': request.user,
-            'wall_config_file_data': wall_config_file_data,
+            'initial_wall_construction_config': wall_config_file_data,
             'config_id': config_id,
             'error_response': None
         }

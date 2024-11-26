@@ -16,7 +16,7 @@ from the_wall_api.models import (
 )
 from the_wall_api.tasks import orchestrate_wall_config_processing_task
 from the_wall_api.utils import error_utils, wall_config_utils
-from the_wall_api.wall_construction import run_simulation, set_simulation_params
+from the_wall_api.wall_construction import get_sections_count, run_simulation, set_simulation_params
 
 
 CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
@@ -291,8 +291,12 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
     if wall_data['error_response']:
         return
 
+    # Prepare final data
+    wall_data['wall_config_hash'] = wall_config_utils.hash_calc(wall_data['initial_wall_construction_config'])
+    wall_data['sections_count'] = get_sections_count(wall_data['initial_wall_construction_config'])
+    wall_data['num_crews'] = None
+
     # Fetch or create the WallConfig object
-    wall_data['wall_config_hash'] = wall_config_utils.hash_calc(wall_data['wall_config_file_data'])
     wall_config_object = manage_wall_config_object(wall_data)
     if wall_data['error_response']:
         return
