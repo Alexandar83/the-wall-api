@@ -23,6 +23,12 @@ CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 
 
+def fetch_user_wall_config_files(wall_data: Dict[str, Any]) -> List[int]:
+    config_id_list = list(WallConfigReference.objects.filter(user=wall_data['user']).values_list('config_id', flat=True))
+
+    return config_id_list
+
+
 def fetch_wall_data(
     wall_data: Dict[str, Any], num_crews: int, profile_id: int | None = None, request_type: str = ''
 ):
@@ -304,7 +310,7 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
     if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
         create_new_wall_config_file(wall_data, wall_config_object)
     else:
-        error_utils.manage_wall_config_deletion_in_progress(wall_data)
+        error_utils.handle_wall_config_deletion_in_progress(wall_data)
 
 
 def create_new_wall_config_file(wall_data, wall_config_object) -> None:

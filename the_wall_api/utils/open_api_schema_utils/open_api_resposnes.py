@@ -5,6 +5,18 @@ from drf_spectacular.utils import OpenApiExample, OpenApiResponse
 from the_wall_api.utils.open_api_schema_utils import open_api_examples, response_serializers
 from the_wall_api.serializers import CONFIG_ID_MAX_LENGTH
 
+
+# == Common ==
+unauthorized_responses = OpenApiResponse(
+    response=response_serializers.unauthorized_error_response_serializer,
+    examples=[
+        open_api_examples.invalid_token,
+        open_api_examples.not_authenticated,
+    ]
+)
+
+# == Common (end) ==
+
 # == WallConfigFileUploadView ==
 wallconfig_file_upload_responses = {
     201: OpenApiResponse(
@@ -86,13 +98,7 @@ wallconfig_file_upload_responses = {
             ),
         ]
     ),
-    401: OpenApiResponse(
-        response=response_serializers.wall_config_file_upload_401_response_serializer,
-        examples=[
-            open_api_examples.invalid_token,
-            open_api_examples.not_authenticated,
-        ]
-    ),
+    401: unauthorized_responses,
     503: OpenApiResponse(
         response=response_serializers.wall_config_file_upload_503_response_serializer,
         examples=[
@@ -108,13 +114,33 @@ wallconfig_file_upload_responses = {
 
 # == # == WallConfigFileUploadView (end) ==
 
+# == WallConfigListView ==
+wallconfig_file_list_responses = {
+    200: OpenApiResponse(
+        response=response_serializers.wall_config_list_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='Valid response',
+                summary='Wall config ID list',
+                value={
+                    'config_id_list': ['test_config_1', 'test_config_2'],
+                },
+                response_only=True,
+            ),
+        ]
+    ),
+    401: unauthorized_responses,
+}
+
+# == WallConfigFileListView (end) ==
+
 # == DailyIceUsageView ==
 daily_ice_usage_responses = {
     200: OpenApiResponse(
         response=response_serializers.daily_ice_usage_response_serializer,
         examples=[
             OpenApiExample(
-                name='Example response',
+                name='Valid response',
                 summary='Profile construction cost',
                 value={
                     'profile_id': 1,
@@ -202,7 +228,7 @@ cost_overview_responses = {
         response=response_serializers.cost_overview_response_serializer,
         examples=[
             OpenApiExample(
-                name='Example response',
+                name='Valid response',
                 summary='Total construction cost',
                 value={
                     'total_cost': '32233500',
@@ -234,7 +260,7 @@ cost_overview_profile_id_responses = {
         response=response_serializers.cost_overview_profile_id_response_serializer,
         examples=[
             OpenApiExample(
-                name='Example response',
+                name='Valid response',
                 summary='Profile construction cost',
                 value={
                     'profile_id': 2,
@@ -418,13 +444,7 @@ token_login_responses = {
 # = Token logout =
 token_logout_responses = {
     204: '',
-    401: OpenApiResponse(
-        response=response_serializers.token_logout_error_response_serializer,
-        examples=[
-            open_api_examples.invalid_token,
-            open_api_examples.not_authenticated,
-        ]
-    ),
+    401: unauthorized_responses,
 }
 # = Token logout (end)
 

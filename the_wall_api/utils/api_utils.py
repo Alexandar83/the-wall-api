@@ -22,6 +22,10 @@ exposed_endpoints = {
         'path': f'{endpoint_prefix}/wallconfig-files/upload/',
         'name': f'wallconfig-files-upload-{settings.API_VERSION}',
     },
+    'wallconfig-files-list': {
+        'path': f'{endpoint_prefix}/wallconfig-files/list/',
+        'name': f'wallconfig-files-list-{settings.API_VERSION}',
+    },
     'schema': {
         'path': f'{endpoint_prefix}/schema/',
         'name': 'schema',

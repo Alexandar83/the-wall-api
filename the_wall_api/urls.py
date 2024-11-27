@@ -2,7 +2,8 @@ from django.urls import path
 
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.views import (
-    CostOverviewView, CostOverviewProfileidView, DailyIceUsageView, WallConfigFileUploadView
+    CostOverviewView, CostOverviewProfileidView, DailyIceUsageView,
+    WallConfigFileListView, WallConfigFileUploadView
 )
 
 # For control of existing and adding of new endpoints -> the_wall_api.utils.api_utils.exposed_endpoints
@@ -26,5 +27,10 @@ urlpatterns = [
         exposed_endpoints['wallconfig-files-upload']['path'],
         WallConfigFileUploadView.as_view(),
         name=exposed_endpoints['wallconfig-files-upload']['name']
+    ),
+    path(
+        exposed_endpoints['wallconfig-files-list']['path'],
+        WallConfigFileListView.as_view(),
+        name=exposed_endpoints['wallconfig-files-list']['name']
     ),
 ]

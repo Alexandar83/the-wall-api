@@ -16,7 +16,9 @@ from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_parameters, open_api_resposnes, open_api_schemas
 )
-from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config_file_upload
+from the_wall_api.utils.storage_utils import (
+    fetch_user_wall_config_files, fetch_wall_data, manage_wall_config_file_upload
+)
 from the_wall_api.wall_construction import initialize_wall_data
 
 
@@ -63,6 +65,32 @@ class WallConfigFileUploadView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class WallConfigFileListView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=['wallconfig-files'],
+        summary='List Wall Configuration Files',
+        description='Retrieve a list of wall configuration files uploaded by the user.',
+        responses=open_api_resposnes.wallconfig_file_list_responses
+    )
+    def get(self, request):
+        wall_data = {
+            'request_type': 'wallconfig-files/list',
+            'user': request.user,
+            'error_response': None
+        }
+        config_id_list = fetch_user_wall_config_files(wall_data)
+        if wall_data['error_response']:
+            return wall_data['error_response']
+
+        response_data = {
+            'config_id_list': config_id_list
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class DailyIceUsageView(APIView):

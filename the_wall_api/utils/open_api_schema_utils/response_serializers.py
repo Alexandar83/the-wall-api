@@ -13,6 +13,12 @@ wall_app_error_response_serializer = inline_serializer(
         'error_details': serializers.CharField(required=False),
     }
 )
+unauthorized_error_response_serializer = inline_serializer(
+    name='UnauthorizedErrorResponse',
+    fields={
+        'detail': serializers.CharField(),
+    }
+)
 
 # *WallConfigFileUploadView*
 wall_config_file_upload_response_serializer = inline_serializer(
@@ -30,16 +36,18 @@ wall_config_file_upload_400_response_serializer = inline_serializer(
         'non_field_errors': serializers.ListField(child=serializers.CharField(), required=False),
     }
 )
-wall_config_file_upload_401_response_serializer = inline_serializer(
-    name='WallConfigFileUploadError401Response',
-    fields={
-        'detail': serializers.CharField(),
-    }
-)
 wall_config_file_upload_503_response_serializer = inline_serializer(
     name='WallConfigFileUploadError503Response',
     fields={
         'error': serializers.CharField(),
+    }
+)
+
+# *WallConfigFileListView*
+wall_config_list_response_serializer = inline_serializer(
+    name='WallConfigFileListResponse',
+    fields={
+        'config_id_list': serializers.ListField(child=serializers.CharField()),
     }
 )
 
@@ -124,13 +132,6 @@ token_login_error_response_serializer = inline_serializer(
     name='TokenLoginErrorResponse',
     fields={
         'non_field_errors': serializers.ListField(child=serializers.CharField()),
-    }
-)
-# = Token logout =
-token_logout_error_response_serializer = inline_serializer(
-    name='TokenLogoutErrorResponse',
-    fields={
-        'detail': serializers.CharField(),
     }
 )
 # == Djoser (end) ==

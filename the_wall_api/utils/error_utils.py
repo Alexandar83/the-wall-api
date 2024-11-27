@@ -194,9 +194,9 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
     return request_params
 
 
-def manage_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
+def handle_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
     error_response = {
-        'error': 'A deletion of an existing wall config is being processed - please try again.'
+        'error': 'A deletion of an existing wall config is being processed - please try again later.'
     }
     wall_data['error_response'] = Response(
         error_response,
