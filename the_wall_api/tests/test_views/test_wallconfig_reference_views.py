@@ -10,8 +10,8 @@ from the_wall_api.tests.test_views.base_test_views import BaseViewTest
 from the_wall_api.utils.api_utils import exposed_endpoints
 
 
-class WallConfigReferenceViewTest(BaseViewTest):
-    description = 'Wall Config Reference View Tests'
+class WallConfigFileUploadView(BaseViewTest):
+    description = 'Wall Config File Upload View Tests'
 
     url_name = exposed_endpoints['wallconfig-files-upload']['name']
 

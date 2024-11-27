@@ -7,7 +7,7 @@ from rest_framework.serializers import ListSerializer, Serializer, ValidationErr
 from rest_framework.test import APIRequestFactory
 
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
+    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 
@@ -253,7 +253,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 self.num_crews_invalid_inner(profile_id, day, test_case_source)
 
 
-class WallConfigReferenceUploadSerializerTest(SerializerTest):
+class WallConfigFileUploadSerializerTest(SerializerTest):
     description = 'Wall config reference upload serializer tests'
 
     def setUp(self):
@@ -278,7 +278,7 @@ class WallConfigReferenceUploadSerializerTest(SerializerTest):
         expected_errors = {}
 
         self.validate_and_log(
-            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            WallConfigFileUploadSerializer, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -289,7 +289,7 @@ class WallConfigReferenceUploadSerializerTest(SerializerTest):
         input_data = {'config_id': self.valid_config_id}
 
         self.validate_and_log(
-            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            WallConfigFileUploadSerializer, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -305,7 +305,7 @@ class WallConfigReferenceUploadSerializerTest(SerializerTest):
             input_data = {'config_id': self.valid_config_id, 'wall_config_file': invalid_wall_config_file}
             with self.subTest(wall_config_file=invalid_wall_config_file):
                 self.validate_and_log(
-                    WallConfigReferenceUploadSerializer, input_data, expected_errors,
+                    WallConfigFileUploadSerializer, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
                 )
 
@@ -316,7 +316,7 @@ class WallConfigReferenceUploadSerializerTest(SerializerTest):
         expected_errors = {'config_id': 'This field is required.'}
 
         self.validate_and_log(
-            WallConfigReferenceUploadSerializer, input_data, expected_errors,
+            WallConfigFileUploadSerializer, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -329,6 +329,6 @@ class WallConfigReferenceUploadSerializerTest(SerializerTest):
 
             with self.subTest(config_id=invalid_config_id):
                 self.validate_and_log(
-                    WallConfigReferenceUploadSerializer, input_data, expected_errors,
+                    WallConfigFileUploadSerializer, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
                 )

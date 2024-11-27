@@ -28,7 +28,7 @@ class CostOverviewSerializer(serializers.ModelSerializer):
         fields = ['profile_id', 'num_crews']
 
 
-class WallConfigReferenceUploadSerializer(serializers.Serializer):
+class WallConfigFileUploadSerializer(serializers.Serializer):
     wall_config_file = serializers.FileField(
         required=True,
         validators=[FileExtensionValidator(allowed_extensions=['json'])]

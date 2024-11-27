@@ -10,7 +10,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigReferenceUploadSerializer
+    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import (
@@ -20,10 +20,10 @@ from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config
 from the_wall_api.wall_construction import initialize_wall_data
 
 
-class WallConfigReferenceView(APIView):
+class WallConfigFileUploadView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-    serializer_class = WallConfigReferenceUploadSerializer
+    serializer_class = WallConfigFileUploadSerializer
 
     @extend_schema(
         tags=['wallconfig-files'],
