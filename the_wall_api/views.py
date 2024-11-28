@@ -1,9 +1,10 @@
 from typing import Any, Dict
 
-from django.http import HttpRequest, JsonResponse
+from django.http import JsonResponse
 from django.views.defaults import page_not_found
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
@@ -103,9 +104,9 @@ class DailyIceUsageView(APIView):
         parameters=open_api_parameters.daily_ice_usage_parameters + [open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.daily_ice_usage_responses
     )
-    def get(self, request: HttpRequest, profile_id: int, day: int) -> Response:
+    def get(self, request: Request, profile_id: int, day: int) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
-        num_crews = request.GET.get('num_crews', 0)
+        num_crews = request.query_params.get('num_crews', 0)
         serializer = DailyIceUsageSerializer(data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -150,9 +151,9 @@ class CostOverviewView(APIView):
         parameters=[open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.cost_overview_responses
     )
-    def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
+    def get(self, request: Request, profile_id: int | None = None) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
-        num_crews = request.GET.get('num_crews', 0)
+        num_crews = request.query_params.get('num_crews', 0)
         request_data = {'profile_id': profile_id, 'num_crews': num_crews}
         cost_serializer = CostOverviewSerializer(data=request_data)
         if not cost_serializer.is_valid():
@@ -201,7 +202,7 @@ class CostOverviewProfileidView(CostOverviewView):
         parameters=open_api_parameters.cost_overview_profile_id_parameters + [open_api_parameters.num_crews_parameter],
         responses=open_api_resposnes.cost_overview_profile_id_responses
     )
-    def get(self, request: HttpRequest, profile_id: int | None = None) -> Response:
+    def get(self, request: Request, profile_id: int | None = None) -> Response:
         return super().get(request, profile_id)
 
 

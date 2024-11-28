@@ -62,7 +62,7 @@ exposed_endpoints = {
 
 
 def get_request_num_crews(request):
-    request_num_crews = request.GET.get('num_crews')
+    request_num_crews = request.query_params.get('num_crews')
 
     if request_num_crews is not None:
         try:
