@@ -9,6 +9,7 @@ from time import sleep
 from typing import Any, Dict
 
 from celery.contrib.abortable import AbortableTask
+from django.contrib.auth.models import User
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
@@ -167,12 +168,25 @@ class WallConstruction:
 
 
 def initialize_wall_data(
-    profile_id: int | None = None, day: int | None = None, request_num_crews: int | None = None
+    source: str = 'usage_or_cost_view', profile_id: int | None = None, day: int | None = None,
+    request_num_crews: int | None = None, request_type: str | None = None, user: User | None = None,
+    wall_config_file_data: list | None = None, config_id: str | None = None
+
 ) -> Dict[str, Any]:
     """
     Initialize the wall_data dictionary to hold various control data
-    throughout the wall construction simulation process.
+    throughout the wall construction simulation or the
+    wallconfig file management process.
     """
+    if source == 'wallconfig_file_view':
+        return {
+            'request_type': request_type,
+            'user': user,
+            'initial_wall_construction_config': wall_config_file_data,
+            'config_id': config_id,
+            'error_response': None
+        }
+
     return {
         'request_profile_id': profile_id,
         'request_day': day,

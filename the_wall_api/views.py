@@ -46,13 +46,10 @@ class WallConfigFileUploadView(APIView):
         config_id = serializer.validated_data['config_id']                      # type: ignore
         wall_config_file_data = serializer.context['wall_config_file_data']     # type: ignore
 
-        wall_data = {
-            'request_type': 'wallconfig-files/upload',
-            'user': request.user,
-            'initial_wall_construction_config': wall_config_file_data,
-            'config_id': config_id,
-            'error_response': None
-        }
+        wall_data = initialize_wall_data(
+            source='wallconfig_file_view', request_type='wallconfig-files/upload', user=request.user,
+            wall_config_file_data=wall_config_file_data, config_id=config_id
+        )
         manage_wall_config_file_upload(wall_data)
         if wall_data['error_response']:
             return wall_data['error_response']
@@ -79,11 +76,10 @@ class WallConfigFileListView(APIView):
         responses=open_api_resposnes.wallconfig_file_list_responses
     )
     def get(self, request):
-        wall_data = {
-            'request_type': 'wallconfig-files/list',
-            'user': request.user,
-            'error_response': None
-        }
+        wall_data = initialize_wall_data(
+            source='wallconfig_file_view', request_type='wallconfig-files/list',
+            user=request.user
+        )
         config_id_list = fetch_user_wall_config_files(wall_data)
         if wall_data['error_response']:
             return wall_data['error_response']
@@ -115,7 +111,9 @@ class DailyIceUsageView(APIView):
         day = serializer.validated_data['day']                  # type: ignore
         num_crews = serializer.validated_data['num_crews']      # type: ignore
 
-        wall_data = initialize_wall_data(profile_id, day, request_num_crews)
+        wall_data = initialize_wall_data(
+            profile_id=profile_id, day=day, request_num_crews=request_num_crews
+        )
         fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
         if wall_data['error_response']:
             return wall_data['error_response']
@@ -164,7 +162,9 @@ class CostOverviewView(APIView):
 
         request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
 
-        wall_data = initialize_wall_data(profile_id, None, request_num_crews)
+        wall_data = initialize_wall_data(
+            profile_id=profile_id, day=None, request_num_crews=request_num_crews
+        )
         fetch_wall_data(wall_data, num_crews, profile_id, request_type)
         if wall_data['error_response']:
             return wall_data['error_response']

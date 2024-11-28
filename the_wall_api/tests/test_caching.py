@@ -27,7 +27,7 @@ class CacheTest(BaseTransactionTestcase):
         self.num_crews = num_crews
 
         # Wall params
-        self.wall_data = initialize_wall_data(self.profile_id, self.day, self.num_crews)
+        self.wall_data = initialize_wall_data(profile_id=self.profile_id, day=self.day, request_num_crews=self.num_crews)
         self.wall_construction_config = wall_config_utils.get_wall_construction_config(self.wall_data, self.profile_id)
         set_simulation_params(self.wall_data, self.num_crews, self.wall_construction_config, self.request_type)
 

@@ -361,7 +361,7 @@ def create_wall(
     from the_wall_api.utils.storage_utils import fetch_wall_data
     from the_wall_api.wall_construction import initialize_wall_data
 
-    wall_data = initialize_wall_data(None, None, num_crews)
+    wall_data = initialize_wall_data(profile_id=None, day=None, request_num_crews=num_crews)
 
     # Add the precalculated wall details, to avoid double calculations
     wall_data['celery_task'] = celery_task
