@@ -26,6 +26,10 @@ exposed_endpoints = {
         'path': f'{endpoint_prefix}/wallconfig-files/list/',
         'name': f'wallconfig-files-list-{settings.API_VERSION}',
     },
+    'wallconfig-files-delete': {
+        'path': f'{endpoint_prefix}/wallconfig-files/delete/',
+        'name': f'wallconfig-files-delete-{settings.API_VERSION}',
+    },
     'schema': {
         'path': f'{endpoint_prefix}/schema/',
         'name': 'schema',

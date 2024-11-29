@@ -170,7 +170,8 @@ class WallConstruction:
 def initialize_wall_data(
     source: str = 'usage_or_cost_view', profile_id: int | None = None, day: int | None = None,
     request_num_crews: int | None = None, request_type: str | None = None, user: User | None = None,
-    wall_config_file_data: list | None = None, config_id: str | None = None
+    wall_config_file_data: list | None = None, config_id: str | None = None,
+    request_config_id_list: list | None = None
 
 ) -> Dict[str, Any]:
     """
@@ -184,6 +185,7 @@ def initialize_wall_data(
             'user': user,
             'initial_wall_construction_config': wall_config_file_data,
             'config_id': config_id,
+            'request_config_id_list': request_config_id_list,
             'error_response': None
         }
 
@@ -272,7 +274,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
             simulation_type=wall_data['simulation_type'],
             celery_task=wall_data.get('celery_task'),
         )
-    except error_utils.WallConstructionError as tech_error:
+    except Exception as tech_error:
         error_utils.handle_unknown_error(wall_data, tech_error, 'wall_creation')
         return
     wall_data['wall_construction'] = wall_construction

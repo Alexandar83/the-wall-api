@@ -149,6 +149,35 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
     return error_id
 
 
+def delete_unused_wall_configs(wall_config_hash_list: list = []) -> None:
+    from django.db import transaction
+    from django.db.models import Q
+
+    from the_wall_api.utils.error_utils import send_log_error_async
+    from the_wall_api.models import WallConfig, WallConfigStatusEnum
+
+    logger = logging.getLogger()
+
+    collect_for_delete_query = Q(wall_config_references__isnull=True)
+    if wall_config_hash_list:
+        collect_for_delete_query &= Q(wall_config_hash__in=wall_config_hash_list)
+
+    wall_config_objects_to_delete = WallConfig.objects.filter(collect_for_delete_query)
+
+    for wall_config_object in wall_config_objects_to_delete:
+        try:
+            with transaction.atomic():
+                wall_config_object = WallConfig.objects.select_for_update().get(pk=wall_config_object.pk)
+                wall_config_object.refresh_from_db()
+                if not wall_config_object.deletion_initiated and wall_config_object.status in [
+                    WallConfigStatusEnum.COMPLETED, WallConfigStatusEnum.ERROR, WallConfigStatusEnum.INITIALIZED
+                ]:
+                    wall_config_object.delete()
+                logger.info(f'Deleted wall config: {wall_config_object.wall_config_hash}')
+        except Exception as unknwn_err:
+            send_log_error_async('celery_tasks', error=unknwn_err)
+
+
 def orchestrate_wall_config_processing(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
     num_crews_source: int | None = None, active_testing: bool = False

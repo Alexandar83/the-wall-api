@@ -61,3 +61,22 @@ class WallConfigFileUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid JSON file format.')
 
         return attrs
+
+
+class WallConfigFileDeleteSerializer(serializers.Serializer):
+    config_id_list = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        fields = ['config_id_list']
+
+    def validate_config_id_list(self, config_id_list_str: str) -> list[str]:
+        try:
+            config_id_list = [config_id.strip() for config_id in config_id_list_str.split(',')] if config_id_list_str else []
+        except Exception as id_lst_splt_err:
+            raise serializers.ValidationError(f'Invalid config_id_list format: {id_lst_splt_err}.')
+
+        invalid_length_list = [config_id for config_id in config_id_list if len(config_id) > CONFIG_ID_MAX_LENGTH]
+        if invalid_length_list:
+            raise serializers.ValidationError(f'Config IDs with invalid length: {str(invalid_length_list)}.')
+
+        return config_id_list

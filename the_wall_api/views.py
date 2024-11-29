@@ -11,14 +11,16 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
+    CostOverviewSerializer, DailyIceUsageSerializer,
+    WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_parameters, open_api_resposnes, open_api_schemas
 )
 from the_wall_api.utils.storage_utils import (
-    fetch_user_wall_config_files, fetch_wall_data, manage_wall_config_file_upload
+    fetch_user_wall_config_files, fetch_wall_data,
+    manage_wall_config_file_delete, manage_wall_config_file_upload
 )
 from the_wall_api.wall_construction import initialize_wall_data
 
@@ -88,6 +90,30 @@ class WallConfigFileListView(APIView):
             'config_id_list': config_id_list
         }
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class WallConfigFileDeleteView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = WallConfigFileDeleteSerializer
+
+    def delete(self, request):
+        serializer = WallConfigFileDeleteSerializer(
+            data=request.query_params
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        request_config_id_list = serializer.validated_data.get('config_id_list', [])    # type: ignore
+
+        wall_data = initialize_wall_data(
+            source='wallconfig_file_view', request_type='wallconfig-files/delete', user=request.user,
+            request_config_id_list=request_config_id_list
+        )
+        manage_wall_config_file_delete(wall_data)
+        if wall_data['error_response']:
+            return wall_data['error_response']
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DailyIceUsageView(APIView):

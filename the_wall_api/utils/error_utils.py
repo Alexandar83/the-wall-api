@@ -4,10 +4,11 @@ from time import sleep
 from traceback import format_exception
 from typing import Any, Dict
 
+from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework import status
 
-from the_wall_api.models import Wall, WallProfileProgress
+from the_wall_api.models import Wall, WallProfileProgress, WallConfigReference
 from the_wall_api.tasks import log_error_task
 
 TASK_RESULT_RETRIES = 3
@@ -34,8 +35,17 @@ def create_out_of_range_response(
     return Response(response_details, status=status_code)
 
 
-def create_technical_error_response(request_params: Dict[str, Any], error_id: str, error_message: str) -> Response:
-    error_msg = 'Wall Construction simulation failed. Please contact support.'
+def create_technical_error_response(
+    wall_data: Dict[str, Any], request_params: Dict[str, Any], error_id: str, error_message: str
+) -> Response:
+    if wall_data.get('request_type') == 'wallconfig-files/upload':
+        error_msg_source = 'config file upload'
+    elif wall_data.get('request_type') == 'wallconfig-files/delete':
+        error_msg_source = 'config file delete'
+    else:
+        error_msg_source = 'construction simulation'
+    error_msg = f'Wall {error_msg_source} failed. Please contact support.'
+
     error_response: Dict[str, Any] = {'error': error_msg}
 
     error_details: Dict[str, Any] = {}
@@ -56,11 +66,13 @@ def handle_unknown_error(wall_data: Dict[str, Any], unknwn_err: Exception | str,
 
     task_result = log_error_task.delay(error_type, error_message, error_traceback, request_info=request_info)  # type: ignore
     error_id = get_error_id_from_task_result(task_result)
-    wall_data['error_response'] = create_technical_error_response(request_params, error_id, error_message)
+    wall_data['error_response'] = create_technical_error_response(
+        wall_data, request_params, error_id, error_message
+    )
 
 
 def get_log_error_task_params(
-        wall_data: Dict[str, Any], unknwn_err: Exception | str
+    wall_data: Dict[str, Any], unknwn_err: Exception | str
 ) -> tuple[Dict[str, Any], Dict[str, Any], str, list[str]]:
     request_params = get_request_params(wall_data)
     request_info = {
@@ -195,10 +207,42 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
-    error_response = {
+    error_response_data = {
         'error': 'A deletion of an existing wall config is being processed - please try again later.'
     }
     wall_data['error_response'] = Response(
-        error_response,
+        error_response_data,
         status=status.HTTP_503_SERVICE_UNAVAILABLE
     )
+
+
+def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
+    user = wall_data['user']
+    config_id_list = wall_data['request_config_id_list']
+
+    wall_config_ref_query = Q(user=user)
+    if config_id_list:
+        wall_config_ref_query &= Q(config_id__in=config_id_list)
+    deletion_queryset = WallConfigReference.objects.filter(wall_config_ref_query)
+    wall_data['deletion_queryset'] = deletion_queryset
+    validated_ids = set(deletion_queryset.values_list('config_id', flat=True))
+
+    if not validated_ids:
+        # No wall config references exist for the user
+        error_message = (
+            f"No files exist for user '{user.username}' in the database."
+            if not config_id_list
+            else f"No matching files for user '{user.username}' exist for the provided config ID list."
+        )
+        wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
+        return
+
+    if config_id_list:
+        not_found_ids = [
+            config_id for config_id in config_id_list if config_id not in validated_ids
+        ]
+        if not_found_ids:
+            # Some of the provided config IDs do not exist
+            plrl_suffix = 's' if len(not_found_ids) > 1 else ''
+            error_message = f"File{plrl_suffix} with config ID{plrl_suffix} {str(not_found_ids)} not found for user '{user.username}'."
+            wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)

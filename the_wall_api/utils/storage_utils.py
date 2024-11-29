@@ -12,11 +12,16 @@ from django.db.utils import IntegrityError
 from redis.exceptions import ConnectionError, TimeoutError
 
 from the_wall_api.models import (
-    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum, WallProfile, WallProfileProgress
+    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum,
+    WallProfile, WallProfileProgress
 )
-from the_wall_api.tasks import orchestrate_wall_config_processing_task
+from the_wall_api.tasks import (
+    delete_unused_wall_configs_task, orchestrate_wall_config_processing_task
+)
 from the_wall_api.utils import error_utils, wall_config_utils
-from the_wall_api.wall_construction import get_sections_count, run_simulation, set_simulation_params
+from the_wall_api.wall_construction import (
+    get_sections_count, run_simulation, set_simulation_params
+)
 
 
 CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
@@ -308,17 +313,19 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
         return
 
     if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
-        create_new_wall_config_file(wall_data, wall_config_object)
+        create_new_wall_config_reference(wall_data, wall_config_object)
     else:
         error_utils.handle_wall_config_deletion_in_progress(wall_data)
 
 
-def create_new_wall_config_file(wall_data, wall_config_object) -> None:
-    wall_config_file_cache_key = get_wall_config_file_cache_key(wall_data['wall_config_hash'])
-    wall_config_file_db_lock_key = generate_db_lock_key(wall_config_file_cache_key)
+def create_new_wall_config_reference(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:
+    wall_config_reference_cache_key = get_wall_config_reference_cache_key(
+        wall_data['wall_config_hash'], wall_data['config_id']
+    )
+    wall_config_reference_db_lock_key = generate_db_lock_key(wall_config_reference_cache_key)
     db_lock_acquired = None
     try:
-        db_lock_acquired = acquire_db_lock(wall_config_file_db_lock_key)
+        db_lock_acquired = acquire_db_lock(wall_config_reference_db_lock_key)
         if not db_lock_acquired:
             # Being created in another process
             return
@@ -329,15 +336,60 @@ def create_new_wall_config_file(wall_data, wall_config_object) -> None:
                 wall_config=wall_config_object,
                 config_id=wall_data['config_id'],
             )
-    except Exception as wall_config_file_crtn_unkwn_err:
-        error_utils.handle_unknown_error(wall_data, wall_config_file_crtn_unkwn_err, 'caching')
+    except Exception as wall_config_reference_crtn_unkwn_err:
+        error_utils.handle_unknown_error(wall_data, wall_config_reference_crtn_unkwn_err, 'caching')
     finally:
         if db_lock_acquired:
-            release_db_lock(wall_config_file_db_lock_key)
+            release_db_lock(wall_config_reference_db_lock_key)
 
 
-def get_wall_config_file_cache_key(wall_config_hash: str) -> str:
-    return f'wall_config_file_{wall_config_hash}'
+def get_wall_config_reference_cache_key(wall_config_hash: str, config_id: str) -> str:
+    return f'wall_config_reference_{wall_config_hash}_{config_id}'
+
+
+def manage_wall_config_file_delete(wall_data: Dict[str, Any]) -> None:
+    error_utils.handle_not_existing_file_references(wall_data)
+    if wall_data['error_response']:
+        return
+
+    wall_config_hash_list = delete_wall_config_references(wall_data)
+
+    if wall_data['error_response'] or not wall_config_hash_list:
+        return
+
+    if not settings.ACTIVE_TESTING:
+        delete_unused_wall_configs_task.apply_async(
+            kwargs={'wall_config_hash_list': wall_config_hash_list},
+            priority=CELERY_TASK_PRIORITY['HIGH'],
+        )   # type: ignore
+
+
+def delete_wall_config_references(wall_data: Dict[str, Any]) -> list[str]:
+    wall_config_hash_list = []
+
+    for wall_config_reference in wall_data['deletion_queryset']:
+        wall_config_reference_cache_key = get_wall_config_reference_cache_key(
+            wall_config_reference.wall_config.wall_config_hash, wall_config_reference.config_id
+        )
+        wall_config_reference_db_lock_key = generate_db_lock_key(wall_config_reference_cache_key)
+        db_lock_acquired = None
+        try:
+            db_lock_acquired = acquire_db_lock(wall_config_reference_db_lock_key)
+            if not db_lock_acquired:
+                # Being deleted in another process
+                return []
+
+            with transaction.atomic():
+                wall_config_reference.delete()
+                if wall_config_reference.wall_config not in wall_config_hash_list:
+                    wall_config_hash_list.append(wall_config_reference.wall_config.wall_config_hash)
+        except Exception as del_unkwn_err:
+            error_utils.handle_unknown_error(wall_data, del_unkwn_err, 'caching')
+        finally:
+            if db_lock_acquired:
+                release_db_lock(wall_config_reference_db_lock_key)
+
+    return wall_config_hash_list
 
 
 def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
@@ -356,7 +408,7 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
     return wall_config_object
 
 
-def create_new_wall_config(wall_data, wall_config_hash) -> WallConfig | str:
+def create_new_wall_config(wall_data: Dict[str, Any], wall_config_hash: str) -> WallConfig | str:
     wall_config_cache_key = get_wall_config_cache_key(wall_config_hash)
     wall_config_db_lock_key = generate_db_lock_key(wall_config_cache_key)
     db_lock_acquired = None

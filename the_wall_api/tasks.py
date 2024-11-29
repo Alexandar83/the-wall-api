@@ -4,7 +4,7 @@ from celery import shared_task, Task
 from celery.contrib.abortable import AbortableTask
 
 from the_wall_api.utils.celery_task_utils import (
-    archive_logs, clean_old_archives, create_wall, log_error,
+    archive_logs, clean_old_archives, create_wall, log_error, delete_unused_wall_configs,
     orchestrate_wall_config_processing, wall_config_deletion
 )
 
@@ -71,6 +71,11 @@ def create_wall_task(self, *args, test_task: Task | None = None, **kwargs) -> tu
 @shared_task(queue='computation_tasks')
 def wall_config_deletion_task(*args, **kwargs) -> tuple[str, list]:
     return execute_task_with_error_handling(wall_config_deletion, *args, **kwargs)
+
+
+@shared_task(queue='computation_tasks')
+def delete_unused_wall_configs_task(*args, **kwargs) -> None:
+    execute_task_with_error_handling(delete_unused_wall_configs, *args, **kwargs)
 
 
 # Test Tasks
