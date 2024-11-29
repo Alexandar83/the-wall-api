@@ -12,9 +12,10 @@ class BaseViewTest(ABC, BaseTestcase):
     def setUp(self) -> None:
         self.client_get_method = getattr(self.client, 'get')
         self.client_post_method = getattr(self.client, 'post')
+        self.client_delete_method = getattr(self.client, 'delete')
 
     def execute_test_case(
-        self, rest_method: Callable, expected_status: Literal[200, 201, 400, 401, 404], test_case_source: str,
+        self, rest_method: Callable, expected_status: Literal[200, 201, 204, 400, 401, 404], test_case_source: str,
         consistency_test: bool = False, *args, **kwargs
     ) -> None:
         url, request_params, input_data = self.prepare_final_test_data(*args, **kwargs)

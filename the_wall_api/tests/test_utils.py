@@ -81,6 +81,16 @@ invalid_input_groups = {
             '',
         ),
     },
+    'config_id_list': {
+        'null_object': (
+            ErrorDetail(string='This field may not be null.', code='null'),
+            None,
+        ),
+        'not_a_valid_string': (
+            ErrorDetail(string='Not a valid string.', code='invalid'),
+            {'not_a_valid_string': 'not_a_valid_string'},
+        ),
+    },
 }
 
 

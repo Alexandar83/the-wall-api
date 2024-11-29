@@ -37,7 +37,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         cls.deletion_task_success_msg = 'Wall config deleted successfully.'
         cls.deletion_task_fail_msg = 'Wall config deletion failure.'
         if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
-            cls.concurrency = 12
+            cls.concurrency = 8
         else:
             cls.concurrency = 3    # 1 for each type of computation Celery task
         cls.setup_celery_workers()
@@ -129,8 +129,7 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 wall_config_orchestration_result.get()
             if deletion == 'concurrent':
                 # Ensure the orchestration task has time to start
-                wait_time = 0.05 if PROJECT_MODE == 'dev' else 0.01
-                sleep(wait_time)
+                sleep(0.01)
             deletion_result = wall_config_deletion_task_test.apply_async(
                 kwargs={'wall_config_hash': self.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
             )    # type: ignore

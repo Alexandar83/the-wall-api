@@ -1,13 +1,16 @@
 from inspect import currentframe
-from typing import Any, Type
+from typing import Any, Generator, Type
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.handlers.wsgi import WSGIRequest
 from rest_framework import serializers
 from rest_framework.serializers import ListSerializer, Serializer, ValidationError
 from rest_framework.test import APIRequestFactory
 
+from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer, WallConfigFileUploadSerializer
+    CostOverviewSerializer, DailyIceUsageSerializer,
+    WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 
@@ -253,13 +256,10 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 self.num_crews_invalid_inner(profile_id, day, test_case_source)
 
 
-class WallConfigFileUploadSerializerTest(SerializerTest):
-    description = 'Wall config reference upload serializer tests'
-
+class WallConfigFileSerializerTestBase(SerializerTest):
     def setUp(self):
         # Test context
-        factory = APIRequestFactory()
-        test_request = factory.post('/', {}, content_type='application/json')
+        test_request = self.init_test_request()
         test_request.user = self.create_test_user(
             client=self.client, username=self.username, password=self.password
         )
@@ -270,6 +270,17 @@ class WallConfigFileUploadSerializerTest(SerializerTest):
         self.valid_wall_config_file = SimpleUploadedFile(
             'wall_config.json', b'[]', content_type='application/json'
         )
+
+    def init_test_request(self):
+        raise NotImplementedError
+
+
+class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
+    description = 'Wall config file upload serializer tests'
+
+    def init_test_request(self) -> WSGIRequest:
+        factory = APIRequestFactory()
+        return factory.post('/', {}, content_type='application/json')
 
     def test_valid_upload(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
@@ -323,7 +334,7 @@ class WallConfigFileUploadSerializerTest(SerializerTest):
     def test_invalid_config_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
 
-        for error_type, (error_message, invalid_config_id) in invalid_input_groups['config_id'].items():
+        for _error_type, (error_message, invalid_config_id) in invalid_input_groups['config_id'].items():
             input_data = {'config_id': invalid_config_id, 'wall_config_file': self.valid_wall_config_file}
             expected_errors = {'config_id': error_message}
 
@@ -332,3 +343,63 @@ class WallConfigFileUploadSerializerTest(SerializerTest):
                     WallConfigFileUploadSerializer, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
                 )
+
+
+class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
+    description = 'Wall config file delete serializer tests'
+
+    def init_test_request(self) -> WSGIRequest:
+        factory = APIRequestFactory()
+        return factory.delete('/', {}, content_type='application/json')
+
+    def generate_too_long_config_id(self) -> Generator[str, None, None]:
+        result = ''
+        while len(result) < CONFIG_ID_MAX_LENGTH + 1:
+            if result:
+                result += '_'
+            result += 'too_long_config_id'
+
+        i = 1
+        while True:
+            yield f'{result}_{i}'
+            i += 1
+
+    def test_valid_delete(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        input_data = {'config_id_list': self.valid_config_id}
+        expected_errors = {}
+
+        self.validate_and_log(
+            WallConfigFileDeleteSerializer, input_data, expected_errors,
+            test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+        )
+
+    def test_invalid_delete(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        for _error_type, (error_message, invalid_config_id_list) in invalid_input_groups['config_id_list'].items():
+            input_data = {'config_id_list': invalid_config_id_list}
+            expected_errors = {'config_id_list': error_message}
+
+            with self.subTest(config_id=invalid_config_id_list):
+                self.validate_and_log(
+                    WallConfigFileDeleteSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
+                )
+
+    def test_invalid_length(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+
+        invalid_values_generator = self.generate_too_long_config_id()
+
+        invalid_config_id_list = next(invalid_values_generator)
+        invalid_config_id_list += ',' + next(invalid_values_generator)
+        config_id_list = invalid_config_id_list.split(',')
+
+        invalid_input_data = {'config_id_list': invalid_config_id_list}
+        expected_errors = {'config_id_list': f'Config IDs with invalid length: {str(config_id_list)}.'}
+        self.validate_and_log(
+            WallConfigFileDeleteSerializer, invalid_input_data, expected_errors,
+            test_case_source, serializer_params={'data': invalid_input_data, 'context': self.test_context}
+        )
