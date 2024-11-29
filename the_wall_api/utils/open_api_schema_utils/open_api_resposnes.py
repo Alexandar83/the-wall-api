@@ -1,9 +1,12 @@
 # Externalized responses for extend_schema
 
+from django.conf import settings
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse
 
 from the_wall_api.utils.open_api_schema_utils import open_api_examples, response_serializers
 from the_wall_api.serializers import CONFIG_ID_MAX_LENGTH
+
+MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
 # == Common ==
@@ -36,6 +39,12 @@ wallconfig_file_upload_responses = {
     400: OpenApiResponse(
         response=response_serializers.wall_config_file_upload_400_response_serializer,
         examples=[
+            OpenApiExample(
+                name='Already exists',
+                value={
+                    'non_field_errors': ["Wall config 'test_config_1' already exists for user 'testuser'."],
+                },
+            ),
             OpenApiExample(
                 name='config_id Null object',
                 value={
@@ -79,6 +88,12 @@ wallconfig_file_upload_responses = {
                 },
             ),
             OpenApiExample(
+                name='File limit reached',
+                value={
+                    'non_field_errors': [f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'],
+                },
+            ),
+            OpenApiExample(
                 name='Missing config_id',
                 value={
                     'config_id': ['This field is required.'],
@@ -99,20 +114,108 @@ wallconfig_file_upload_responses = {
         ]
     ),
     401: unauthorized_responses,
+    500: OpenApiResponse(
+        response=response_serializers.wall_app_error_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='Deletion in progress',
+                value={
+                    'error': 'Wall config file upload failed. Please contact support.',
+                    'error_details': {
+                        'request_params': {'config_id': 'valid_config_id'},
+                        'error_id': '25',
+                        'tech_info': 'Exception: Unknown exception'
+                    }
+                },
+            ),
+        ]
+    ),
     503: OpenApiResponse(
         response=response_serializers.wall_config_file_upload_503_response_serializer,
         examples=[
             OpenApiExample(
                 name='Try again',
                 value={
-                    'error': 'A deletion of an existing wall config is being processed - please try again.',
+                    'error': 'A deletion of an existing wall config is being processed - please try again later.',
                 },
             ),
         ]
     ),
 }
 
-# == # == WallConfigFileUploadView (end) ==
+# == WallConfigFileUploadView (end) ==
+
+# == WallConfigDeleteView ==
+wallconfig_file_delete_responses = {
+    204: '',
+    400: OpenApiResponse(
+        response=response_serializers.wall_config_delete_400_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='Invalid length',
+                value={
+                    'config_id_list': [(
+                        "Config IDs with invalid length: ['too_long_config_id_too_long_config_id_1', "
+                        "'too_long_config_id_too_long_config_id_2']."
+                    )],
+                },
+            ),
+            OpenApiExample(
+                name='Invalid string',
+                value={
+                    'config_id_list': ['Not a valid string.'],
+                },
+            ),
+            OpenApiExample(
+                name='Null object',
+                value={
+                    'config_id_list': ['This field may not be null.'],
+                },
+            ),
+        ]
+    ),
+    401: unauthorized_responses,
+    404: OpenApiResponse(
+        response=response_serializers.wall_config_delete_404_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='No matching files',
+                value={
+                    'error': "No matching files for user 'testuser' exist for the provided config ID list.",
+                },
+            ),
+            OpenApiExample(
+                name='No files for the user',
+                value={
+                    'error': "No files exist for user 'testuser' in the database.",
+                },
+            ),
+            OpenApiExample(
+                name='Files not found',
+                value={
+                    'error': "File(s) with config ID(s) ['test_config_2', 'test_config_3'] not found for user 'testuser'.",
+                },
+            ),
+        ]
+    ),
+    500: OpenApiResponse(
+        response=response_serializers.wall_app_error_response_serializer,
+        examples=[
+            OpenApiExample(
+                name='Deletion in progress',
+                value={
+                    'error': 'Wall config file delete failed. Please contact support.',
+                    'error_details': {
+                        'error_id': '25',
+                        'tech_info': 'Exception: Unknown exception'
+                    }
+                },
+            ),
+        ]
+    ),
+}
+
+# == WallConfigDeleteView (end) ==
 
 # == WallConfigListView ==
 wallconfig_file_list_responses = {
@@ -205,15 +308,15 @@ daily_ice_usage_responses = {
             OpenApiExample(
                 name='Simulation Data Inconsistency',
                 value={
-                    'error': 'Wall Construction simulation failed. Please contact support.',
+                    'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
                         'request_params': {
                             'profile_id': 1,
                             'day': 14,
                             'num_crews': 5
                         },
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                         'error_id': '1',
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                     }
                 },
             ),
@@ -244,10 +347,10 @@ cost_overview_responses = {
             OpenApiExample(
                 name='Simulation Data Inconsistency',
                 value={
-                    'error': 'Wall Construction simulation failed. Please contact support.',
+                    'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                         'error_id': '1',
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                     }
                 },
             ),
@@ -294,14 +397,14 @@ cost_overview_profile_id_responses = {
             OpenApiExample(
                 name='Simulation Data Inconsistency',
                 value={
-                    'error': 'Wall Construction simulation failed. Please contact support.',
+                    'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
                         'request_params': {
                             'profile_id': 5,
                             'num_crews': 1
                         },
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                         'error_id': '1',
+                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
                     }
                 },
             ),

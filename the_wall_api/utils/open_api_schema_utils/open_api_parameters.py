@@ -4,18 +4,33 @@ from drf_spectacular.utils import OpenApiParameter
 
 # === Wall app parameters ===
 
-# Optional query parameter for num_crews
+# Optional query parameter for num_crews in the usage and cost endpoints
 num_crews_parameter = OpenApiParameter(
     name='num_crews',
     type=int,
     required=False,
     description=(
-        'The number of crews involved in the simulation. '
-        'When included: the wall build simulation is concurrent. '
+        'The number of crews involved in the simulation.\n\n'
+        'When included: the wall build simulation is concurrent.\n\n'
         'When omitted: the simulation defaults to sequential processing.'
     ),
     location=OpenApiParameter.QUERY
 )
+
+# == WallConfigFileDeleteView ==
+# QUERY parameters
+file_delete_config_id_list_parameter = OpenApiParameter(
+    name='config_id_list',
+    type=str,
+    required=False,
+    description=(
+        'Comma-separated list of wall configuration file IDs to be deleted.\n\n'
+        '**Example**:\n'
+        'test_config_1,test_config_2'
+    ),
+    location=OpenApiParameter.QUERY
+)
+# == WallConfigFileDeleteView (end) ==
 
 # == DailyIceUsageView ==
 # PATH parameters

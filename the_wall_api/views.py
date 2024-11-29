@@ -97,6 +97,13 @@ class WallConfigFileDeleteView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = WallConfigFileDeleteSerializer
 
+    @extend_schema(
+        tags=['wallconfig-files'],
+        summary='Delete Wall Configuration File',
+        description='Delete a wall configuration file uploaded by the user.',
+        parameters=[open_api_parameters.file_delete_config_id_list_parameter],
+        responses=open_api_resposnes.wallconfig_file_delete_responses
+    )
     def delete(self, request):
         serializer = WallConfigFileDeleteSerializer(
             data=request.query_params

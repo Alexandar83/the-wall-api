@@ -51,6 +51,20 @@ wall_config_list_response_serializer = inline_serializer(
     }
 )
 
+# *WallConfigFileDeleteView*
+wall_config_delete_400_response_serializer = inline_serializer(
+    name='WallConfigFileDeleteError400Response',
+    fields={
+        'config_id_list': serializers.ListField(child=serializers.CharField()),
+    }
+)
+wall_config_delete_404_response_serializer = inline_serializer(
+    name='WallConfigFileDeleteError404Response',
+    fields={
+        'error': serializers.CharField(),
+    }
+)
+
 # *DailyIceUsageView*
 daily_ice_usage_response_serializer = inline_serializer(
     name='DailyIceUsageResponse',

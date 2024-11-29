@@ -38,18 +38,18 @@ class WallConfigFileUploadSerializer(serializers.Serializer):
     class Meta:
         fields = ['wall_config_file', 'config_id']
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict):
         user = self.context['request'].user
         user_configs_count = WallConfigReference.objects.filter(user=user).count()
 
         if user_configs_count >= MAX_USER_WALL_CONFIGS:
             raise serializers.ValidationError(
-                f'It is not possible to have more than {MAX_USER_WALL_CONFIGS} wall configs per user.'
+                f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'
             )
 
         if WallConfigReference.objects.filter(config_id=attrs['config_id'], user=user).exists():
             raise serializers.ValidationError(
-                f'Wall config "{attrs["config_id"]}" already exists for user "{user.username}"'
+                f"Wall config '{attrs['config_id']}' already exists for user '{user.username}'."
             )
 
         try:
