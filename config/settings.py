@@ -362,7 +362,10 @@ ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))       
 MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = int(                                       # Maximum allowed number of crews in the wall configuration task
     os.getenv('MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS', 100)
 )
-MAX_MULTIPROCESSING_NUM_CREWS = int(os.getenv('MAX_MULTIPROCESSING_NUM_CREWS', 10))     # Number of multiprocessing processes for concurrent build simulaion
+CPU_THREADS = int(os.getenv('CPU_THREADS', 8))                                          # Number of CPU threads
+# Number of multiprocessing processes for concurrent build simulaion
+# 2 threads are reserved for the main process
+MAX_MULTIPROCESSING_NUM_CREWS = CPU_THREADS - 2
 MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))                      # Maximum number of wall configurations per user
 
 # Switching between different simulation implementations

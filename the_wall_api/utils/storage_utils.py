@@ -23,7 +23,6 @@ from the_wall_api.wall_construction import (
     get_sections_count, run_simulation, set_simulation_params
 )
 
-
 CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 

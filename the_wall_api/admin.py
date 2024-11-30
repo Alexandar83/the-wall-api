@@ -1,5 +1,12 @@
 from django.contrib import admin
-from the_wall_api.models import WallConfig, Wall, WallProfile, WallProfileProgress
+from the_wall_api.models import (
+    Wall, WallConfig, WallConfigReference, WallProfile, WallProfileProgress
+)
+
+
+class WallConfigReferenceAdmin(admin.ModelAdmin):
+    list_filter = ('user', 'wall_config', 'config_id')
+    search_fields = ('user', 'wall_config', 'config_id', 'date_created')
 
 
 class WallConfigAdmin(admin.ModelAdmin):
@@ -22,6 +29,7 @@ class WallProfileProgressAdmin(admin.ModelAdmin):
     search_fields = ('id', 'day', 'ice_used', 'date_created')
 
 
+admin.site.register(WallConfigReference, WallConfigReferenceAdmin)
 admin.site.register(WallConfig, WallConfigAdmin)
 admin.site.register(Wall, WallAdmin)
 admin.site.register(WallProfile, WallProfileAdmin)

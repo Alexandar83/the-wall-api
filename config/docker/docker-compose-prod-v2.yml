@@ -73,7 +73,7 @@ services:
 
   celery_worker_2:
     image: ghcr.io/alexandar83/the-wall-api:latest
-    command: sh -c "celery -A config worker --loglevel=info --queues=file_tasks --concurrency=1"
+    command: sh -c "celery -A config worker --loglevel=info --queues=sequential_tasks --concurrency=1"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:

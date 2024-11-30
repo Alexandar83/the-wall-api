@@ -23,17 +23,17 @@ def execute_task_with_error_handling(task_func: Callable, *args, **kwargs) -> tu
 # === Sequential tasks ===
 
 # File Tasks
-@shared_task(queue='file_tasks')
+@shared_task(queue='sequential_tasks')
 def archive_logs_task(*args, **kwargs) -> None:
     execute_task_with_error_handling(archive_logs, *args, **kwargs)
 
 
-@shared_task(queue='file_tasks')
+@shared_task(queue='sequential_tasks')
 def clean_old_archives_task(*args, **kwargs) -> None:
     execute_task_with_error_handling(clean_old_archives, *args, **kwargs)
 
 
-@shared_task(queue='file_tasks')
+@shared_task(queue='sequential_tasks')
 def log_error_task(*args, **kwargs) -> str:
     from the_wall_api.utils.error_utils import extract_error_traceback
 
@@ -54,12 +54,12 @@ def log_error_task(*args, **kwargs) -> str:
 # === Concurrent tasks ===
 
 # Computation Tasks
-@shared_task(queue='computation_tasks')
+@shared_task(queue='concurrent_tasks')
 def orchestrate_wall_config_processing_task(*args, **kwargs) -> tuple[str, list]:
     return execute_task_with_error_handling(orchestrate_wall_config_processing, *args, **kwargs)
 
 
-@shared_task(bind=True, base=AbortableTask, queue='computation_tasks')
+@shared_task(bind=True, base=AbortableTask, queue='concurrent_tasks')
 def create_wall_task(self, *args, test_task: Task | None = None, **kwargs) -> tuple[str, list]:
     if not test_task:
         task = self
@@ -68,12 +68,12 @@ def create_wall_task(self, *args, test_task: Task | None = None, **kwargs) -> tu
     return execute_task_with_error_handling(create_wall, task, *args, **kwargs)
 
 
-@shared_task(queue='computation_tasks')
+@shared_task(queue='concurrent_tasks')
 def wall_config_deletion_task(*args, **kwargs) -> tuple[str, list]:
     return execute_task_with_error_handling(wall_config_deletion, *args, **kwargs)
 
 
-@shared_task(queue='computation_tasks')
+@shared_task(queue='concurrent_tasks')
 def delete_unused_wall_configs_task(*args, **kwargs) -> None:
     execute_task_with_error_handling(delete_unused_wall_configs, *args, **kwargs)
 
