@@ -47,7 +47,7 @@ def schedule_periodic_tasks(app):
     app.conf.beat_schedule = {
         'archive-logs': {
             'task': 'the_wall_api.tasks.archive_logs_task',
-            'schedule': crontab(hour='0', minute='0', day_of_week='sunday'),
+            'schedule': crontab(minute='0', hour='0', day_of_week='sunday'),
             'kwargs': {
                 'input_params': {
                     'logs_type': 'build_sim'
@@ -56,12 +56,16 @@ def schedule_periodic_tasks(app):
         },
         'clean-old-archives': {
             'task': 'the_wall_api.tasks.clean_old_archives_task',
-            'schedule': crontab(hour='0', minute='0', day_of_week='sunday'),
+            'schedule': crontab(minute='10', hour='0', day_of_week='sunday'),
             'kwargs': {
                 'input_params': {
                     'logs_type': 'build_sim'
                 }
             },
+        },
+        'delete-unused-wall-configs': {
+            'task': 'the_wall_api.tasks.delete_unused_wall_configs_task',
+            'schedule': crontab(minute='20', hour='0', day_of_week='sunday'),
         },
     }
 

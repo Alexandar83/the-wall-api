@@ -92,4 +92,9 @@ def create_wall_task_test(self, *args, **kwargs) -> tuple[str, list]:
 @shared_task(queue='test_queue')
 def wall_config_deletion_task_test(*args, **kwargs) -> tuple[str, list]:
     return wall_config_deletion_task(*args, **kwargs)
+
+
+@shared_task(queue='test_queue')
+def delete_unused_wall_configs_task_test(*args, **kwargs) -> None:
+    delete_unused_wall_configs_task(*args, **kwargs)
 # === Concurrent tasks end ===

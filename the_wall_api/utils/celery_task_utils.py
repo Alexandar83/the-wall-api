@@ -149,14 +149,14 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
     return error_id
 
 
-def delete_unused_wall_configs(wall_config_hash_list: list = []) -> None:
-    from django.db import transaction
+def delete_unused_wall_configs(wall_config_hash_list: list = [], active_testing: bool = False) -> None:
+    from django.conf import settings
     from django.db.models import Q
 
-    from the_wall_api.utils.error_utils import send_log_error_async
-    from the_wall_api.models import WallConfig, WallConfigStatusEnum
+    from the_wall_api.models import WallConfig
+    wall_config_deletion_task = import_wall_config_deletion_task(active_testing)
 
-    logger = logging.getLogger()
+    CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
 
     collect_for_delete_query = Q(wall_config_references__isnull=True)
     if wall_config_hash_list:
@@ -165,17 +165,20 @@ def delete_unused_wall_configs(wall_config_hash_list: list = []) -> None:
     wall_config_objects_to_delete = WallConfig.objects.filter(collect_for_delete_query)
 
     for wall_config_object in wall_config_objects_to_delete:
-        try:
-            with transaction.atomic():
-                wall_config_object = WallConfig.objects.select_for_update().get(pk=wall_config_object.pk)
-                wall_config_object.refresh_from_db()
-                if not wall_config_object.deletion_initiated and wall_config_object.status in [
-                    WallConfigStatusEnum.COMPLETED, WallConfigStatusEnum.ERROR, WallConfigStatusEnum.INITIALIZED
-                ]:
-                    wall_config_object.delete()
-                logger.info(f'Deleted wall config: {wall_config_object.wall_config_hash}')
-        except Exception as unknwn_err:
-            send_log_error_async('celery_tasks', error=unknwn_err)
+        deletion_result = wall_config_deletion_task.apply_async(
+            kwargs={'wall_config_hash': wall_config_object.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
+        )    # type: ignore
+        # Avoid queue overflow - process the deletion tasks sequentially
+        deletion_result.get(60)
+
+
+def import_wall_config_deletion_task(active_testing: bool = False):
+    if not active_testing:
+        from the_wall_api.tasks import wall_config_deletion_task
+    else:
+        from the_wall_api.tasks import wall_config_deletion_task_test as wall_config_deletion_task
+
+    return wall_config_deletion_task
 
 
 def orchestrate_wall_config_processing(
@@ -197,6 +200,7 @@ def create_task_group(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
     num_crews_source: int | None, active_testing: bool
 ):
+    """Start a separate task for wall build simulation for each included number of crews."""
     from celery import group
     from django.conf import settings
     from django.db import transaction
@@ -257,6 +261,7 @@ def execute_db_query_with_retries(query_callable: Callable):
 
 
 def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list]:
+    """Monitor for task group completion or abort if deletion is initiated."""
     if not task_group_result:
         result = wall_config_object if isinstance(wall_config_object, str) else 'Task group initialization error.'
         return result, []
@@ -278,6 +283,7 @@ def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list
 
 
 def finalize_wall_config(wall_config_object, task_group_result) -> tuple[str, list]:
+    """Evaluate and set the final status for the wall config object, based on the task group results."""
     from the_wall_api.models import WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async
 
@@ -438,6 +444,7 @@ def wall_config_deletion(wall_config_hash: str, active_testing: bool = False) ->
 
 
 def init_wall_config_deletion(wall_config_hash: str, active_testing: bool):
+    """Set the flag initiating the deletion of the wall config object."""
     from time import sleep
     from django.db import transaction
     from the_wall_api.models import WallConfig
@@ -456,6 +463,7 @@ def init_wall_config_deletion(wall_config_hash: str, active_testing: bool):
 
 
 def wall_config_delete(wall_config_object) -> tuple[str, list]:
+    """After confirming that the wall config object is not used by any other process, delete it."""
     from django.db import transaction
     from the_wall_api.models import WallConfig, WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async

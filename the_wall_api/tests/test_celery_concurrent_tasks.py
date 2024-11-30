@@ -12,8 +12,13 @@ from django.urls import reverse
 from redis import Redis
 from rest_framework import status
 
-from the_wall_api.models import WallConfig, Wall, WallConfigStatusEnum, WallProfile, WallProfileProgress
-from the_wall_api.tasks import orchestrate_wall_config_processing_task_test, wall_config_deletion_task_test
+from the_wall_api.models import (
+    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum, WallProfile, WallProfileProgress
+)
+from the_wall_api.tasks import (
+    delete_unused_wall_configs_task_test, orchestrate_wall_config_processing_task_test,
+    wall_config_deletion_task_test
+)
 from the_wall_api.tests.test_utils import BaseTransactionTestcase
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.utils.storage_utils import get_daily_ice_usage_cache_key, manage_wall_config_object
@@ -27,8 +32,7 @@ MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 PROJECT_MODE = settings.PROJECT_MODE
 
 
-class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
-    description = 'Wall Config Processing and Deletion Tasks Tests'
+class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
 
     @classmethod
     def setUpClass(cls):
@@ -72,6 +76,10 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         cls.celery_worker.__exit__(None, None, None)
         super().tearDownClass()
 
+
+class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
+    description = 'Wall Config Processing and Deletion Tasks Tests'
+
     def setUp(self):
         self.wall_construction_config = load_wall_profiles_from_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
@@ -91,8 +99,8 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         sleep(5)    # Grace period to ensure objects are properly created in postgres
 
     def process_tasks(
-            self, test_case_source: str, deletion: str | None = None,
-            normal_request_num_crews: int | None = None
+        self, test_case_source: str, deletion: str | None = None,
+        normal_request_num_crews: int | None = None
     ) -> tuple[str, list]:
         """
         Send the wall config processing task to the celery worker alone or
@@ -129,7 +137,10 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
                 wall_config_orchestration_result.get()
             if deletion == 'concurrent':
                 # Ensure the orchestration task has time to start
-                sleep(0.01)
+                # -If too long - the orchestration task finishes and the interruption is
+                # not properly simulated
+                # - If too short - the orchestration task has no time to start
+                sleep(0.015)
             deletion_result = wall_config_deletion_task_test.apply_async(
                 kwargs={'wall_config_hash': self.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
             )    # type: ignore
@@ -465,3 +476,106 @@ class OrchestrateWallConfigTaskTest(BaseTransactionTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
         normal_request_num_crews = self.sections_count - 1
         self.test_simultaneous_orchestration_task_and_normal_request(normal_request_num_crews, test_case_source)
+
+
+class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
+    description = 'Delete unused wall configs task test'
+
+    def setUp(self) -> None:
+        # Authorization data
+        test_user = self.create_test_user(
+            client=self.client, username=self.username, password=self.password
+        )
+        self.valid_token = self.generate_test_user_token(
+            client=self.client, username=self.username, password=self.password
+        )
+        self.init_test_data(test_user=test_user)
+        self.active_testing = True
+        sleep(5)    # Grace period to ensure objects are properly created in postgres
+
+    def init_test_data(self, test_user):
+        self.wall_config_hash_1 = 'test_wall_config_hash_1'
+        self.wall_config_object_1 = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash_1
+        )
+        self.wall_config_reference_1 = WallConfigReference.objects.create(
+            user=test_user,
+            wall_config=self.wall_config_object_1,
+            config_id='test_config_id_1',
+        )
+        self.wall_config_hash_2 = 'test_wall_config_hash_2'
+        self.wall_config_object_2 = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash_2
+        )
+        self.wall_config_reference_2 = WallConfigReference.objects.create(
+            user=test_user,
+            wall_config=self.wall_config_object_2,
+            config_id='test_config_id_2',
+        )
+        self.input_data = {
+            'wall_config_object_1': self.wall_config_object_1,
+            'wall_config_object_2': self.wall_config_object_2,
+            'wall_config_reference_1': self.wall_config_reference_1,
+            'wall_config_reference_2': self.wall_config_reference_2,
+        }
+
+    def delete_user(self) -> None:
+        self.client.delete(
+            path=reverse(
+                exposed_endpoints['user-delete']['name'], kwargs={'username': self.username}
+            ),
+            data={'current_password': self.password},
+            HTTP_AUTHORIZATION=f'Token {self.valid_token}',
+            content_type='application/json'
+        )
+        # Grace period cascade deletion
+        sleep(1)
+
+    def process_deletion_attempt(
+        self, attempt_number: int, fail_message: str, expected_message: str, test_case_source: str
+    ) -> str:
+        delete_attempt_result = delete_unused_wall_configs_task_test.apply_async(
+            kwargs={'active_testing': self.active_testing}, priority=CELERY_TASK_PRIORITY['HIGH']
+        )    # type: ignore
+        delete_attempt_result.get()
+
+        if attempt_number == 1:
+            deletion_check = not WallConfig.objects.filter(
+                wall_config_hash__in=[self.wall_config_hash_1, self.wall_config_hash_2]
+            ).exists()
+        else:
+            deletion_check = WallConfig.objects.filter(
+                wall_config_hash__in=[self.wall_config_hash_1, self.wall_config_hash_2]
+            ).exists()
+
+        if deletion_check:
+            self.log_test_result(
+                passed=False, input_data=self.input_data, expected_message=expected_message,
+                actual_message=fail_message, test_case_source=test_case_source
+            )
+            return 'NOK'
+
+        return 'OK'
+
+    def test_delete_task_success(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+
+        actual_message = expected_message = 'Wall config deleted after task execution.'
+
+        fail_message_1 = 'Wall config not deleted after task execution.'
+        if self.process_deletion_attempt(
+            1, fail_message_1, expected_message, test_case_source,
+        ) != 'OK':
+            return
+
+        self.delete_user()
+        fail_message_2 = 'Wall config not deleted after reference deletion.'
+        if self.process_deletion_attempt(
+            2, fail_message_2, expected_message, test_case_source
+        ) != 'OK':
+            return
+
+        self.log_test_result(
+            passed=True, input_data=self.input_data, expected_message=expected_message,
+            actual_message=actual_message, test_case_source=test_case_source
+        )

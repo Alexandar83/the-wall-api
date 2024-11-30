@@ -189,8 +189,8 @@ def get_wall_profile_cache_key(wall_profile_config_hash: str) -> str:
 
 
 def fetch_wall_profile_cost_from_db(
-        wall_profile_config_hash: str | None, cached_result: Dict[str, Any],
-        wall_profile_redis_cache_key: str
+    wall_profile_config_hash: str | None, cached_result: Dict[str, Any],
+    wall_profile_redis_cache_key: str
 ) -> None:
     """
     Fetch a cached Wall Profile from the DB.
@@ -227,7 +227,7 @@ def fetch_daily_ice_usage(wall_data: Dict[str, Any], cached_result: Dict[str, An
 
 
 def fetch_daily_ice_usage_from_redis_cache(
-        wall_data: Dict[str, Any], wall_profile_config_hash: str | None, profile_id: int,
+    wall_data: Dict[str, Any], wall_profile_config_hash: str | None, profile_id: int,
 ) -> tuple[int, str]:
     """
     Fetch a cached Wall Profile Progress from the Redis cache.
@@ -251,7 +251,7 @@ def fetch_daily_ice_usage_from_redis_cache(
 
 
 def get_daily_ice_usage_cache_key(
-        wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int | None
+    wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int | None
 ) -> str:
     key_data = (
         f'dly_ice_usg_'
@@ -269,8 +269,8 @@ def get_daily_ice_usage_cache_key(
 
 
 def fetch_daily_ice_usage_from_db(
-        wall_data: Dict[str, Any], wall_profile_config_hash: str | None,
-        profile_id: int, cached_result: Dict[str, Any], profile_ice_usage_redis_cache_key: str
+    wall_data: Dict[str, Any], wall_profile_config_hash: str | None,
+    profile_id: int, cached_result: Dict[str, Any], profile_ice_usage_redis_cache_key: str
 ) -> None:
     """
     Fetch a cached Wall Profile Progress from the DB.
@@ -542,8 +542,8 @@ def format_value_for_redis(type: str, value_in: Any) -> Any:
 
 
 def process_wall_profiles(
-        wall_data: Dict[str, Any], wall: Wall, simulation_type: str,
-        wall_redis_data: list[tuple[str, int]]
+    wall_data: Dict[str, Any], wall: Wall, simulation_type: str,
+    wall_redis_data: list[tuple[str, int]]
 ) -> None:
     """
     Manage the different behaviors for wall profiles caching in SEQUENTIAL and CONCURRENT modes.
@@ -569,8 +569,8 @@ def process_wall_profiles(
 
 
 def cache_wall_profile_to_db(
-        wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any, wall_profile_config_hash: str,
-        simulation_type: str, wall_redis_data: list[tuple[str, int]]
+    wall: Wall, wall_data: Dict[str, Any], profile_id: int, profile_data: Any, wall_profile_config_hash: str,
+    simulation_type: str, wall_redis_data: list[tuple[str, int]]
 ) -> None:
     """
     Create a new WallProfile object and save it to the database.
@@ -607,8 +607,8 @@ def cache_wall_profile_to_db(
 
 
 def cache_wall_profile_progress_to_db(
-        wall_data: Dict[str, Any], wall_profile: WallProfile, wall_profile_config_hash: str, profile_id: int,
-        profile_data: dict, wall_redis_data: list[tuple[str, int]]
+    wall_data: Dict[str, Any], wall_profile: WallProfile, wall_profile_config_hash: str, profile_id: int,
+    profile_data: dict, wall_redis_data: list[tuple[str, int]]
 ) -> None:
     """
     Create a new WallProfileProgress object and save it to the database.
