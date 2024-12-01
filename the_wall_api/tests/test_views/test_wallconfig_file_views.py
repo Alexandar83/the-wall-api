@@ -86,7 +86,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         return url, request_params, input_data
 
     def test_wallconfig_file_upload_success(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_post_method, status.HTTP_201_CREATED, test_case_source,
@@ -94,7 +94,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         )
 
     def test_wallconfig_file_upload_with_invalid_file(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_post_method, status.HTTP_400_BAD_REQUEST, test_case_source,
@@ -102,7 +102,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         )
 
     def test_wallconfig_file_upload_with_invalid_token(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_post_method, status.HTTP_401_UNAUTHORIZED, test_case_source,
@@ -110,7 +110,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         )
 
     def test_wallconfig_file_upload_too_many(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data()
         self.execute_test_case(
@@ -119,7 +119,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         )
 
     def test_wallconfig_file_upload_already_existing(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(1)
         self.valid_config_id += '_0'
@@ -150,7 +150,7 @@ class WallConfigFileListViewTest(WallConfigFileTestBase):
         http_status: Literal[200, 401, 404] = status.HTTP_200_OK, token: str | None = None
     ):
         if not test_case_source:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         if prepare_initial_test_data:
             self.prepare_initial_test_data()
@@ -163,14 +163,14 @@ class WallConfigFileListViewTest(WallConfigFileTestBase):
         )
 
     def test_wallconfig_file_list_no_uploaded_files(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_wallconfig_file_list_success(
             test_case_source=test_case_source, prepare_initial_test_data=False,
             http_status=status.HTTP_200_OK, token=self.valid_token
         )
 
     def test_wallconfig_file_list_with_invalid_token(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(MAX_USER_WALL_CONFIGS)
         self.test_wallconfig_file_list_success(
@@ -198,7 +198,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         return url, request_params, input_data
 
     def test_wall_config_file_delete_valid_single_file(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(1)
         self.execute_test_case(
@@ -207,7 +207,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_valid_all_files(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(1)
         self.execute_test_case(
@@ -216,7 +216,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_invalid_length(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_delete_method, status.HTTP_400_BAD_REQUEST, test_case_source=test_case_source,
@@ -224,7 +224,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_no_existing_files_in_db(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_delete_method, status.HTTP_404_NOT_FOUND, test_case_source=test_case_source,
@@ -232,7 +232,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_no_matching_files(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_test_case(
             self.client_delete_method, status.HTTP_404_NOT_FOUND, test_case_source=test_case_source,
@@ -240,7 +240,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_partly_matching_files(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         config_id_list = self.valid_config_id + '_0' + ',not_matching_id'
         self.prepare_initial_test_data(1)
@@ -250,7 +250,7 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         )
 
     def test_wall_config_file_delete_with_invalid_token(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(1)
         self.execute_test_case(

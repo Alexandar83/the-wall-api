@@ -215,8 +215,8 @@ class BaseTestMixin:
 
         return response_data['auth_token']
 
-    def _get_test_case_source(self, method_name: str) -> str:
-        return f'{self.__module__} -> {method_name}'
+    def _get_test_case_source(self, method_name: str, class_name: str) -> str:
+        return f'{self.__module__}.{class_name}.{method_name}'
 
     def log_test_result(
         self, passed: bool, input_data, expected_message: str, actual_message: str,

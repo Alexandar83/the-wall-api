@@ -95,7 +95,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
 
     def test_daily_ice_usage_valid(self, test_case_source=None, consistency_test=False):
         if test_case_source is None:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
         valid_num_crews = self.get_valid_num_crews()
 
@@ -113,11 +113,11 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
                         )
 
     def test_daily_ice_usage_results_consistency(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_daily_ice_usage_valid(test_case_source=test_case_source, consistency_test=True)
 
     def test_daily_ice_usage_invalid_profile_id(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
         day = generate_valid_values()[0]
         num_crews = self.get_valid_num_crews()[0]
@@ -131,7 +131,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
 
     def test_daily_ice_usage_invalid_day_sequential(self):
         """Test with days after the construction's completion day."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
         invalid_days = self.get_invalid_days_for_profile_sequential(profile_id)
         num_crews = 0
@@ -145,7 +145,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
 
     def test_daily_ice_usage_invalid_day_concurrent(self):
         """Test with days on which the profile was not worked on."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = 2
         num_crews = 1
         invalid_days = self.get_invalid_days_for_profile_concurrent(profile_id, num_crews)
@@ -158,7 +158,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
                 )
 
     def test_daily_ice_usage_invalid_num_crews(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
         day = self.get_valid_days_for_profile_sequential(profile_id)[0]
 
@@ -178,7 +178,7 @@ class CostOverviewViewTest(CostAndUsageViewTest):
 
     def test_cost_overview_valid(self, test_case_source=None, consistency_test=False):
         if test_case_source is None:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         valid_num_crews = self.get_valid_num_crews()
 
         for num_crews in valid_num_crews:
@@ -189,11 +189,11 @@ class CostOverviewViewTest(CostAndUsageViewTest):
                 )
 
     def test_cost_overview_results_consistency(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_cost_overview_valid(test_case_source=test_case_source, consistency_test=True)
 
     def test_cost_overview_invalid_num_crews(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():
             invalid_num_crews = invalid_num_crews_group[0]
@@ -211,7 +211,7 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
 
     def test_cost_overview_profileid_valid(self, test_case_source=None, consistency_test=False):
         if test_case_source is None:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
         valid_num_crews = self.get_valid_num_crews()
 
@@ -224,11 +224,11 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
                     )
 
     def test_cost_overview_profileid_results_consistency(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_cost_overview_profileid_valid(test_case_source=test_case_source, consistency_test=True)
 
     def test_cost_overview_profileid_invalid_profile_id(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
         valid_num_crews = self.get_valid_num_crews()
 
@@ -241,7 +241,7 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTest):
                     )
 
     def test_cost_overview_profileid_invalid_num_crews(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
 
         for invalid_num_crews_group in invalid_input_groups['num_crews'].values():

@@ -404,7 +404,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 
     def test_orchestrate_wall_config_processing_task(self, deletion: str | None = None, test_case_source: str = ''):
         if not deletion:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
             expected_message = self.orchstrt_wall_config_task_success_msg
         else:
             expected_message = self.deletion_task_success_msg
@@ -426,15 +426,15 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_wall_config_deletion_task_concurrent(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_orchestrate_wall_config_processing_task(deletion='concurrent', test_case_source=test_case_source)
 
     def test_wall_config_deletion_task_sequential(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_orchestrate_wall_config_processing_task(deletion='sequential', test_case_source=test_case_source)
 
     def test_simultaneous_wall_config_deletion_tasks(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         expected_message = 'Deletion already initiated by another process.'
         actual_message_1, actual_message_2 = self.send_multiple_deletion_tasks(test_case_source)
         passed, actual_message_final = self.check_deletion_tasks_results(actual_message_1, actual_message_2, expected_message)
@@ -452,7 +452,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         if not normal_request_num_crews:
             normal_request_num_crews = 1
         if not test_case_source:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         task_result_message, task_results = self.process_tasks(
             test_case_source, normal_request_num_crews=normal_request_num_crews
         )
@@ -473,7 +473,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_simultaneous_orchestration_task_and_late_normal_request(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         normal_request_num_crews = self.sections_count - 1
         self.test_simultaneous_orchestration_task_and_normal_request(normal_request_num_crews, test_case_source)
 
@@ -558,7 +558,7 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
         return 'OK'
 
     def test_delete_task_success(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         actual_message = expected_message = 'Wall config deleted after task execution.'
 

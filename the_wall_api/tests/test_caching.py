@@ -197,7 +197,7 @@ class DailyIceUsageCacheTest(CacheTest):
         """
         num_crews = 0
 
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # Sequential first request
         with self.subTest(num_crews=num_crews):
@@ -223,7 +223,7 @@ class DailyIceUsageCacheTest(CacheTest):
         """
         num_crews = 3
 
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # Concurrent first request
         with self.subTest(num_crews=num_crews):
@@ -246,7 +246,7 @@ class DailyIceUsageCacheTest(CacheTest):
         """
         num_crews = 0
 
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # Create and commit the test data to the DB and Redis cache
         # and then simulate cache eviction

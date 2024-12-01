@@ -87,7 +87,7 @@ class CostOverviewSerializerTest(SerializerTest):
 
     def test_profile_id_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for profile_id in valid_values:
             input_data = {'profile_id': profile_id}
@@ -99,7 +99,7 @@ class CostOverviewSerializerTest(SerializerTest):
                 )
 
     def test_profile_id_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for profile_id in invalid_profile_ids:
@@ -119,7 +119,7 @@ class CostOverviewSerializerTest(SerializerTest):
 
     def test_num_crews_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for num_crews in valid_values:
             input_data = {'num_crews': num_crews}
@@ -131,7 +131,7 @@ class CostOverviewSerializerTest(SerializerTest):
                 )
 
     def test_num_crews_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
             for num_crews in invalid_num_crews:
@@ -178,7 +178,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
     def test_both_fields_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for profile_id in valid_values:
             for day in valid_values:
@@ -192,7 +192,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
     def test_only_day_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for profile_id in invalid_profile_ids:
@@ -207,7 +207,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
     def test_only_profile_id_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for error_message, invalid_days in invalid_input_groups['day'].items():
             for day in invalid_days:
@@ -221,7 +221,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                         )
 
     def test_both_fields_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         for profile_error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for day_error_message, invalid_days in invalid_input_groups['day'].items():
@@ -235,7 +235,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
     def test_num_crews_valid(self):
         valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for profile_id in valid_values:
             for day in valid_values:
@@ -249,7 +249,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                         )
 
     def test_num_crews_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for profile_id in generate_valid_values():
             for day in generate_valid_values():
@@ -283,7 +283,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         return factory.post('/', {}, content_type='application/json')
 
     def test_valid_upload(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         input_data = {'config_id': self.valid_config_id, 'wall_config_file': self.valid_wall_config_file}
         expected_errors = {}
@@ -294,7 +294,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         )
 
     def test_no_file_supplied(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         expected_errors = {'wall_config_file': 'No file was submitted.'}
         input_data = {'config_id': self.valid_config_id}
@@ -305,7 +305,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         )
 
     def test_invalid_file(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for error_type, (error_message, invalid_wall_config_file) in invalid_input_groups['wall_config_file'].items():
             if error_type != 'non_serializable_data':
@@ -321,7 +321,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
                 )
 
     def test_no_config_id_supplied(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         input_data = {'wall_config_file': self.valid_wall_config_file}
         expected_errors = {'config_id': 'This field is required.'}
@@ -332,7 +332,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         )
 
     def test_invalid_config_id(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for _error_type, (error_message, invalid_config_id) in invalid_input_groups['config_id'].items():
             input_data = {'config_id': invalid_config_id, 'wall_config_file': self.valid_wall_config_file}
@@ -365,7 +365,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
             i += 1
 
     def test_valid_delete(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         input_data = {'config_id_list': self.valid_config_id}
         expected_errors = {}
@@ -376,7 +376,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
         )
 
     def test_invalid_delete(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for _error_type, (error_message, invalid_config_id_list) in invalid_input_groups['config_id_list'].items():
             input_data = {'config_id_list': invalid_config_id_list}
@@ -389,7 +389,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
                 )
 
     def test_invalid_length(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         invalid_values_generator = self.generate_too_long_config_id()
 

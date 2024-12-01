@@ -41,32 +41,32 @@ class WallConfigFormatTest(BaseTestcase):
         )
 
     def test_invalid_wall_format_not_list(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = '[Not a list]'
         self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
 
     def test_invalid_wall_length(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [0] * (MAX_WALL_LENGTH + 1)
         self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum wall length of', test_case_source)
 
     def test_invalid_profile_format_not_list(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = ['[Not a list]']
         self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
 
     def test_invalid_section_count(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[0] * (MAX_WALL_PROFILE_SECTIONS + 1)]
         self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum number of sections', test_case_source)
 
     def test_invalid_section_height_format_not_int(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [['Not an int']]
         self.evaluate_wall_config_test_result(test_data, self.invalid_wall_config_msg, test_case_source)
 
     def test_invalid_section_height(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)                # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[MAX_SECTION_HEIGHT + 1]]
         self.evaluate_wall_config_test_result(test_data, 'exceeds the maximum section height', test_case_source)
 
@@ -116,7 +116,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_empty_profiles(self):
         config = []
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=0,
@@ -127,7 +127,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_minimum_section_heights(self):
         config = [[0, 0, 0]]
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=0,
@@ -138,7 +138,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_single_section_profile(self):
         config = [[15]]
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=0,
@@ -149,7 +149,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_mixed_profiles(self):
         config = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=0,
@@ -160,7 +160,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_concurrent_simulation(self):
         config = [[0, 15, MAX_SECTION_HEIGHT - 1], [25, 10]]
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=2,
@@ -171,7 +171,7 @@ class WallConstructionCreationTest(BaseTestcase):
 
     def test_maximum_length_profile(self):
         config = [[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,
             num_crews=0,
@@ -186,7 +186,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
 
     def compare_sequential_and_concurrent_results(self, config: list, config_case: str) -> None:
         """Compare a sequential with multiple concurrent simulations."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         test_case_source += ' - ' + config_case
         sections_count = get_sections_count(config)
 

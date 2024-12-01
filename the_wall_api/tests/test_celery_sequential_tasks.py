@@ -67,7 +67,7 @@ class FileRetentionCeleryTaskTest(BaseTestcase):
 
     def test_file_retention_tasks(self):
         """Test that the archive logs and clean old archives tasks are properly executed by the Celery worker."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         test_input_params = {
             'logs_type': self.logs_type,
@@ -188,17 +188,17 @@ class LogErrorTaskTest(BaseTestcase):
         )
 
     def test_log_error_task_caching(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.send_log_error_task('caching', test_case_source)
 
     def test_log_error_task_celery_tasks(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.send_log_error_task('celery_tasks', test_case_source)
 
     def test_log_error_task_wall_configuration(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.send_log_error_task('wall_configuration', test_case_source)
 
     def test_log_error_task_wall_creation(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.send_log_error_task('wall_creation', test_case_source)

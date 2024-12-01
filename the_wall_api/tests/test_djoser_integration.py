@@ -111,7 +111,7 @@ class DjoserIntegrationTest(BaseTestcase):
         return response
 
     def test_user_creation(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         response = self.process_request_chain('user_creation')
 
@@ -126,7 +126,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_user_creation_without_password(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.input_data.pop('username', None)
         response = self.process_request_chain('user_creation')
@@ -140,7 +140,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_token_generation(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         response = self.process_request_chain('token_generation')
 
@@ -155,7 +155,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_token_deletion(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.client.post(
             path=self.token_generation_url,
@@ -170,7 +170,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_reset_password(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         reset_response = self.process_request_chain('reset_password')
 
@@ -200,7 +200,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_user_deletion(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         response = self.process_request_chain('user_deletion')
 
@@ -211,7 +211,7 @@ class DjoserIntegrationTest(BaseTestcase):
         self.check_result_and_log(assertions, self.input_data, expected_message, test_case_source)
 
     def test_unauthorized_access(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         response_dict = {
             'user_info': self.client.get(path=self.users_me_url),

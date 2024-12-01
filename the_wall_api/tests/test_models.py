@@ -37,7 +37,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
 
     def test_unique_wall_profile_no_profile_id(self):
         """Test that multiple profiles with the same config_hash can exist if profile_id is NULL."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         # First profile with profile_id NULL (sequential mode)
         WallProfile.objects.create(**self.wall_profile_data)
@@ -63,7 +63,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
 
     def test_wall_profile_with_different_profile_id(self):
         """Test that profiles with the same wall and config_hash can exist as long as profile_id is different."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         # First profile with profile_id set
         WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
@@ -88,7 +88,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
 
     def test_wall_profile_with_same_profile_id(self):
         """Test that profiles with the same wall, config_hash, and profile_id raise a ValidationError."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         # First profile with profile_id set
         WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
@@ -114,7 +114,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
 
     def test_wall_profile_with_different_hash_same_profile_id(self):
         """Test that profiles with different wall_profile_config_hash but same profile_id are allowed."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         # First profile with profile_id 1
         WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
@@ -140,7 +140,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
 
     def test_wall_profile_with_same_wall_but_different_hash(self):
         """Test that profiles with the same wall but different config_hash are allowed."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         # First profile with a specific config_hash
         WallProfile.objects.create(**self.wall_profile_data, profile_id=1)
@@ -173,7 +173,7 @@ class WallConfigUniqueConstraintTest(BaseTestcase):
 
     def test_wall_config_unique_constraint(self):
         """Test that a duplicate wall_config with the same wall_config_hash raises a ValidationError."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # First WallConfig creation should succeed
         WallConfig.objects.create(wall_config_hash=self.wall_config_hash)
@@ -214,7 +214,7 @@ class WallUniqueConstraintTest(BaseTestcase):
 
     def test_wall_unique_together(self):
         """Test that a duplicate wall with the same wall_config_hash and num_crews raises a ValidationError."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # First Wall creation should succeed
         Wall.objects.create(**self.wall_data)
@@ -266,7 +266,7 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
 
     def test_wall_profile_progress_unique_together(self):
         """Test that a duplicate WallProfileProgress with the same wall_profile and day raises a ValidationError."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # First WallProfileProgress creation should succeed
         WallProfileProgress.objects.create(**self.progress_data)
@@ -375,7 +375,7 @@ class CascadeDeletionTest(BaseTestcase):
 
     def test_cascade_deletion_of_wall_config(self):
         """Test that deleting a WallConfig deletes related Wall, WallProfile and WallProfileProgress records."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         passed = True
         actual_error = 'Validation passed'
 
@@ -416,7 +416,7 @@ class CascadeDeletionTest(BaseTestcase):
 
     def test_cascade_deletion_of_wall(self):
         """Test that deleting a Wall deletes related WallProfiles and WallProfileProgress records."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         passed = True
         actual_error = 'Validation passed'
 
@@ -455,7 +455,7 @@ class CascadeDeletionTest(BaseTestcase):
 
     def test_cascade_deletion_of_wall_profile(self):
         """Test that deleting a WallProfile deletes related WallProfileProgress records."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         input_data = {
             'wall': str(self.wall),
             'wall_profile': str(self.wall_profile),
@@ -498,7 +498,7 @@ class CascadeDeletionTest(BaseTestcase):
 
     @BaseTestcase.cache_clear
     def test_redis_cache_deletion_on_db_deletion_signal(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)    # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         expected_message = 'All Redis caches deleted.'
 
         self.create_redis_cache()

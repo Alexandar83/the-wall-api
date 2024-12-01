@@ -11,7 +11,7 @@ class URLTests(BaseTestcase):
     description = 'URL tests'
 
     def test_admin_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = reverse('admin:index')
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_302_FOUND
@@ -27,7 +27,7 @@ class URLTests(BaseTestcase):
         User.objects.create_superuser('admin', 'admin@example.com', 'password')
         self.client.login(username='admin', password='password')
 
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = reverse('admin:index')
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
@@ -40,7 +40,7 @@ class URLTests(BaseTestcase):
         )
 
     def test_schema_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = reverse(exposed_endpoints['schema']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
@@ -53,7 +53,7 @@ class URLTests(BaseTestcase):
         )
 
     def test_swagger_ui_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = reverse(exposed_endpoints['swagger-ui']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
@@ -66,7 +66,7 @@ class URLTests(BaseTestcase):
         )
 
     def test_redoc_ui_endpoint(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = reverse(exposed_endpoints['redoc']['name'])
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_200_OK
@@ -79,7 +79,7 @@ class URLTests(BaseTestcase):
         )
 
     def test_404_handling(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         url = '/nonexistent-url/'
         response = self.client.get(url)
         passed = response.status_code == status.HTTP_404_NOT_FOUND

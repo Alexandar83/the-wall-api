@@ -75,7 +75,7 @@ class AdvisoryLockTest(LockTestBase):
 
     def test_db_advisory_lock(self):
         """Test concurrent acquisition of PostgreSQL advisory lock."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         wall_db_lock_key = generate_db_lock_key(get_wall_cache_key(self.wall_data))
 
         thread_1_lock_acquired, main_thread_lock_acquired = self.run_lock_test(self.try_to_acquire_advisory_lock, wall_db_lock_key)
@@ -113,7 +113,7 @@ class RedisLockTest(LockTestBase):
 
     def test_redis_cache_lock(self):
         """Test concurrent acquisition of Redis cache lock."""
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name)  # type: ignore
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         cache_lock_key = get_wall_cache_key(self.wall_data)
 
         thread_1_lock_acquired, main_thread_lock_acquired = self.run_lock_test(self.try_to_acquire_redis_lock, cache_lock_key)
