@@ -7,8 +7,6 @@ from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
 
 from the_wall_api.serializers import (
     CostOverviewSerializer, DailyIceUsageSerializer,
@@ -26,8 +24,6 @@ from the_wall_api.wall_construction import initialize_wall_data
 
 
 class WallConfigFileUploadView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
     serializer_class = WallConfigFileUploadSerializer
 
     @extend_schema(
@@ -68,8 +64,6 @@ class WallConfigFileUploadView(APIView):
 
 
 class WallConfigFileListView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=['wallconfig-files'],
@@ -93,8 +87,6 @@ class WallConfigFileListView(APIView):
 
 
 class WallConfigFileDeleteView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
     serializer_class = WallConfigFileDeleteSerializer
 
     @extend_schema(
@@ -124,7 +116,6 @@ class WallConfigFileDeleteView(APIView):
 
 
 class DailyIceUsageView(APIView):
-    authentication_classes = []
 
     @extend_schema(
         tags=['daily-ice-usage'],
@@ -172,7 +163,6 @@ class DailyIceUsageView(APIView):
 
 
 class CostOverviewView(APIView):
-    authentication_classes = []
 
     @extend_schema(
         tags=['cost-overview'],
@@ -225,7 +215,6 @@ class CostOverviewView(APIView):
 
 
 class CostOverviewProfileidView(CostOverviewView):
-    authentication_classes = []
 
     @extend_schema(
         tags=['cost-overview'],

@@ -2,7 +2,6 @@
 
 from djoser.views import TokenCreateView, TokenDestroyView, UserViewSet
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import IsAuthenticated
 
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_examples, open_api_resposnes, request_serializers
@@ -27,7 +26,6 @@ class CreateUserExtendSchemaViewSet(UserViewSet):
 
 # User deletion
 class DeleteUserExtendSchemaViewSet(UserViewSet):
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=['auth'],
@@ -52,7 +50,6 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
 
 # Change password
 class SetPasswordExtendSchemaView(UserViewSet):
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=['auth'],
@@ -88,7 +85,6 @@ class TokenCreateExtendSchemaView(TokenCreateView):
 
 # Token logout
 class TokenDestroyExtendSchemaView(TokenDestroyView):
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=['auth'],
