@@ -418,7 +418,10 @@ def create_new_wall_config(wall_data: Dict[str, Any], wall_config_hash: str) -> 
 
         with transaction.atomic():
             # Create a new object with status INITIALIZED (default value)
-            wall_config_object = WallConfig.objects.create(wall_config_hash=wall_config_hash)
+            wall_config_object = WallConfig.objects.create(
+                wall_config_hash=wall_config_hash,
+                wall_construction_config=wall_data['initial_wall_construction_config']
+            )
     except Exception as wall_config_crtn_unkwn_err:
         wall_config_object = f'{wall_config_crtn_unkwn_err.__class__.__name__}: {str(wall_config_crtn_unkwn_err)}'
         error_utils.handle_unknown_error(wall_data, wall_config_crtn_unkwn_err, 'caching')

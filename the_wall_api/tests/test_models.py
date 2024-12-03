@@ -20,6 +20,7 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         # Set up the wall config instance
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,
+            wall_construction_config=[]
         )
         # Set up a wall instance
         self.wall = Wall.objects.create(
@@ -176,7 +177,7 @@ class WallConfigUniqueConstraintTest(BaseTestcase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         # First WallConfig creation should succeed
-        WallConfig.objects.create(wall_config_hash=self.wall_config_hash)
+        WallConfig.objects.create(wall_config_hash=self.wall_config_hash, wall_construction_config=[])
 
         # Attempt to create another WallConfig with the same wall_config_hash should raise a ValidationError
         passed = False
@@ -202,6 +203,7 @@ class WallUniqueConstraintTest(BaseTestcase):
         self.wall_config_hash = 'unique_hash'
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,
+            wall_construction_config=[]
         )
         # Set up the wall instance
         self.wall_data = {
@@ -244,6 +246,7 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
         # Set up the wall config instance
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,
+            wall_construction_config=[]
         )
         # Set up a wall and a wall profile
         self.wall = Wall.objects.create(
@@ -305,6 +308,7 @@ class CascadeDeletionTest(BaseTestcase):
         # Set up the wall config instance
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,  # Unique hash for filtering
+            wall_construction_config=[]
         )
         # Set up a wall instance with related profiles and progress, using unique identifiers
         self.wall = Wall.objects.create(

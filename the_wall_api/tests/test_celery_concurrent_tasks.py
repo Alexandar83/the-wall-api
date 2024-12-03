@@ -496,7 +496,8 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
     def init_test_data(self, test_user):
         self.wall_config_hash_1 = 'test_wall_config_hash_1'
         self.wall_config_object_1 = WallConfig.objects.create(
-            wall_config_hash=self.wall_config_hash_1
+            wall_config_hash=self.wall_config_hash_1,
+            wall_construction_config=[]
         )
         self.wall_config_reference_1 = WallConfigReference.objects.create(
             user=test_user,
@@ -505,7 +506,8 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
         )
         self.wall_config_hash_2 = 'test_wall_config_hash_2'
         self.wall_config_object_2 = WallConfig.objects.create(
-            wall_config_hash=self.wall_config_hash_2
+            wall_config_hash=self.wall_config_hash_2,
+            wall_construction_config=[]
         )
         self.wall_config_reference_2 = WallConfigReference.objects.create(
             user=test_user,

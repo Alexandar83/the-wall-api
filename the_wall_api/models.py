@@ -30,6 +30,7 @@ class WallConfig(models.Model):
         default=WallConfigStatusEnum.INITIALIZED
     )
     deletion_initiated = models.BooleanField(default=False)
+    wall_construction_config = models.JSONField()
     date_created = models.DateTimeField(auto_now_add=True)
 
 
@@ -40,7 +41,7 @@ class WallConfigReference(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'wall_config', 'config_id')
+        unique_together = ('user', 'config_id')
 
 
 class Wall(models.Model):
