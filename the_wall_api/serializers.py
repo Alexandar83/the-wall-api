@@ -4,28 +4,22 @@ from django.conf import settings
 from django.core.validators import MinValueValidator, FileExtensionValidator
 from rest_framework import serializers
 
-from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallProfile, WallConfigReference
+from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallConfigReference
 
 MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
-class DailyIceUsageSerializer(serializers.ModelSerializer):
+class DailyIceUsageSerializer(serializers.Serializer):
     profile_id = serializers.IntegerField(allow_null=False, validators=[MinValueValidator(1)])
     day = serializers.IntegerField(validators=[MinValueValidator(1)])
     num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
-
-    class Meta:
-        model = WallProfile
-        fields = ['profile_id', 'day', 'num_crews']
+    config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
 
-class CostOverviewSerializer(serializers.ModelSerializer):
+class CostOverviewSerializer(serializers.Serializer):
     profile_id = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
     num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
-
-    class Meta:
-        model = WallProfile
-        fields = ['profile_id', 'num_crews']
+    config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
 
 class WallConfigFileUploadSerializer(serializers.Serializer):

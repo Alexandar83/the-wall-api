@@ -28,7 +28,9 @@ REDIS_CACHE_TRANSIENT_DATA_TIMEOUT = settings.REDIS_CACHE_TRANSIENT_DATA_TIMEOUT
 
 
 def fetch_user_wall_config_files(wall_data: Dict[str, Any]) -> List[int]:
-    config_id_list = list(WallConfigReference.objects.filter(user=wall_data['user']).values_list('config_id', flat=True))
+    config_id_list = list(
+        WallConfigReference.objects.filter(user=wall_data['request_user']).values_list('config_id', flat=True)
+    )
 
     return config_id_list
 
@@ -36,8 +38,9 @@ def fetch_user_wall_config_files(wall_data: Dict[str, Any]) -> List[int]:
 def fetch_wall_data(
     wall_data: Dict[str, Any], num_crews: int, profile_id: int | None = None, request_type: str = ''
 ):
-    wall_construction_config = wall_data.get('wall_construction_config', [])
+    wall_construction_config = wall_data.get('wall_construction_config', [])    # If coming from a Celery create_wall task
     if not wall_construction_config:
+        # Coming from an usage/cost endpoint
         wall_construction_config = wall_config_utils.get_wall_construction_config(wall_data, profile_id)
         if wall_data['error_response']:
             return
@@ -52,6 +55,12 @@ def get_or_create_cache(wall_data, request_type) -> None:
     collect_cached_data(wall_data, request_type)
     if wall_data.get('cached_result') or wall_data['error_response']:
         return
+
+    if wall_data['request_type'] != 'create_wall_task':
+        # Cache not found for usage/cost endpoints - evaluate the WallConfig status
+        error_utils.handle_cache_not_found(wall_data)
+        if wall_data['error_response']:
+            return
 
     # If no cached data is found, run the simulation
     run_simulation(wall_data)
@@ -126,7 +135,7 @@ def get_wall_cache_key(wall_data: Dict[str, Any]) -> str:
         # NOTE-1: App call - optimized query
         return f'wall_cost_{wall_data["wall_config_hash"]}'
     else:
-        # NOTE-2: Celery computation task call - full query to check if the wall
+        # NOTE-2: Celery task call - full query to check if the wall
         # construction is already cached in the DB with the provided num_crews
         return f'wall_cost_{wall_data["wall_config_hash"]}_{wall_data["num_crews"]}'
 
@@ -319,7 +328,7 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
 
 def create_new_wall_config_reference(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:
     wall_config_reference_cache_key = get_wall_config_reference_cache_key(
-        wall_data['wall_config_hash'], wall_data['config_id']
+        wall_data['wall_config_hash'], wall_data['request_config_id']
     )
     wall_config_reference_db_lock_key = generate_db_lock_key(wall_config_reference_cache_key)
     db_lock_acquired = None
@@ -331,9 +340,9 @@ def create_new_wall_config_reference(wall_data: Dict[str, Any], wall_config_obje
 
         with transaction.atomic():
             WallConfigReference.objects.create(
-                user=wall_data['user'],
+                user=wall_data['request_user'],
                 wall_config=wall_config_object,
-                config_id=wall_data['config_id'],
+                config_id=wall_data['request_config_id'],
             )
     except Exception as wall_config_reference_crtn_unkwn_err:
         error_utils.handle_unknown_error(wall_data, wall_config_reference_crtn_unkwn_err, 'caching')
@@ -380,7 +389,7 @@ def delete_wall_config_references(wall_data: Dict[str, Any]) -> list[str]:
 
             with transaction.atomic():
                 wall_config_reference.delete()
-                if wall_config_reference.wall_config not in wall_config_hash_list:
+                if wall_config_reference.wall_config.wall_config_hash not in wall_config_hash_list:
                     wall_config_hash_list.append(wall_config_reference.wall_config.wall_config_hash)
         except Exception as del_unkwn_err:
             error_utils.handle_unknown_error(wall_data, del_unkwn_err, 'caching')
@@ -398,7 +407,10 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
         # Already created
         wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
     except WallConfig.DoesNotExist:
-        # First request for this config - create it in the DB
+        # First request for this config - create it in the DB.
+        # Only possible for wallconfig-files/upload.
+        # The other endpoints must be blocked at the wall config reference fetch
+        # in case of a missing wall config.
         wall_config_object = create_new_wall_config(wall_data, wall_config_hash)
 
     if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
@@ -434,8 +446,8 @@ def create_new_wall_config(wall_data: Dict[str, Any], wall_config_hash: str) -> 
 
 def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[str, Any]) -> None:
     if wall_config_object.status == WallConfigStatusEnum.INITIALIZED:
-        # Skip during testing
-        if not settings.ACTIVE_TESTING:
+        if not settings.ACTIVE_TESTING and wall_data['request_type'] == 'wallconfig-files/upload':
+            # Skip during testing
             task_kwargs = {
                 'wall_config_hash': wall_config_object.wall_config_hash,
                 'wall_construction_config': wall_data['initial_wall_construction_config'],

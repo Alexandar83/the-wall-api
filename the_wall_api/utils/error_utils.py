@@ -8,7 +8,7 @@ from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework import status
 
-from the_wall_api.models import Wall, WallProfileProgress, WallConfigReference
+from the_wall_api.models import Wall, WallProfileProgress, WallConfigReference, WallConfigStatusEnum
 from the_wall_api.tasks import log_error_task
 
 TASK_RESULT_RETRIES = 3
@@ -62,6 +62,7 @@ def create_technical_error_response(
 
 
 def handle_unknown_error(wall_data: Dict[str, Any], unknwn_err: Exception | str, error_type: str) -> None:
+    """Unknown exception - handle logging and response."""
     request_params, request_info, error_message, error_traceback = get_log_error_task_params(wall_data, unknwn_err)
 
     task_result = log_error_task.delay(error_type, error_message, error_traceback, request_info=request_info)  # type: ignore
@@ -123,7 +124,30 @@ def get_error_id_from_task_result(task_result) -> str:
     return error_id
 
 
-def send_log_error_async(error_type: str, error: Exception | None = None, error_message: str = '') -> str:
+def handle_known_error(wall_data: Dict[str, Any], error_type: str, error_message: str, http_status: int) -> None:
+    """Known inconsistencies - handle logging and response."""
+    request_params = get_request_params(wall_data)
+    request_info = {
+        'request_type': wall_data.get('request_type', 'root'),
+        'request_params': request_params
+    }
+    task_result = log_error_task.delay(error_type, error_message, error_traceback=[], request_info=request_info)  # type: ignore
+    error_id = get_error_id_from_task_result(task_result)
+
+    error_response_data = {
+        'error': error_message,
+        'error_details': {
+            'request_params': request_params,
+            'error_id': error_id
+        }
+    }
+
+    wall_data['error_response'] = Response(error_response_data, status=http_status)
+
+
+def send_log_error_async(
+    error_type: str, error: Exception | None = None, error_message: str = '', request_info: dict = {}
+) -> str:
     """Log error details asynchronously."""
     if error is not None:
         error_message_out = f'{error.__class__.__name__}: {str(error)}'
@@ -135,7 +159,7 @@ def send_log_error_async(error_type: str, error: Exception | None = None, error_
     if error_message:
         error_message_out = error_message
 
-    log_error_task.delay(error_type, error_message_out, error_traceback)    # type: ignore
+    log_error_task.delay(error_type, error_message_out, error_traceback, request_info)    # type: ignore
 
     return error_message_out
 
@@ -193,14 +217,16 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
     request_params = {}
 
     if wall_data.get('request_type') == 'wallconfig-files/upload':
-        param_list = ['config_id']
+        param_list = ['request_config_id', 'request_user']
     else:
-        param_list = ['request_profile_id', 'request_day', 'request_num_crews']
+        param_list = ['request_profile_id', 'request_day', 'request_num_crews', 'request_config_id', 'request_user']
 
     for param in param_list:
         val = wall_data.get(param)
         if val is not None:
             param = param.replace('request_', '')
+            if param == 'user':
+                val = val.username
             request_params[param] = val
 
     return request_params
@@ -217,7 +243,7 @@ def handle_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
 
 
 def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
-    user = wall_data['user']
+    user = wall_data['request_user']
     config_id_list = wall_data['request_config_id_list']
 
     wall_config_ref_query = Q(user=user)
@@ -246,3 +272,10 @@ def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
             plrl_suffix = 's' if len(not_found_ids) > 1 else ''
             error_message = f"File{plrl_suffix} with config ID{plrl_suffix} {str(not_found_ids)} not found for user '{user.username}'."
             wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
+
+
+def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
+    if wall_data['wall_config_object_status'] not in [WallConfigStatusEnum.INITIALIZED, WallConfigStatusEnum.CELERY_CALCULATION]:
+        status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
+        error_message = f'The resource is not found. Wall configuration status = {status_label}'
+        handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)

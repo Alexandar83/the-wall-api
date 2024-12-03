@@ -126,16 +126,21 @@ class DailyIceUsageView(APIView):
     )
     def get(self, request: Request, profile_id: int, day: int) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
+        config_id = request.query_params.get('config_id')
         num_crews = request.query_params.get('num_crews', 0)
-        serializer = DailyIceUsageSerializer(data={'profile_id': profile_id, 'day': day, 'num_crews': num_crews})
+        serializer = DailyIceUsageSerializer(
+            data={'config_id': config_id, 'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+        )
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        config_id = serializer.validated_data['config_id']      # type: ignore
         profile_id = serializer.validated_data['profile_id']    # type: ignore
         day = serializer.validated_data['day']                  # type: ignore
         num_crews = serializer.validated_data['num_crews']      # type: ignore
 
         wall_data = initialize_wall_data(
+            config_id=config_id, user=request.user,
             profile_id=profile_id, day=day, request_num_crews=request_num_crews
         )
         fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
@@ -174,18 +179,21 @@ class CostOverviewView(APIView):
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
+        config_id = request.query_params.get('config_id')
         num_crews = request.query_params.get('num_crews', 0)
-        request_data = {'profile_id': profile_id, 'num_crews': num_crews}
+        request_data = {'config_id': config_id, 'profile_id': profile_id, 'num_crews': num_crews}
         cost_serializer = CostOverviewSerializer(data=request_data)
         if not cost_serializer.is_valid():
             return Response(cost_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        profile_id = cost_serializer.validated_data['profile_id']  # type: ignore
-        num_crews = cost_serializer.validated_data['num_crews']  # type: ignore
+        config_id = cost_serializer.validated_data['config_id']     # type: ignore
+        profile_id = cost_serializer.validated_data['profile_id']   # type: ignore
+        num_crews = cost_serializer.validated_data['num_crews']     # type: ignore
 
         request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
 
         wall_data = initialize_wall_data(
+            config_id=config_id, user=request.user,
             profile_id=profile_id, day=None, request_num_crews=request_num_crews
         )
         fetch_wall_data(wall_data, num_crews, profile_id, request_type)

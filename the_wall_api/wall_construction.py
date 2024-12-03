@@ -9,7 +9,7 @@ from time import sleep
 from typing import Any, Dict
 
 from celery.contrib.abortable import AbortableTask
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
@@ -169,9 +169,9 @@ class WallConstruction:
 
 def initialize_wall_data(
     source: str = 'usage_or_cost_view', profile_id: int | None = None, day: int | None = None,
-    request_num_crews: int | None = None, request_type: str | None = None, user: User | None = None,
+    request_num_crews: int | None = None, request_type: str | None = None, user: AbstractUser | None = None,
     wall_config_file_data: list | None = None, config_id: str | None = None,
-    request_config_id_list: list | None = None
+    request_config_id_list: list | None = None, test_data: dict = {}
 
 ) -> Dict[str, Any]:
     """
@@ -179,14 +179,14 @@ def initialize_wall_data(
     throughout the wall construction simulation or the
     wallconfig file management process.
     """
-    if source == 'wallconfig_file_view':
+    if source in ['wallconfig_file_view', 'test_cost_and_usage_views']:
         return {
             'request_type': request_type,
-            'user': user,
+            'request_user': user,
             'initial_wall_construction_config': wall_config_file_data,
-            'config_id': config_id,
+            'request_config_id': config_id,
             'request_config_id_list': request_config_id_list,
-            'error_response': None
+            'error_response': None,
         }
 
     return {
@@ -196,6 +196,8 @@ def initialize_wall_data(
         'error_response': None,
         'concurrent_not_needed': None,
         'wall_construction': None,
+        'request_config_id': config_id,
+        'request_user': user,
     }
 
 
