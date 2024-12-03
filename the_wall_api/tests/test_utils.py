@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, TransactionTestCase
@@ -200,13 +201,9 @@ class BaseTestMixin:
         return wrapper
 
     @classmethod
-    def create_test_user(cls, client: Client, username: str, password: str):
-        client.post(
-            path=reverse(exposed_endpoints['user-create']['name']),
-            data={'username': username, 'password': password}
-        )
+    def create_test_user(cls, username: str, password: str) -> AbstractUser:
         User = get_user_model()
-        test_user = User.objects.get(username=username)
+        test_user = User.objects.create_user(username=username, password=password)
 
         return test_user
 

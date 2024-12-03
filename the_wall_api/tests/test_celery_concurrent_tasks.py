@@ -76,6 +76,21 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         cls.celery_worker.__exit__(None, None, None)
         super().tearDownClass()
 
+    def setUp(self):
+        # Authorization data
+        # Due to TransactionTestCase the test user is destroyed after each test
+        # and has to be recreated
+        self.test_user = self.create_test_user(username=self.username, password=self.password)
+        self.valid_token = self.generate_test_user_token(
+            client=self.client, username=self.username, password=self.password
+        )
+        # Prerequisite test data
+        self.init_test_data()
+        self.active_testing = True
+
+    def init_test_data(self):
+        raise NotImplementedError
+
 
 class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     description = 'Wall Config Processing and Deletion Tasks Tests'
@@ -86,15 +101,23 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             i: hash_calc(profile) for i, profile in enumerate(self.wall_construction_config, start=1)
         }
         self.sections_count = get_sections_count(self.wall_construction_config)
+        super().setUp()
+
+    def init_test_data(self):
         self.input_data = {
             'wall_config_hash': self.wall_config_hash,
             'sections_count': self.sections_count
         }
         self.wall_config_object = manage_wall_config_object({
             'wall_config_hash': self.wall_config_hash,
-            'wall_construction_config': self.wall_construction_config
+            'initial_wall_construction_config': self.wall_construction_config
         })
-        self.active_testing = True
+        self.valid_config_id = 'test_config_id_1'
+        self.wall_config_reference_1 = WallConfigReference.objects.create(
+            user=self.test_user,
+            wall_config=self.wall_config_object,
+            config_id=self.valid_config_id,
+        )
         sleep(5)    # Grace period to ensure objects are properly created in postgres
 
     def process_tasks(
@@ -214,8 +237,13 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
         url_name = exposed_endpoints['daily-ice-usage']['name']
         url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
-        params = {'num_crews': normal_request_num_crews}
-        response = self.client.get(url, params)
+        request_params = {
+            'query_params': {'num_crews': normal_request_num_crews, 'config_id': self.valid_config_id},
+            'headers': {
+                'Authorization': f'Token {self.valid_token}'
+            }
+        }
+        response = self.client.get(url, **request_params)
 
         return response
 
@@ -480,26 +508,14 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
     description = 'Delete unused wall configs task test'
 
-    def setUp(self) -> None:
-        # Authorization data
-        test_user = self.create_test_user(
-            client=self.client, username=self.username, password=self.password
-        )
-        self.valid_token = self.generate_test_user_token(
-            client=self.client, username=self.username, password=self.password
-        )
-        self.init_test_data(test_user=test_user)
-        self.active_testing = True
-        sleep(5)    # Grace period to ensure objects are properly created in postgres
-
-    def init_test_data(self, test_user):
+    def init_test_data(self):
         self.wall_config_hash_1 = 'test_wall_config_hash_1'
         self.wall_config_object_1 = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash_1,
             wall_construction_config=[]
         )
         self.wall_config_reference_1 = WallConfigReference.objects.create(
-            user=test_user,
+            user=self.test_user,
             wall_config=self.wall_config_object_1,
             config_id='test_config_id_1',
         )
@@ -509,7 +525,7 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
             wall_construction_config=[]
         )
         self.wall_config_reference_2 = WallConfigReference.objects.create(
-            user=test_user,
+            user=self.test_user,
             wall_config=self.wall_config_object_2,
             config_id='test_config_id_2',
         )
@@ -519,6 +535,7 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
             'wall_config_reference_1': self.wall_config_reference_1,
             'wall_config_reference_2': self.wall_config_reference_2,
         }
+        sleep(5)    # Grace period to ensure objects are properly created in postgres
 
     def delete_user(self) -> None:
         self.client.delete(

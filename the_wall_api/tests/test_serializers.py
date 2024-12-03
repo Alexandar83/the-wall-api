@@ -28,6 +28,11 @@ def extract_error_detail(actual_errors: Any, field_name: str) -> Any:
 
 class SerializerTest(BaseTestcase):
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.valid_config_id = 'valid_config_id'
+
     def validate_and_log(
         self, serializer_class: Type[Serializer], input_data: dict,
         expected_errors: dict, test_case_source: str, serializer_params: dict
@@ -90,7 +95,7 @@ class CostOverviewSerializerTest(SerializerTest):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for profile_id in valid_values:
-            input_data = {'profile_id': profile_id}
+            input_data = {'profile_id': profile_id, 'config_id': self.valid_config_id}
             expected_errors = {}
             with self.subTest(profile_id=profile_id):
                 self.validate_and_log(
@@ -109,7 +114,7 @@ class CostOverviewSerializerTest(SerializerTest):
                 #   -api/v1/daily-ice-usage/?day=5&profile_id=None -> leads to Page not found (404)
                 if profile_id is None:
                     continue
-                input_data = {'profile_id': profile_id}
+                input_data = {'profile_id': profile_id, 'config_id': self.valid_config_id}
                 expected_errors = {'profile_id': error_message}
                 with self.subTest(profile_id=profile_id):
                     self.validate_and_log(
@@ -122,7 +127,7 @@ class CostOverviewSerializerTest(SerializerTest):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         for num_crews in valid_values:
-            input_data = {'num_crews': num_crews}
+            input_data = {'num_crews': num_crews, 'config_id': self.valid_config_id}
             expected_errors = {}
             with self.subTest(num_crews=num_crews):
                 self.validate_and_log(
@@ -135,7 +140,7 @@ class CostOverviewSerializerTest(SerializerTest):
 
         for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
             for num_crews in invalid_num_crews:
-                input_data = {'num_crews': num_crews}
+                input_data = {'num_crews': num_crews, 'config_id': self.valid_config_id}
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(num_crews=num_crews):
                     self.validate_and_log(
@@ -153,7 +158,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
         """Helper function to test all combinations of profile and day values."""
         for profile_id in invalid_profile_ids:
             for day in invalid_days:
-                input_data = {'profile_id': profile_id, 'day': day}
+                input_data = {'profile_id': profile_id, 'day': day, 'config_id': self.valid_config_id}
                 expected_errors = {
                     'profile_id': profile_error_message,
                     'day': day_error_message,
@@ -168,7 +173,9 @@ class DailyIceUsageSerializerTest(SerializerTest):
         """Helper function to test all combinations of profile and day values."""
         for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
             for num_crews in invalid_num_crews:
-                input_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+                input_data = {
+                    'profile_id': profile_id, 'day': day, 'num_crews': num_crews, 'config_id': self.valid_config_id
+                }
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                     self.validate_and_log(
@@ -182,7 +189,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
         for profile_id in valid_values:
             for day in valid_values:
-                input_data = {'profile_id': profile_id, 'day': day}
+                input_data = {'profile_id': profile_id, 'day': day, 'config_id': self.valid_config_id}
                 expected_errors = {}
                 with self.subTest(profile_id=profile_id, day=day):
                     self.validate_and_log(
@@ -197,7 +204,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
         for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for profile_id in invalid_profile_ids:
                 for day in valid_values:
-                    input_data = {'profile_id': profile_id, 'day': day}
+                    input_data = {'profile_id': profile_id, 'day': day, 'config_id': self.valid_config_id}
                     expected_errors = {'profile_id': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
@@ -212,7 +219,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
         for error_message, invalid_days in invalid_input_groups['day'].items():
             for day in invalid_days:
                 for profile_id in valid_values:
-                    input_data = {'profile_id': profile_id, 'day': day}
+                    input_data = {'profile_id': profile_id, 'day': day, 'config_id': self.valid_config_id}
                     expected_errors = {'day': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
@@ -240,7 +247,9 @@ class DailyIceUsageSerializerTest(SerializerTest):
         for profile_id in valid_values:
             for day in valid_values:
                 for num_crews in valid_values:
-                    input_data = {'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+                    input_data = {
+                        'profile_id': profile_id, 'day': day, 'num_crews': num_crews, 'config_id': self.valid_config_id
+                    }
                     expected_errors = {}
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                         self.validate_and_log(
@@ -257,12 +266,16 @@ class DailyIceUsageSerializerTest(SerializerTest):
 
 
 class WallConfigFileSerializerTestBase(SerializerTest):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.test_user = cls.create_test_user(username=cls.username, password=cls.password)
+
     def setUp(self):
         # Test context
         test_request = self.init_test_request()
-        test_request.user = self.create_test_user(
-            client=self.client, username=self.username, password=self.password
-        )
+        test_request.user = self.test_user
         self.test_context = {'request': test_request}
 
         # Valid test data

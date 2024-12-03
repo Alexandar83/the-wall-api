@@ -16,7 +16,7 @@ class DjoserIntegrationTest(BaseTestcase):
     token_generation_url = reverse(exposed_endpoints['token-login']['name'])
     token_deletion_url = reverse(exposed_endpoints['token-logout']['name'])
 
-    def setUp(self) -> None:
+    def setUp(self):
         self.input_data = {'username': self.username, 'password': self.password}
         self.users_me_url = reverse(
             exposed_endpoints['user-delete']['name'], kwargs={'username': self.username}

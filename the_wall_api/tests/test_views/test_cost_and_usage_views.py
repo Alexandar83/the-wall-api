@@ -1,3 +1,4 @@
+from copy import deepcopy
 from inspect import currentframe
 from typing import List
 
@@ -8,11 +9,38 @@ from rest_framework import status
 from the_wall_api.tests.test_views.base_test_views import BaseViewTest
 from the_wall_api.tests.test_utils import generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
+from the_wall_api.utils.storage_utils import fetch_wall_data, manage_wall_config_file_upload
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
-from the_wall_api.wall_construction import get_sections_count, WallConstruction
+from the_wall_api.wall_construction import get_sections_count, initialize_wall_data, WallConstruction
 
 
-class CostAndUsageViewTest(BaseViewTest):
+class CostAndUsageViewTestBase(BaseViewTest):
+
+    @classmethod
+    def setUpClass(cls, skip_test_data_creation: bool = False):
+        super().setUpClass()
+        if not skip_test_data_creation:
+            cls.prepare_initial_usage_view_test_data()
+
+    @classmethod
+    def prepare_initial_usage_view_test_data(cls, init_wall_config_network: bool = True) -> None:
+        """Ensure a proper test wall config object with all its network is created."""
+        source = 'test_cost_and_usage_views'
+        wall_config_file_upload_wall_data = initialize_wall_data(
+            source=source, request_type='wallconfig-files/upload', user=cls.test_user,
+            wall_config_file_data=cls.wall_construction_config, config_id=cls.valid_config_id
+        )
+        manage_wall_config_file_upload(wall_config_file_upload_wall_data)
+
+        if init_wall_config_network:
+            # Avoid usage of the wall config orchestration task, because it requires
+            # a heavy initial setup. Instead, create only the test data synchronously.
+            for num_crews in cls.get_valid_num_crews():
+                num_crews_wall_data = initialize_wall_data(profile_id=None, day=None, request_num_crews=num_crews)
+                num_crews_wall_data['wall_config_hash'] = wall_config_file_upload_wall_data['wall_config_hash']
+                num_crews_wall_data['wall_construction_config'] = deepcopy(wall_config_file_upload_wall_data['initial_wall_construction_config'])
+                num_crews_wall_data['sections_count'] = wall_config_file_upload_wall_data['sections_count']
+                fetch_wall_data(num_crews_wall_data, num_crews, profile_id=None, request_type='create_wall_task')
 
     def setUp(self):
         super().setUp()
@@ -20,7 +48,7 @@ class CostAndUsageViewTest(BaseViewTest):
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.max_profile_id = len(self.wall_construction_config)
         self.max_days_per_profile = {
-            index + 1: settings.MAX_SECTION_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config)
+            index: settings.MAX_SECTION_HEIGHT - min(profile) for index, profile in enumerate(self.wall_construction_config, 1)
         }
 
     def get_valid_profile_ids(self) -> List[int]:
@@ -60,22 +88,33 @@ class CostAndUsageViewTest(BaseViewTest):
         profile_days = wall_construction.sim_calc_details['profile_daily_details'][valid_profile_id]
         return [day for day in generate_valid_values() if isinstance(day, int) and day < min(profile_days)]
 
-    def get_valid_num_crews(self) -> range:
+    @staticmethod
+    def get_valid_num_crews() -> range:
         # Add 0 to test sequential mode
         valid_num_crews = range(0, 10, 2)
         return valid_num_crews
 
     def prepare_final_test_data(
-        self, profile_id: int | None = None, day: int | None = None, num_crews: int | None = None
+        self, profile_id: int | None = None, day: int | None = None, num_crews: int | None = None,
+        token: str | None = None
     ) -> tuple[str, dict, dict]:
         url = self.prepare_url(profile_id, day)
+        if token is None:
+            token = self.valid_token
         if num_crews is not None:
             request_params = {
-                'query_params': {'num_crews': num_crews}
+                'query_params': {'num_crews': num_crews, 'config_id': self.valid_config_id},
+                'headers': {
+                    'Authorization': f'Token {token}'
+                }
             }
         else:
             request_params = {}
-        input_data = {key: value for key, value in [('profile_id', profile_id), ('day', day), ('num_crews', num_crews)] if value is not None}
+        input_data = {
+            key: value for key, value in [
+                ('profile_id', profile_id), ('day', day), ('num_crews', num_crews), ('config_id', self.valid_config_id)
+            ] if value is not None
+        }
 
         return url, request_params, input_data
 
@@ -87,7 +126,7 @@ class CostAndUsageViewTest(BaseViewTest):
         return reverse(self.url_name)
 
 
-class DailyIceUsageViewTest(CostAndUsageViewTest):
+class DailyIceUsageViewTest(CostAndUsageViewTestBase):
     description = 'Daily Ice Usage View Tests'
 
     url_name = exposed_endpoints['daily-ice-usage']['name']
@@ -146,7 +185,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
         """Test with days on which the profile was not worked on."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = 2
-        num_crews = 1
+        num_crews = 2
         invalid_days = self.get_invalid_days_for_profile_concurrent(profile_id, num_crews)
 
         for invalid_day in invalid_days:
@@ -170,7 +209,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTest):
                 )
 
 
-class CostOverviewViewTest(CostAndUsageViewTest):
+class CostOverviewViewTest(CostAndUsageViewTestBase):
     description = 'Cost Overview View Tests'
 
     url_name = exposed_endpoints['cost-overview']['name']
@@ -203,7 +242,7 @@ class CostOverviewViewTest(CostAndUsageViewTest):
                 )
 
 
-class CostOverviewProfileidViewTest(CostAndUsageViewTest):
+class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
     description = 'Cost Overview Profileid View Tests'
 
     url_name = exposed_endpoints['cost-overview-profile']['name']

@@ -16,22 +16,14 @@ MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
 class WallConfigFileTestBase(BaseViewTest):
-    def setUp(self) -> None:
+    def setUp(self):
         super().setUp()
-        self.create_test_user(
-            client=self.client, username=self.username, password=self.password
-        )
 
         # Valid test data
-        self.valid_config_id = 'valid_config_id'
         self.init_valid_wall_config_file()
-        self.valid_token = self.generate_test_user_token(
-            client=self.client, username=self.username, password=self.password
-        )
 
         # Invalid test data
         self.invalid_wall_config_file = 'invalid_wall_config_file'
-        self.invalid_token = 'invalid_token'
 
     def init_valid_wall_config_file(self):
         json_content = json.dumps(self.wall_construction_config).encode('utf-8')

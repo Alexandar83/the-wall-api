@@ -9,13 +9,24 @@ from the_wall_api.tests.test_utils import BaseTestcase
 class BaseViewTest(ABC, BaseTestcase):
     url_name = None
 
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.test_user = cls.create_test_user(username=cls.username, password=cls.password)
+        cls.invalid_token = 'invalid_token'
+        cls.valid_config_id = 'valid_config_id'
+
+    def setUp(self):
         self.client_get_method = getattr(self.client, 'get')
         self.client_post_method = getattr(self.client, 'post')
         self.client_delete_method = getattr(self.client, 'delete')
 
+        self.valid_token = self.generate_test_user_token(
+            client=self.client, username=self.username, password=self.password
+        )
+
     def execute_test_case(
-        self, rest_method: Callable, expected_status: Literal[200, 201, 204, 400, 401, 404], test_case_source: str,
+        self, rest_method: Callable, expected_status: Literal[200, 201, 204, 400, 401, 404, 409], test_case_source: str,
         consistency_test: bool = False, *args, **kwargs
     ) -> None:
         url, request_params, input_data = self.prepare_final_test_data(*args, **kwargs)
