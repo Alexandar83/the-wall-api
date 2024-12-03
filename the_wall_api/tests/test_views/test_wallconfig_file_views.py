@@ -34,12 +34,7 @@ class WallConfigFileTestBase(BaseViewTest):
         self.invalid_token = 'invalid_token'
 
     def init_valid_wall_config_file(self):
-        wall_config = [
-            [21, 25, 28],
-            [17],
-            [17, 22, 17, 19, 17]
-        ]
-        json_content = json.dumps(wall_config).encode('utf-8')
+        json_content = json.dumps(self.wall_construction_config).encode('utf-8')
         self.valid_wall_config_file = BytesIO(json_content)
         self.valid_wall_config_file.name = 'wall_config.json'
 

@@ -4,7 +4,8 @@ from time import sleep
 from traceback import format_exception
 from typing import Any, Dict
 
-from django.db.models import Q
+from django.contrib.auth.models import User
+from django.db.models import Q, QuerySet
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -244,14 +245,30 @@ def handle_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
 
 def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
     user = wall_data['request_user']
-    config_id_list = wall_data['request_config_id_list']
 
-    wall_config_ref_query = Q(user=user)
-    if config_id_list:
-        wall_config_ref_query &= Q(config_id__in=config_id_list)
-    deletion_queryset = WallConfigReference.objects.filter(wall_config_ref_query)
-    wall_data['deletion_queryset'] = deletion_queryset
-    validated_ids = set(deletion_queryset.values_list('config_id', flat=True))
+    if wall_data.get('request_type') == 'wallconfig-files/delete':
+        config_id_list = wall_data['request_config_id_list']
+
+        wall_config_ref_query = Q(user=user)
+        if config_id_list:
+            wall_config_ref_query &= Q(config_id__in=config_id_list)
+        references_queryset = WallConfigReference.objects.filter(wall_config_ref_query)
+
+        handle_not_existing_file_references_delete(wall_data, references_queryset, user, config_id_list)
+
+    else:
+        config_id = wall_data['request_config_id']
+        error_message = f"File '{config_id}' does not exist for user '{user.username}'."
+        wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
+
+
+def handle_not_existing_file_references_delete(
+    wall_data: Dict[str, Any], references_queryset: QuerySet, user: User,
+    config_id_list: list | None
+) -> None:
+    """Manages the response for the wallconfig-files/delete endpoint."""
+    wall_data['deletion_queryset'] = references_queryset
+    validated_ids = set(references_queryset.values_list('config_id', flat=True))
 
     if not validated_ids:
         # No wall config references exist for the user

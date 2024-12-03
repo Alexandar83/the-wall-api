@@ -5,7 +5,7 @@ from typing import Callable
 from django.core.cache import cache
 
 from the_wall_api.models import WallConfig
-from the_wall_api.utils import storage_utils, wall_config_utils
+from the_wall_api.utils import storage_utils
 from the_wall_api.tests.test_utils import BaseTransactionTestcase
 from the_wall_api.wall_construction import initialize_wall_data, set_simulation_params, run_simulation
 
@@ -17,7 +17,6 @@ class CacheTest(BaseTransactionTestcase):
         self.day = None
         self.num_crews = None
         self.wall_data = {}
-        self.wall_construction_config = []
         self.request_type = ''
         self.concurrency_switched = False
         self.redis_cache_status = None
@@ -28,7 +27,6 @@ class CacheTest(BaseTransactionTestcase):
 
         # Wall params
         self.wall_data = initialize_wall_data(profile_id=self.profile_id, day=self.day, request_num_crews=self.num_crews)
-        self.wall_construction_config = wall_config_utils.get_wall_construction_config(self.wall_data, self.profile_id)
         set_simulation_params(self.wall_data, self.num_crews, self.wall_construction_config, self.request_type)
 
         # Construction simulation

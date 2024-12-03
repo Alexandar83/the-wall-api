@@ -7,8 +7,10 @@ from typing import Dict, Any
 from django.conf import settings
 from rest_framework import status
 
+from the_wall_api.models import WallConfigReference
 from the_wall_api.utils.error_utils import (
-    create_out_of_range_response, handle_unknown_error, WallConstructionError, get_request_params
+    create_out_of_range_response, handle_not_existing_file_references, handle_unknown_error,
+    WallConstructionError, get_request_params
 )
 
 SEQUENTIAL = 'sequential'
@@ -22,9 +24,14 @@ COST_ROUNDING = Decimal('.01')
 
 def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | None) -> list:
     try:
-        wall_construction_config = load_wall_profiles_from_config()
-    except (WallConstructionError, FileNotFoundError) as tech_error:
-        handle_unknown_error(wall_data, tech_error, 'wall_configuration')
+        wall_config_reference = WallConfigReference.objects.get(
+            user=wall_data['request_user'], config_id=wall_data['request_config_id']
+        )
+        wall_construction_config = wall_config_reference.wall_config.wall_construction_config
+        wall_data['wall_config_object_status'] = wall_config_reference.wall_config.status
+        wall_data['wall_construction_config'] = wall_construction_config
+    except WallConfigReference.DoesNotExist:
+        handle_not_existing_file_references(wall_data)
         return []
 
     # Validate the profile number if provided
@@ -37,20 +44,6 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
         return []
 
     return wall_construction_config
-
-
-def load_wall_profiles_from_config() -> list:
-    result = []
-
-    try:
-        with open(settings.WALL_CONFIG_PATH, 'r') as file:
-            result = json.load(file)
-    except (json.JSONDecodeError, FileNotFoundError):
-        raise WallConstructionError(INVALID_WALL_CONFIG_MSG)
-
-    validate_wall_config_format(result, INVALID_WALL_CONFIG_MSG)
-
-    return result
 
 
 def validate_wall_config_file_data(wall_data: Dict[str, Any]) -> None:

@@ -156,6 +156,11 @@ class BaseTestMixin:
     padding = 20
     username = 'testuser'
     password = 'G7m@zK#1qP'
+    wall_construction_config = [
+        [21, 25, 28],
+        [17],
+        [17, 22, 17, 19, 17]
+    ]
 
     @classmethod
     def setUpClass(cls):

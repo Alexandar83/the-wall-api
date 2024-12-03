@@ -22,7 +22,7 @@ from the_wall_api.tasks import (
 from the_wall_api.tests.test_utils import BaseTransactionTestcase
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.utils.storage_utils import get_daily_ice_usage_cache_key, manage_wall_config_object
-from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
+from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
 from the_wall_api.wall_construction import get_sections_count, manage_num_crews
 
 CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
@@ -81,7 +81,6 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     description = 'Wall Config Processing and Deletion Tasks Tests'
 
     def setUp(self):
-        self.wall_construction_config = load_wall_profiles_from_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.wall_profile_config_hash_data = {
             i: hash_calc(profile) for i, profile in enumerate(self.wall_construction_config, start=1)

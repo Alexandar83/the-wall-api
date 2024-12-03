@@ -8,7 +8,7 @@ from rest_framework import status
 from the_wall_api.tests.test_views.base_test_views import BaseViewTest
 from the_wall_api.tests.test_utils import generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
-from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, load_wall_profiles_from_config
+from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
 from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
 
@@ -17,7 +17,6 @@ class CostAndUsageViewTest(BaseViewTest):
     def setUp(self):
         super().setUp()
         # Load the wall profiles configuration to determine the maximum valid profile_id
-        self.wall_construction_config = load_wall_profiles_from_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.max_profile_id = len(self.wall_construction_config)
         self.max_days_per_profile = {
