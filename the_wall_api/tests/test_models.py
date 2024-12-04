@@ -1,10 +1,11 @@
 from decimal import Decimal
 from inspect import currentframe
+import re
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
-from the_wall_api.models import Wall, WallConfig, WallProfile, WallProfileProgress
+from the_wall_api.models import Wall, WallConfig, WallProfile, WallProfileProgress, WallConfigReference
 from the_wall_api.tests.test_utils import BaseTestcase
 from the_wall_api.utils.storage_utils import (
     get_daily_ice_usage_cache_key, get_wall_cache_key, get_wall_profile_cache_key, set_redis_cache
@@ -12,7 +13,15 @@ from the_wall_api.utils.storage_utils import (
 from the_wall_api.utils.wall_config_utils import SEQUENTIAL
 
 
-class WallProfileUniqueConstraintTest(BaseTestcase):
+class UniqueConstraintTestBase(BaseTestcase):
+
+    def evaluate_actual_error(self, actual_error: str, pattern: str = '') -> bool:
+        if pattern:
+            return bool(re.search(pattern, actual_error))
+        return 'already exists' in actual_error
+
+
+class WallProfileUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for Wall profile objects'
 
     def setUp(self):
@@ -54,11 +63,11 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
             duplicate_profile.full_clean()
             actual_error = 'None'
         except ValidationError as vldtn_err:
-            passed = True
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+            passed = self.evaluate_actual_error(actual_error, pattern=r'Constraint\s“.+?”\sis\sviolated')
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
@@ -81,9 +90,9 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         except ValidationError as vldtn_err:
             passed = False
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
@@ -105,11 +114,11 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
             duplicate_profile.full_clean()
             actual_error = 'None'
         except ValidationError as vldtn_err:
-            passed = True
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+            passed = self.evaluate_actual_error(actual_error, pattern=r'Constraint\s“.+?”\sis\sviolated')
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, input_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
@@ -133,9 +142,9 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         except ValidationError as vldtn_err:
             passed = False
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
@@ -159,14 +168,14 @@ class WallProfileUniqueConstraintTest(BaseTestcase):
         except ValidationError as vldtn_err:
             passed = False
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, input_data, 'Validation passed', actual_error, test_case_source, error_occurred=error_occurred)
 
 
-class WallConfigUniqueConstraintTest(BaseTestcase):
+class WallConfigUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for WallConfig objects'
 
     def setUp(self):
@@ -187,16 +196,16 @@ class WallConfigUniqueConstraintTest(BaseTestcase):
             duplicate_wall_config.full_clean()
             actual_error = 'None'
         except ValidationError as vldtn_err:
-            passed = True
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+            passed = self.evaluate_actual_error(actual_error)
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, self.wall_config_hash, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
 
-class WallUniqueConstraintTest(BaseTestcase):
+class WallUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for Wall objects'
 
     def setUp(self):
@@ -229,16 +238,16 @@ class WallUniqueConstraintTest(BaseTestcase):
             duplicate_wall.full_clean()
             actual_error = 'None'
         except ValidationError as vldtn_err:
-            passed = True
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+            passed = self.evaluate_actual_error(actual_error)
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, self.wall_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
 
-class WallProfileProgressUniqueConstraintTest(BaseTestcase):
+class WallProfileProgressUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for wall profile progress objects'
 
     def setUp(self):
@@ -282,13 +291,53 @@ class WallProfileProgressUniqueConstraintTest(BaseTestcase):
             duplicate_progress.full_clean()
             actual_error = 'None'
         except ValidationError as vldtn_err:
-            passed = True
             actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
-        except Exception as err:
+            passed = self.evaluate_actual_error(actual_error)
+        except Exception as unknwn_err:
             error_occurred = True
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(passed, self.progress_data, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
+
+
+class WallConfigReferenceUniqueConstraintTest(UniqueConstraintTestBase):
+    description = 'Unique constraint tests for wall config reference objects'
+
+    def setUp(self):
+        self.wall_config_hash = 'unique_hash'
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash=self.wall_config_hash,
+            wall_construction_config=[]
+        )
+        self.test_user = self.create_test_user(username=self.username, password=self.password)
+        self.config_id = 'config_id_1'
+
+    def test_wall_config_reference_unique_together(self):
+        """Test that a duplicate WallConfigReference with the same wall_config and user raises a ValidationError."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+
+        # First WallConfigReference creation should succeed
+        WallConfigReference.objects.create(
+            config_id=self.config_id, user=self.test_user, wall_config=self.wall_config_object
+        )
+
+        # Attempt to create another WallConfigReference with the same wall_config and user should raise a ValidationError
+        passed = False
+        error_occurred = False
+        try:
+            duplicate_reference = WallConfigReference(
+                config_id=self.config_id, user=self.test_user, wall_config=self.wall_config_object
+            )
+            duplicate_reference.full_clean()
+            actual_error = 'None'
+        except ValidationError as vldtn_err:
+            actual_error = f'{vldtn_err.__class__.__name__}: {str(vldtn_err)}'
+            passed = self.evaluate_actual_error(actual_error)
+        except Exception as unknwn_err:
+            error_occurred = True
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+
+        self.log_test_result(passed, self.wall_config_object, 'ValidationError', actual_error, test_case_source, error_occurred=error_occurred)
 
 
 class CascadeDeletionTest(BaseTestcase):
@@ -300,6 +349,8 @@ class CascadeDeletionTest(BaseTestcase):
         self.num_crews = 3
         self.day = 1
         self.profile_id = 1
+        self.config_id = 'config_id_1'
+        self.test_user = self.create_test_user(username=self.username, password=self.password)
         self.create_wall_objects_network()
         self.init_redis_cache_keys()
         self.setup_input_data()
@@ -327,6 +378,12 @@ class CascadeDeletionTest(BaseTestcase):
             wall_profile=self.wall_profile,
             day=self.day,
             ice_used=200,
+        )
+        # Set up a file reference
+        self.wallconfig_reference = WallConfigReference.objects.create(
+            user=self.test_user,
+            wall_config=self.wall_config_object,
+            config_id=self.config_id
         )
 
     def init_redis_cache_keys(self) -> None:
@@ -389,11 +446,15 @@ class CascadeDeletionTest(BaseTestcase):
             wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
             wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
             wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+            wallconfig_reference_exists = WallConfigReference.objects.filter(
+                user=self.test_user, config_id=self.config_id
+            ).exists()
 
             self.assertTrue(wall_config_object_exists)
             self.assertTrue(wall_exists)
             self.assertTrue(wall_profile_exists)
             self.assertTrue(wall_profile_progress_exists)
+            self.assertTrue(wallconfig_reference_exists)
 
             # Delete the wall config and test cascade deletion
             self.wall_config_object.delete()
@@ -402,13 +463,17 @@ class CascadeDeletionTest(BaseTestcase):
             wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
             wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
             wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
+            wallconfig_reference_exists = WallConfigReference.objects.filter(
+                user=self.test_user, config_id=self.config_id
+            ).exists()
 
             self.assertFalse(wall_exists)
             self.assertFalse(wall_profile_exists)
             self.assertFalse(wall_profile_progress_exists)
-        except Exception as err:
+            self.assertFalse(wallconfig_reference_exists)
+        except Exception as unknwn_err:
             passed = False
-            actual_error = f'{err.__class__.__name__}: {str(err)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(
             passed=passed,
@@ -425,7 +490,7 @@ class CascadeDeletionTest(BaseTestcase):
         actual_error = 'Validation passed'
 
         try:
-            # Ensure that only the specific objects created for this test exist
+            # Ensure that the specific objects created for this test exist
             wall_exists = Wall.objects.filter(wall_config_hash='test_wall_hash_12345').exists()
             wall_profile_exists = WallProfile.objects.filter(wall_profile_config_hash='test_profile_hash_12345').exists()
             wall_profile_progress_exists = WallProfileProgress.objects.filter(wall_profile=self.wall_profile).exists()
@@ -445,9 +510,9 @@ class CascadeDeletionTest(BaseTestcase):
             if wall_exists_after_delete or wall_profile_exists_after_delete or wall_profile_progress_exists_after_delete:
                 passed = False
                 actual_error = 'Cascade deletion failed'
-        except Exception as e:
+        except Exception as unknwn_err:
             passed = False
-            actual_error = f'{e.__class__.__name__}: {str(e)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(
             passed=passed,
@@ -488,13 +553,50 @@ class CascadeDeletionTest(BaseTestcase):
             if wall_profile_exists_after_delete or wall_profile_progress_exists_after_delete:
                 passed = False
                 actual_error = 'Cascade deletion failed'
-        except Exception as e:
+        except Exception as unknwn_err:
             passed = False
-            actual_error = f'{e.__class__.__name__}: {str(e)}'
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
 
         self.log_test_result(
             passed=passed,
             input_data=input_data,
+            expected_message='Validation passed',
+            actual_message=actual_error,
+            test_case_source=test_case_source
+        )
+
+    def test_cascade_deletion_of_user(self):
+        """Test that deleting a User deletes related WallConfigReference records."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+        passed = True
+        actual_error = 'Validation passed'
+
+        try:
+            # Ensure that the specific objects created for this test exist
+            wallconfig_reference_exists = WallConfigReference.objects.filter(
+                config_id=self.config_id
+            ).exists()
+
+            self.assertTrue(wallconfig_reference_exists)
+
+            # Delete the user and test cascade deletion
+            self.test_user.delete()
+
+            # Check that the specific related objects are deleted
+            wallconfig_reference_exists_after_delete = WallConfigReference.objects.filter(
+                config_id=self.config_id
+            ).exists()
+
+            if wallconfig_reference_exists_after_delete:
+                passed = False
+                actual_error = 'Cascade deletion failed'
+        except Exception as unknwn_err:
+            passed = False
+            actual_error = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+
+        self.log_test_result(
+            passed=passed,
+            input_data=self.input_data,
             expected_message='Validation passed',
             actual_message=actual_error,
             test_case_source=test_case_source

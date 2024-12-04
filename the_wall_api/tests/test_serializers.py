@@ -86,11 +86,26 @@ class SerializerTest(BaseTestcase):
         passed = expected_message == actual_message
         self.log_test_result(passed, input_data, expected_message, actual_message, test_case_source, error_occurred=error_occured)
 
+    def process_config_id_invalid(self, valid_data: dict, test_case_source: str | None = None):
+        if test_case_source is None:
+            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+
+        for error_message, invalid_config_id in invalid_input_groups['config_id']:
+            input_data = valid_data.copy()
+            if invalid_config_id != 'omit_config_id':
+                input_data['config_id'] = invalid_config_id
+            expected_errors = {'config_id': error_message}
+            with self.subTest(config_id=invalid_config_id):
+                self.validate_and_log(
+                    CostOverviewSerializer, input_data, expected_errors,
+                    test_case_source, serializer_params={'data': input_data}
+                )
+
 
 class CostOverviewSerializerTest(SerializerTest):
     description = 'Cost overview serializer tests'
 
-    def test_profile_id_valid(self):
+    def test_profile_id_config_id_valid(self):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
@@ -148,6 +163,13 @@ class CostOverviewSerializerTest(SerializerTest):
                         test_case_source, serializer_params={'data': input_data}
                     )
 
+    def test_config_id_invalid(self, *args, **kwargs):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+
+        valid_profile = generate_valid_values()[0]
+        valid_data = {'profile_id': valid_profile}
+        self.process_config_id_invalid(valid_data, test_case_source)
+
 
 class DailyIceUsageSerializerTest(SerializerTest):
     description = 'Daily ice usage serializer tests'
@@ -183,7 +205,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                         test_case_source, serializer_params={'data': input_data}
                     )
 
-    def test_both_fields_valid(self):
+    def test_all_fields_valid(self):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
@@ -197,7 +219,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                         test_case_source, serializer_params={'data': input_data}
                     )
 
-    def test_only_day_valid(self):
+    def test_profile_id_invalid(self):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
@@ -212,7 +234,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                             test_case_source, serializer_params={'data': input_data}
                         )
 
-    def test_only_profile_id_valid(self):
+    def test_day_invalid(self):
         valid_values = generate_valid_values()
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
@@ -227,7 +249,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                             test_case_source, serializer_params={'data': input_data}
                         )
 
-    def test_both_fields_invalid(self):
+    def test_profile_id_day_invalid(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         for profile_error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
@@ -263,6 +285,14 @@ class DailyIceUsageSerializerTest(SerializerTest):
         for profile_id in generate_valid_values():
             for day in generate_valid_values():
                 self.num_crews_invalid_inner(profile_id, day, test_case_source)
+
+    def test_config_id_invalid(self, *args, **kwargs):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+
+        valid_profile = valid_day = generate_valid_values()[0]
+
+        valid_data = {'profile_id': valid_profile, 'day': valid_day}
+        self.process_config_id_invalid(valid_data, test_case_source)
 
 
 class WallConfigFileSerializerTestBase(SerializerTest):
@@ -344,18 +374,11 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
-    def test_invalid_config_id(self):
+    def test_config_id_invalid(self, *args, **kwargs):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
-        for _error_type, (error_message, invalid_config_id) in invalid_input_groups['config_id'].items():
-            input_data = {'config_id': invalid_config_id, 'wall_config_file': self.valid_wall_config_file}
-            expected_errors = {'config_id': error_message}
-
-            with self.subTest(config_id=invalid_config_id):
-                self.validate_and_log(
-                    WallConfigFileUploadSerializer, input_data, expected_errors,
-                    test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
-                )
+        valid_data = {'wall_config_file': self.valid_wall_config_file}
+        self.process_config_id_invalid(valid_data, test_case_source)
 
 
 class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
@@ -391,7 +414,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
     def test_invalid_delete(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
-        for _error_type, (error_message, invalid_config_id_list) in invalid_input_groups['config_id_list'].items():
+        for error_message, invalid_config_id_list in invalid_input_groups['config_id_list']:
             input_data = {'config_id_list': invalid_config_id_list}
             expected_errors = {'config_id_list': error_message}
 

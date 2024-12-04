@@ -38,7 +38,9 @@ def fetch_user_wall_config_files(wall_data: Dict[str, Any]) -> List[int]:
 def fetch_wall_data(
     wall_data: Dict[str, Any], num_crews: int, profile_id: int | None = None, request_type: str = ''
 ):
-    wall_construction_config = wall_data.get('wall_construction_config', [])    # If coming from a Celery create_wall task
+    # If coming from a Celery create_wall task, the authentication
+    # and user file reference filtering are not needed
+    wall_construction_config = wall_data.get('wall_construction_config', [])
     if not wall_construction_config:
         # Coming from an usage/cost endpoint
         wall_construction_config = wall_config_utils.get_wall_construction_config(wall_data, profile_id)

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 
+from the_wall_api.models import WallConfig, WallConfigReference, WallConfigStatusEnum
 from the_wall_api.tests.test_views.base_test_views import BaseViewTest
 from the_wall_api.tests.test_utils import generate_valid_values, invalid_input_groups
 from the_wall_api.utils.api_utils import exposed_endpoints
@@ -289,3 +290,72 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
                     self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
                     profile_id=profile_id, num_crews=invalid_num_crews
                 )
+
+
+class AbnormalCasesDailyIceUsageViewTest(CostAndUsageViewTestBase):
+    description = 'Abnormal Daily Ice Usage View Tests'
+
+    url_name = exposed_endpoints['daily-ice-usage']['name']
+
+    @classmethod
+    def setUpClass(cls, *args, **kwargs):
+        # Initialize the test data separately for each test
+        super().setUpClass(skip_test_data_creation=True)
+
+    def setUp(self):
+        super().setUp()
+        self.prepare_initial_usage_view_test_data(init_wall_config_network=False)
+        self.profile_id = 1
+        self.day = 1
+
+    def test_missing_user_file_reference(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+
+        # Simulate a missing user file reference
+        WallConfigReference.objects.get(user=self.test_user, config_id=self.valid_config_id).delete()
+
+        self.execute_test_case(
+            self.client_get_method, status.HTTP_404_NOT_FOUND, test_case_source,
+            profile_id=self.profile_id, day=self.day, num_crews=1
+        )
+
+    def test_missing_wall_config_object(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+
+        # Simulate an erroneous wall config object
+        WallConfig.objects.filter(wall_config_hash=self.wall_config_hash).update(status=WallConfigStatusEnum.ERROR)
+
+        self.execute_test_case(
+            self.client_get_method, status.HTTP_409_CONFLICT, test_case_source,
+            profile_id=self.profile_id, day=self.day, num_crews=1
+        )
+
+    def test_invalid_token(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+
+        self.execute_test_case(
+            self.client_get_method, status.HTTP_401_UNAUTHORIZED, test_case_source,
+            profile_id=self.profile_id, day=self.day, num_crews=1, token=self.invalid_token
+        )
+
+
+class AbnormalCostOverviewProfileidViewTest(AbnormalCasesDailyIceUsageViewTest):
+    description = 'Abnormal Cost Overview Profileid View Tests'
+
+    url_name = exposed_endpoints['cost-overview-profile']['name']
+
+    def setUp(self):
+        super().setUp()
+        self.profile_id = 1
+        self.day = None
+
+
+class AbnormalCostOverviewViewTest(AbnormalCasesDailyIceUsageViewTest):
+    description = 'Abnormal Cost Overview View Tests'
+
+    url_name = exposed_endpoints['cost-overview']['name']
+
+    def setUp(self):
+        super().setUp()
+        self.profile_id = None
+        self.day = None

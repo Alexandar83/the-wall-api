@@ -409,7 +409,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def check_deletion_tasks_results(
         self, actual_message_1: str, actual_message_2: str, expected_message: str
     ) -> tuple[bool, str]:
-        """One of the task should return a 'Deletion already initaiated' result"""
+        """One of the tasks should return a 'Deletion already initaiated' result"""
         expected_condition_met = (
             (actual_message_1 == 'OK' and actual_message_2 == expected_message) or
             (actual_message_2 == 'OK' and actual_message_1 == expected_message)
@@ -453,14 +453,20 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_wall_config_deletion_task_concurrent(self):
+        """
+        Start the deletion task during the orchestration task processing.
+        The exoected result is that the orchestration is gracefully aborted.
+        """
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_orchestrate_wall_config_processing_task(deletion='concurrent', test_case_source=test_case_source)
 
     def test_wall_config_deletion_task_sequential(self):
+        """Start the deletion task after the orchestration task is finished."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_orchestrate_wall_config_processing_task(deletion='sequential', test_case_source=test_case_source)
 
     def test_simultaneous_wall_config_deletion_tasks(self):
+        """Start two deletion tasks at the same time - one of them should skip the deletion processing."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         expected_message = 'Deletion already initiated by another process.'
         actual_message_1, actual_message_2 = self.send_multiple_deletion_tasks(test_case_source)
@@ -476,6 +482,10 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def test_simultaneous_orchestration_task_and_normal_request(
         self, normal_request_num_crews: int | None = None, test_case_source: str = ''
     ):
+        """
+        Send a cost/usage get request shortly after an orchestration task has started.
+        The request's wall build simulation is expected to already be processed by the orchestration task.
+        """
         if not normal_request_num_crews:
             normal_request_num_crews = 1
         if not test_case_source:
@@ -500,6 +510,13 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
 
     def test_simultaneous_orchestration_task_and_late_normal_request(self):
+        """
+        Send a cost/usage get request shortly after an orchestration task has started.
+        The request's wall build simulation is expected to not be processed by the orchestration task yet.
+        The wall build should be fully simulated with the request's parameters
+        in the main process. The build simulation with these parameters should be skipped
+        by the orchestration task.
+        """
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         normal_request_num_crews = self.sections_count - 1
         self.test_simultaneous_orchestration_task_and_normal_request(normal_request_num_crews, test_case_source)

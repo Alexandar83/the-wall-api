@@ -68,30 +68,34 @@ invalid_input_groups = {
             'not_a_file_object',
         ),
     },
-    'config_id': {
-        'invalid_length': (
+    'config_id': [
+        (
             ErrorDetail(string='Ensure this field has no more than 30 characters.', code='max_length'),
             'a' * (CONFIG_ID_MAX_LENGTH + 1),
         ),
-        'null_object': (
+        (
             ErrorDetail(string='This field may not be null.', code='null'),
             None,
         ),
-        'empty_string': (
+        (
             ErrorDetail(string='This field may not be blank.', code='blank'),
             '',
         ),
-    },
-    'config_id_list': {
-        'null_object': (
+        (
+            ErrorDetail(string='This field is required.', code='required'),
+            'omit_config_id',
+        ),
+    ],
+    'config_id_list': [
+        (
             ErrorDetail(string='This field may not be null.', code='null'),
             None,
         ),
-        'not_a_valid_string': (
+        (
             ErrorDetail(string='Not a valid string.', code='invalid'),
             {'not_a_valid_string': 'not_a_valid_string'},
         ),
-    },
+    ],
 }
 
 
