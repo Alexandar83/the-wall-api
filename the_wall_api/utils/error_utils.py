@@ -21,7 +21,7 @@ class WallConstructionError(ValueError):
 
 
 def create_out_of_range_response(
-        out_of_range_type: str, max_value: int | Any, request_params: Dict[str, Any], status_code: int
+    out_of_range_type: str, max_value: int | Any, request_params: Dict[str, Any], status_code: int
 ) -> Response:
     if out_of_range_type == 'day':
         finishing_msg = f'The wall has been finished for {max_value} days.'
@@ -77,10 +77,7 @@ def get_log_error_task_params(
     wall_data: Dict[str, Any], unknwn_err: Exception | str
 ) -> tuple[Dict[str, Any], Dict[str, Any], str, list[str]]:
     request_params = get_request_params(wall_data)
-    request_info = {
-        'request_type': wall_data.get('request_type', 'root'),
-        'request_params': request_params
-    }
+    request_info = get_request_info(wall_data, request_params)
 
     if isinstance(unknwn_err, Exception):
         error_traceback = extract_error_traceback(unknwn_err)
@@ -90,6 +87,19 @@ def get_log_error_task_params(
         error_message = unknwn_err
 
     return request_params, request_info, error_message, error_traceback
+
+
+def get_request_info(wall_data, request_params) -> Dict[str, Any]:
+    user = wall_data.get('request_user')
+    username = user.username if user else None
+    request_info = {
+        'request_type': wall_data.get('request_type', 'root'),
+        'request_params': request_params
+    }
+    if username:
+        request_info['request_user'] = username
+
+    return request_info
 
 
 def extract_error_traceback(error: Exception) -> list[str]:
@@ -128,10 +138,7 @@ def get_error_id_from_task_result(task_result) -> str:
 def handle_known_error(wall_data: Dict[str, Any], error_type: str, error_message: str, http_status: int) -> None:
     """Known inconsistencies - handle logging and response."""
     request_params = get_request_params(wall_data)
-    request_info = {
-        'request_type': wall_data.get('request_type', 'root'),
-        'request_params': request_params
-    }
+    request_info = get_request_info(wall_data, request_params)
     task_result = log_error_task.delay(error_type, error_message, error_traceback=[], request_info=request_info)  # type: ignore
     error_id = get_error_id_from_task_result(task_result)
 
@@ -218,16 +225,14 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
     request_params = {}
 
     if wall_data.get('request_type') == 'wallconfig-files/upload':
-        param_list = ['request_config_id', 'request_user']
+        param_list = ['request_config_id']
     else:
-        param_list = ['request_profile_id', 'request_day', 'request_num_crews', 'request_config_id', 'request_user']
+        param_list = ['request_profile_id', 'request_day', 'request_num_crews', 'request_config_id']
 
     for param in param_list:
         val = wall_data.get(param)
         if val is not None:
             param = param.replace('request_', '')
-            if param == 'user':
-                val = val.username
             request_params[param] = val
 
     return request_params
