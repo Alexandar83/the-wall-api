@@ -121,7 +121,8 @@ class DailyIceUsageView(APIView):
         tags=['daily-ice-usage'],
         summary='Get Daily Ice Usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
-        parameters=open_api_parameters.daily_ice_usage_parameters + [open_api_parameters.num_crews_parameter],
+        parameters=open_api_parameters.daily_ice_usage_parameters +
+        [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_resposnes.daily_ice_usage_responses
     )
     def get(self, request: Request, profile_id: int, day: int) -> Response:
@@ -174,7 +175,7 @@ class CostOverviewView(APIView):
         operation_id='get_cost_overview',
         summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
-        parameters=[open_api_parameters.num_crews_parameter],
+        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_resposnes.cost_overview_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
@@ -229,7 +230,8 @@ class CostOverviewProfileidView(CostOverviewView):
         operation_id='get_cost_overview_profile_id',
         summary='Get Profile Cost Overview',
         description='Retrieve the total cost for a specific wall profile.',
-        parameters=open_api_parameters.cost_overview_profile_id_parameters + [open_api_parameters.num_crews_parameter],
+        parameters=open_api_parameters.cost_overview_profile_id_parameters +
+        [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_resposnes.cost_overview_profile_id_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:

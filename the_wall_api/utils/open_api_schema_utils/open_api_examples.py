@@ -27,6 +27,34 @@ weak_password_msg_list = [
     'This password is entirely numeric.',
     'The password is too similar to the username.'
 ]
+invalid_config_id_length = OpenApiExample(
+    name='Invalid config ID length',
+    value={
+        'config_id': [
+            'Ensure this field has no more than 30 characters.'
+        ]
+    },
+)
+file_not_existing_for_user = OpenApiExample(
+    name='File not existing for user',
+    value={
+        'error': "File with config ID 'not_existing_config_id' does not exist for user 'testuser'."
+    },
+)
+wall_config_409_status = OpenApiExample(
+    name='Invalid wall config status',
+    value={
+        'error': "The resource is not found. Wall configuration status = 'Error'",
+        'error_details': {
+            'request_params': {
+                'profile_id': 1,
+                'day': 1,
+                'config_id': 'test_config_1'
+            },
+            'error_id': '1',
+        }
+    },
+)
 # = Create user =
 create_user_request_example = OpenApiExample(
     name='Create ser request',

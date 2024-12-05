@@ -17,6 +17,18 @@ unauthorized_responses = OpenApiResponse(
         open_api_examples.not_authenticated,
     ]
 )
+cost_usage_404_responses = OpenApiResponse(
+    response=response_serializers.cost_usage_404_response_serializer,
+    examples=[
+        open_api_examples.file_not_existing_for_user,
+    ]
+)
+cost_usage_409_responses = OpenApiResponse(
+    response=response_serializers.cost_usage_409_response_serializer,
+    examples=[
+        open_api_examples.wall_config_409_status,
+    ]
+)
 
 # == Common (end) ==
 
@@ -207,7 +219,7 @@ wallconfig_file_delete_responses = {
                     'error': 'Wall config file delete failed. Please contact support.',
                     'error_details': {
                         'error_id': '25',
-                        'tech_info': 'Exception: Unknown exception'
+                        'tech_info': 'Exception: Unknown exception.'
                     }
                 },
             ),
@@ -282,11 +294,15 @@ daily_ice_usage_responses = {
                     },
                 },
             ),
+            open_api_examples.invalid_config_id_length,
+            open_api_examples.file_not_existing_for_user,
         ]
     ),
+    401: unauthorized_responses,
     404: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
+            open_api_examples.file_not_existing_for_user,
             OpenApiExample(
                 name='No work on profile',
                 value={
@@ -299,9 +315,10 @@ daily_ice_usage_responses = {
                         }
                     }
                 },
-            )
+            ),
         ]
     ),
+    409: cost_usage_409_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -311,12 +328,13 @@ daily_ice_usage_responses = {
                     'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
                         'request_params': {
+                            'config_id': 'test_config_1',
                             'profile_id': 1,
                             'day': 14,
                             'num_crews': 5
                         },
                         'error_id': '1',
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'tech_info': 'Exception: Unknown exception.',
                     }
                 },
             ),
@@ -341,6 +359,16 @@ cost_overview_responses = {
             ),
         ]
     ),
+    400: OpenApiResponse(
+        response=response_serializers.config_id_error_response_serializer,
+        examples=[
+            open_api_examples.invalid_config_id_length,
+            open_api_examples.file_not_existing_for_user,
+        ]
+    ),
+    401: unauthorized_responses,
+    404: cost_usage_404_responses,
+    409: cost_usage_409_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -349,8 +377,9 @@ cost_overview_responses = {
                 value={
                     'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
+                        'request_params': {'config_id': 'test_config_1'},
                         'error_id': '1',
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'tech_info': 'Exception: Unknown exception.',
                     }
                 },
             ),
@@ -389,8 +418,12 @@ cost_overview_profile_id_responses = {
                     },
                 },
             ),
+            open_api_examples.invalid_config_id_length,
         ]
     ),
+    401: unauthorized_responses,
+    404: cost_usage_404_responses,
+    409: cost_usage_409_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -400,6 +433,7 @@ cost_overview_profile_id_responses = {
                     'error': 'Wall construction simulation failed. Please contact support.',
                     'error_details': {
                         'request_params': {
+                            'config_id': 'test_config_1',
                             'profile_id': 5,
                             'num_crews': 1
                         },
@@ -460,7 +494,8 @@ create_user_responses = {
                 },
             ),
         ]
-    )
+    ),
+    404: cost_usage_404_responses,
 }
 # = Create user (end)
 

@@ -263,7 +263,7 @@ def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
 
     else:
         config_id = wall_data['request_config_id']
-        error_message = f"File '{config_id}' does not exist for user '{user.username}'."
+        error_message = f"File with config ID '{config_id}' does not exist for user '{user.username}'."
         wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -299,5 +299,5 @@ def handle_not_existing_file_references_delete(
 def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
     if wall_data['wall_config_object_status'] not in [WallConfigStatusEnum.INITIALIZED, WallConfigStatusEnum.CELERY_CALCULATION]:
         status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
-        error_message = f'The resource is not found. Wall configuration status = {status_label}'
+        error_message = f"The resource is not found. Wall configuration status = '{status_label}'"
         handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)

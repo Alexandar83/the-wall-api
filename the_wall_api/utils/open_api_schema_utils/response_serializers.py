@@ -9,8 +9,28 @@ from rest_framework import serializers
 wall_app_error_response_serializer = inline_serializer(
     name='WallAppErrorResponse',
     fields={
+        'error': serializers.CharField(required=False),
+        'error_details': serializers.DictField(required=False),
+        'config_id': serializers.CharField(required=False),
+    }
+)
+cost_usage_404_response_serializer = inline_serializer(
+    name='CostUsageError404Response',
+    fields={
         'error': serializers.CharField(),
-        'error_details': serializers.CharField(required=False),
+    }
+)
+cost_usage_409_response_serializer = inline_serializer(
+    name='CostUsageError409Response',
+    fields={
+        'error': serializers.CharField(),
+        'error_details': serializers.DictField(),
+    }
+)
+config_id_error_response_serializer = inline_serializer(
+    name='ConfigIdErrorResponse',
+    fields={
+        'config_id': serializers.CharField(),
     }
 )
 unauthorized_error_response_serializer = inline_serializer(

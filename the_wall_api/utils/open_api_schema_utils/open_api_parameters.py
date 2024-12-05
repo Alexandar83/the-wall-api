@@ -16,6 +16,14 @@ num_crews_parameter = OpenApiParameter(
     ),
     location=OpenApiParameter.QUERY
 )
+# Obligatory query parameter for config_id in the usage and cost endpoints
+config_id_parameter = OpenApiParameter(
+    name='config_id',
+    type=str,
+    required=True,
+    description='Wall configuration file ID.',
+    location=OpenApiParameter.QUERY
+)
 
 # == WallConfigFileDeleteView ==
 # QUERY parameters
