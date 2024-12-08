@@ -33,8 +33,14 @@ config_id_error_response_serializer = inline_serializer(
         'config_id': serializers.CharField(),
     }
 )
-unauthorized_error_response_serializer = inline_serializer(
+unauthorized_401_response_serializer = inline_serializer(
     name='UnauthorizedErrorResponse',
+    fields={
+        'detail': serializers.CharField(),
+    }
+)
+throttled_429_response_serializer = inline_serializer(
+    name='ThrottledErrorResponse',
     fields={
         'detail': serializers.CharField(),
     }

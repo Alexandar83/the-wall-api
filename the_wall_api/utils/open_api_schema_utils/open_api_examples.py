@@ -55,6 +55,12 @@ wall_config_409_status = OpenApiExample(
         }
     },
 )
+throttled_error_example = OpenApiExample(
+    name='Throttled',
+    value={
+        'detail': 'Request was throttled. Expected available in 59 seconds.'
+    },
+)
 # = Create user =
 create_user_request_example = OpenApiExample(
     name='Create ser request',

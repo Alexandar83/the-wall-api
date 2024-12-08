@@ -10,8 +10,8 @@ MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
 # == Common ==
-unauthorized_responses = OpenApiResponse(
-    response=response_serializers.unauthorized_error_response_serializer,
+unauthorized_401_responses = OpenApiResponse(
+    response=response_serializers.unauthorized_401_response_serializer,
     examples=[
         open_api_examples.invalid_token,
         open_api_examples.not_authenticated,
@@ -27,6 +27,12 @@ cost_usage_409_responses = OpenApiResponse(
     response=response_serializers.cost_usage_409_response_serializer,
     examples=[
         open_api_examples.wall_config_409_status,
+    ]
+)
+throttled_429_responses = OpenApiResponse(
+    response=response_serializers.throttled_429_response_serializer,
+    examples=[
+        open_api_examples.throttled_error_example
     ]
 )
 
@@ -125,7 +131,8 @@ wallconfig_file_upload_responses = {
             ),
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
+    429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -186,7 +193,7 @@ wallconfig_file_delete_responses = {
             ),
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
     404: OpenApiResponse(
         response=response_serializers.wall_config_delete_404_response_serializer,
         examples=[
@@ -210,6 +217,7 @@ wallconfig_file_delete_responses = {
             ),
         ]
     ),
+    429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -244,7 +252,8 @@ wallconfig_file_list_responses = {
             ),
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
+    429: throttled_429_responses,
 }
 
 # == WallConfigFileListView (end) ==
@@ -298,7 +307,7 @@ daily_ice_usage_responses = {
             open_api_examples.file_not_existing_for_user,
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
     404: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -319,6 +328,7 @@ daily_ice_usage_responses = {
         ]
     ),
     409: cost_usage_409_responses,
+    429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -366,9 +376,10 @@ cost_overview_responses = {
             open_api_examples.file_not_existing_for_user,
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
     404: cost_usage_404_responses,
     409: cost_usage_409_responses,
+    429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -421,9 +432,10 @@ cost_overview_profile_id_responses = {
             open_api_examples.invalid_config_id_length,
         ]
     ),
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
     404: cost_usage_404_responses,
     409: cost_usage_409_responses,
+    429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
@@ -496,6 +508,7 @@ create_user_responses = {
         ]
     ),
     404: cost_usage_404_responses,
+    429: throttled_429_responses,
 }
 # = Create user (end)
 
@@ -521,6 +534,7 @@ delete_user_responses = {
             open_api_examples.not_authenticated,
         ]
     ),
+    429: throttled_429_responses,
 }
 # = Delete user (end)
 
@@ -547,6 +561,7 @@ set_password_responses = {
             ),
         ]
     ),
+    429: throttled_429_responses,
 }
 # = Change password (end)
 
@@ -576,13 +591,15 @@ token_login_responses = {
             ),
         ]
     ),
+    429: throttled_429_responses,
 }
 # = Token login (end)
 
 # = Token logout =
 token_logout_responses = {
     204: '',
-    401: unauthorized_responses,
+    401: unauthorized_401_responses,
+    429: throttled_429_responses,
 }
 # = Token logout (end)
 
