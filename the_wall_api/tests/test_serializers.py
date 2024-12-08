@@ -302,7 +302,7 @@ class WallConfigFileSerializerTestBase(SerializerTest):
         super().setUpClass()
         cls.test_user = cls.create_test_user(username=cls.username, password=cls.password)
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         # Test context
         test_request = self.init_test_request()
         test_request.user = self.test_user

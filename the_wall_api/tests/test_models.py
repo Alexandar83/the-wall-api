@@ -24,7 +24,7 @@ class UniqueConstraintTestBase(BaseTestcase):
 class WallProfileUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for Wall profile objects'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'some_unique_hash'
         # Set up the wall config instance
         self.wall_config_object = WallConfig.objects.create(
@@ -178,7 +178,7 @@ class WallProfileUniqueConstraintTest(UniqueConstraintTestBase):
 class WallConfigUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for WallConfig objects'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'unique_hash'
 
     def test_wall_config_unique_constraint(self):
@@ -208,7 +208,7 @@ class WallConfigUniqueConstraintTest(UniqueConstraintTestBase):
 class WallUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for Wall objects'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'unique_hash'
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,
@@ -250,7 +250,7 @@ class WallUniqueConstraintTest(UniqueConstraintTestBase):
 class WallProfileProgressUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for wall profile progress objects'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'some_unique_hash'
         # Set up the wall config instance
         self.wall_config_object = WallConfig.objects.create(
@@ -303,7 +303,7 @@ class WallProfileProgressUniqueConstraintTest(UniqueConstraintTestBase):
 class WallConfigReferenceUniqueConstraintTest(UniqueConstraintTestBase):
     description = 'Unique constraint tests for wall config reference objects'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'unique_hash'
         self.wall_config_object = WallConfig.objects.create(
             wall_config_hash=self.wall_config_hash,
@@ -343,7 +343,7 @@ class WallConfigReferenceUniqueConstraintTest(UniqueConstraintTestBase):
 class CascadeDeletionTest(BaseTestcase):
     description = 'Cascade deletion tests'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.wall_config_hash = 'test_wall_hash_12345'
         self.wall_profile_config_hash = 'test_profile_hash_12345'
         self.num_crews = 3

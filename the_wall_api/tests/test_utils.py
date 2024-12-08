@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Callable
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -13,6 +14,14 @@ from rest_framework.exceptions import ErrorDetail
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.utils.api_utils import exposed_endpoints
+from the_wall_api.utils.open_api_schema_utils.djoser_utils import (
+    CreateUserExtendSchemaViewSet, DeleteUserExtendSchemaViewSet, SetPasswordExtendSchemaView,
+    TokenCreateExtendSchemaView, TokenDestroyExtendSchemaView
+)
+from the_wall_api.views import (
+    CostOverviewView, CostOverviewProfileidView, DailyIceUsageView,
+    WallConfigFileDeleteView, WallConfigFileListView, WallConfigFileUploadView
+)
 
 # Group all invalid input characters by serializer error message
 invalid_input_groups = {
@@ -131,6 +140,21 @@ TEST_LOGGING_LEVEL: str = settings.TEST_LOGGING_LEVEL
 logger = configure_test_logger()
 
 
+view_classes_throttling_details = [
+    (CostOverviewView, CostOverviewView.throttle_classes.copy()),
+    (CostOverviewProfileidView, CostOverviewProfileidView.throttle_classes.copy()),
+    (DailyIceUsageView, DailyIceUsageView.throttle_classes.copy()),
+    (WallConfigFileDeleteView, WallConfigFileDeleteView.throttle_classes.copy()),
+    (WallConfigFileListView, WallConfigFileListView.throttle_classes.copy()),
+    (WallConfigFileUploadView, WallConfigFileUploadView.throttle_classes.copy()),
+    (CreateUserExtendSchemaViewSet, CreateUserExtendSchemaViewSet.throttle_classes.copy()),
+    (DeleteUserExtendSchemaViewSet, DeleteUserExtendSchemaViewSet.throttle_classes.copy()),
+    (SetPasswordExtendSchemaView, SetPasswordExtendSchemaView.throttle_classes.copy()),
+    (TokenCreateExtendSchemaView, TokenCreateExtendSchemaView.throttle_classes.copy()),
+    (TokenDestroyExtendSchemaView, TokenDestroyExtendSchemaView.throttle_classes.copy()),
+]
+
+
 class CustomTestRunner(DiscoverRunner):
     def setup_test_environment(self, **kwargs):
         """Called at the start of the entire test suite."""
@@ -168,7 +192,7 @@ class BaseTestMixin:
     ]
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls, bypass_throttling: bool = True):
         # Track passed/failed tests on module level
         cls.module_passed = 0
         cls.module_failed = 0
@@ -182,6 +206,15 @@ class BaseTestMixin:
             logger.info(f'{cls.test_case_group_description.upper()}')
             logger.info(' ')
 
+        if bypass_throttling:
+            cls.bypass_throttling()
+
+    @classmethod
+    def bypass_throttling(cls) -> None:
+        for view_class, _ in view_classes_throttling_details:
+            if view_class.throttle_classes:
+                view_class.throttle_classes = []
+
     @classmethod
     def tearDownClass(cls):
         # At the end of each module, log the results for that module
@@ -192,6 +225,14 @@ class BaseTestMixin:
             logger.info(f'Total ERRORS: {cls.module_errors}')
             logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
             logger.info(' ')
+
+        cls.revert_throttling_bypass()
+
+    @classmethod
+    def revert_throttling_bypass(cls):
+        for view_class, stored_throttle_classes in view_classes_throttling_details:
+            if view_class.throttle_classes == []:
+                view_class.throttle_classes = stored_throttle_classes
 
     @classmethod
     def cache_clear(cls, func):
@@ -263,24 +304,80 @@ class BaseTestMixin:
             for handler in logger.handlers:
                 handler.flush()
 
+    def pre_request_hook(self, *args, **kwargs) -> None:
+        pass
+
+    def post_request_hook(self, *args, **kwargs) -> None:
+        pass
+
 
 class BaseTestcase(BaseTestMixin, TestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls, *args, **kwargs):
         TestCase.setUpClass()
-        super().setUpClass()
+        super().setUpClass(*args, **kwargs)
 
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
         TestCase.tearDownClass()
 
+    def setUp(self, generate_token=False):
+        self.client_get_method = getattr(self.client, 'get')
+        self.client_post_method = getattr(self.client, 'post')
+        self.client_delete_method = getattr(self.client, 'delete')
+
+        if generate_token:
+            self.valid_token = self.generate_test_user_token(
+                client=self.client, username=self.username, password=self.password
+            )
+
+    def execute_throttling_test(
+        self, rest_method: Callable, url: str, request_params: dict[str, Any], throttle_scope: str,
+        input_data: dict[str, Any], test_case_source: str
+    ) -> None:
+        rate_limit = int(settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'][throttle_scope].split('/')[0])
+
+        expected_message = actual_message = 'Correct throttle rate applied'
+        response = None
+        requests_count = 0
+        error_occured = False
+
+        for requests_count in range(1, rate_limit + 2):
+            self.pre_request_hook(request_params)
+            response = rest_method(url, **request_params)
+            self.post_request_hook(request_params)
+            if response.status_code == 429:
+                break
+
+        try:
+            if response is None:
+                raise ValueError('No requests were processed!')
+            self.assertEqual(response.status_code, 429, f'Incorrect status code: {response.status_code}!')
+            self.assertEqual(
+                requests_count,
+                rate_limit + 1,
+                f'Incorrect rate limit: {requests_count} - expected: {rate_limit + 1}!'
+            )
+        except (AssertionError, ValueError) as assrtn_err:
+            actual_message = f'{assrtn_err.__class__.__name__}: {str(assrtn_err)}'
+        except Exception as unknwn_err:
+            actual_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+            error_occured = True
+
+        passed = expected_message == actual_message
+
+        self.log_test_result(
+            passed=passed, input_data=input_data, expected_message=expected_message,
+            actual_message=actual_message, test_case_source=test_case_source, error_occurred=error_occured
+        )
+
 
 class BaseTransactionTestcase(BaseTestMixin, TransactionTestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls, *args, **kwargs):
         TransactionTestCase.setUpClass()
-        super().setUpClass()
+        super().setUpClass(*args, **kwargs)
 
     @classmethod
     def tearDownClass(cls):

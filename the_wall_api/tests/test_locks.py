@@ -16,7 +16,7 @@ from the_wall_api.utils.storage_utils import (
 
 
 class LockTestBase(BaseTestcase):
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         wall_config_hash = hash_calc(self.wall_construction_config)
         wall_config_hash_details = generate_config_hash_details(self.wall_construction_config)
         self.wall_data = {

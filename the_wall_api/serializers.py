@@ -1,12 +1,9 @@
 import json
 
-from django.conf import settings
 from django.core.validators import MinValueValidator, FileExtensionValidator
 from rest_framework import serializers
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallConfigReference
-
-MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
 class DailyIceUsageSerializer(serializers.Serializer):
@@ -33,6 +30,10 @@ class WallConfigFileUploadSerializer(serializers.Serializer):
         fields = ['wall_config_file', 'config_id']
 
     def validate(self, attrs: dict):
+        from django.conf import settings
+
+        MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
+
         user = self.context['request'].user
         user_configs_count = WallConfigReference.objects.filter(user=user).count()
 

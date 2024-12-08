@@ -16,9 +16,9 @@ ERROR_LOG_FILES_CONFIG = settings.ERROR_LOG_FILES_CONFIG
 
 
 class FileRetentionCeleryTaskTest(BaseTestcase):
-    description = 'File Retention Celery Tasks Tests'
+    description = 'File Retention Celery Task Tests'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.root_dir = BUILD_SIM_LOGS_DIR
         self.logs_type = 'build_sim'
         self.test_file_name = 'test_build_simulation_log.txt'
@@ -101,7 +101,7 @@ class FileRetentionCeleryTaskTest(BaseTestcase):
 class LogErrorTaskTest(BaseTestcase):
     description = 'Log Error Celery Task Tests'
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         self.error_id_prefix = 'test_suite_'
 
     def get_log_error_task_result(self, unknwn_err: Exception, error_type: str, input_data: dict, expected_message: str) -> str:

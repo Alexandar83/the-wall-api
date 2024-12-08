@@ -1,6 +1,6 @@
 from copy import deepcopy
 from inspect import currentframe
-from typing import List
+from typing import Any, Dict, List
 
 from django.conf import settings
 from django.urls import reverse
@@ -18,8 +18,8 @@ from the_wall_api.wall_construction import get_sections_count, initialize_wall_d
 class CostAndUsageViewTestBase(BaseViewTest):
 
     @classmethod
-    def setUpClass(cls, skip_test_data_creation: bool = False):
-        super().setUpClass()
+    def setUpClass(cls, skip_test_data_creation: bool = False, *args, **kwargs):
+        super().setUpClass(*args, **kwargs)
         if not skip_test_data_creation:
             cls.prepare_initial_usage_view_test_data()
 
@@ -43,8 +43,8 @@ class CostAndUsageViewTestBase(BaseViewTest):
                 num_crews_wall_data['sections_count'] = wall_config_file_upload_wall_data['sections_count']
                 fetch_wall_data(num_crews_wall_data, num_crews, profile_id=None, request_type='create_wall_task')
 
-    def setUp(self):
-        super().setUp()
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
         # Load the wall profiles configuration to determine the maximum valid profile_id
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.max_profile_id = len(self.wall_construction_config)
@@ -102,15 +102,16 @@ class CostAndUsageViewTestBase(BaseViewTest):
         url = self.prepare_url(profile_id, day)
         if token is None:
             token = self.valid_token
+
+        query_params: Dict[str, Any] = {'config_id': self.valid_config_id}
         if num_crews is not None:
-            request_params = {
-                'query_params': {'num_crews': num_crews, 'config_id': self.valid_config_id},
-                'headers': {
-                    'Authorization': f'Token {token}'
-                }
+            query_params['num_crews'] = num_crews
+        request_params = {
+            'query_params': query_params,
+            'headers': {
+                'Authorization': f'Token {token}'
             }
-        else:
-            request_params = {}
+        }
         input_data = {
             key: value for key, value in [
                 ('profile_id', profile_id), ('day', day), ('num_crews', num_crews), ('config_id', self.valid_config_id)
@@ -300,7 +301,7 @@ class AbnormalCasesDailyIceUsageViewTest(CostAndUsageViewTestBase):
     @classmethod
     def setUpClass(cls, *args, **kwargs):
         # Initialize the test data separately for each test
-        super().setUpClass(skip_test_data_creation=True)
+        super().setUpClass(skip_test_data_creation=True, *args, **kwargs)
 
     def setUp(self):
         super().setUp()

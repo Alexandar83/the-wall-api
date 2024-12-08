@@ -16,8 +16,9 @@ MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
 
 
 class WallConfigFileTestBase(BaseViewTest):
-    def setUp(self):
-        super().setUp()
+
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
 
         # Valid test data
         self.init_valid_wall_config_file()
@@ -52,10 +53,7 @@ class WallConfigFileTestBase(BaseViewTest):
             self.valid_wall_config_file.seek(0)
 
 
-class WallConfigFileUploadViewTest(WallConfigFileTestBase):
-    description = 'Wall Config File Upload View Tests'
-
-    url_name = exposed_endpoints['wallconfig-files-upload']['name']
+class WallConfigFileUploadViewTestBase(WallConfigFileTestBase):
 
     def prepare_final_test_data(self, wall_config_file: BytesIO, token: str) -> tuple[str, dict, dict]:
         url = self.prepare_url()
@@ -71,6 +69,12 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         input_data = deepcopy(request_params)
 
         return url, request_params, input_data
+
+
+class WallConfigFileUploadViewTest(WallConfigFileUploadViewTestBase):
+    description = 'Wall Config File Upload View Tests'
+
+    url_name = exposed_endpoints['wallconfig-files-upload']['name']
 
     def test_wallconfig_file_upload_success(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
@@ -116,10 +120,7 @@ class WallConfigFileUploadViewTest(WallConfigFileTestBase):
         )
 
 
-class WallConfigFileListViewTest(WallConfigFileTestBase):
-    description = 'Wall Config File List View Tests'
-
-    url_name = exposed_endpoints['wallconfig-files-list']['name']
+class WallConfigFileListViewTestBase(WallConfigFileTestBase):
 
     def prepare_final_test_data(self, token: str) -> tuple[str, dict, dict]:
         url = self.prepare_url()
@@ -131,6 +132,12 @@ class WallConfigFileListViewTest(WallConfigFileTestBase):
         input_data = request_params.copy()
 
         return url, request_params, input_data
+
+
+class WallConfigFileListViewTest(WallConfigFileListViewTestBase):
+    description = 'Wall Config File List View Tests'
+
+    url_name = exposed_endpoints['wallconfig-files-list']['name']
 
     def test_wallconfig_file_list_success(
         self, test_case_source: str = '', prepare_initial_test_data: bool = True,
@@ -166,11 +173,7 @@ class WallConfigFileListViewTest(WallConfigFileTestBase):
         )
 
 
-class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
-    description = 'Wall Config File Delete View Tests'
-
-    url_name = exposed_endpoints['wallconfig-files-delete']['name']
-
+class WallConfigFileDeleteViewTestBase(WallConfigFileTestBase):
     def prepare_final_test_data(self, config_id_list: list, token: str) -> tuple[str, dict, dict]:
         url = self.prepare_url()
         query_params = {'config_id_list': config_id_list} if config_id_list != 'to_be_omitted' else {}
@@ -183,6 +186,12 @@ class WallConfigFileDeleteViewTest(WallConfigFileTestBase):
         input_data = deepcopy(request_params)
 
         return url, request_params, input_data
+
+
+class WallConfigFileDeleteViewTest(WallConfigFileDeleteViewTestBase):
+    description = 'Wall Config File Delete View Tests'
+
+    url_name = exposed_endpoints['wallconfig-files-delete']['name']
 
     def test_wall_config_file_delete_valid_single_file(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore

@@ -8,15 +8,18 @@ from the_wall_api.tests.test_utils import BaseTestcase
 from the_wall_api.utils.api_utils import exposed_endpoints
 
 
-class DjoserIntegrationTest(BaseTestcase):
-    description = 'Djoser integration tests'
-
+class DjoserIntegrationTestBase(BaseTestcase):
     users_url = reverse(exposed_endpoints['user-create']['name'])
     reset_password_url = reverse(exposed_endpoints['user-set-password']['name'])
     token_generation_url = reverse(exposed_endpoints['token-login']['name'])
     token_deletion_url = reverse(exposed_endpoints['token-logout']['name'])
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls, bypass_throttling: bool = True, *args, **kwargs):
+        super().setUpClass(bypass_throttling=bypass_throttling, *args, **kwargs)
+
+    def setUp(self, generate_token: bool = False, *args, **kwargs):
+        super().setUp(generate_token=generate_token, *args, **kwargs)
         self.input_data = {'username': self.username, 'password': self.password}
         self.users_me_url = reverse(
             exposed_endpoints['user-delete']['name'], kwargs={'username': self.username}
@@ -109,6 +112,10 @@ class DjoserIntegrationTest(BaseTestcase):
             )
 
         return response
+
+
+class DjoserIntegrationTest(DjoserIntegrationTestBase):
+    description = 'Djoser integration tests'
 
     def test_user_creation(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
