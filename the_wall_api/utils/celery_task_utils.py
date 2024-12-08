@@ -150,6 +150,7 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
 
 
 def delete_unused_wall_configs(wall_config_hash_list: list = [], active_testing: bool = False) -> None:
+    from celery import chain
     from django.conf import settings
     from django.db.models import Q
 
@@ -164,12 +165,18 @@ def delete_unused_wall_configs(wall_config_hash_list: list = [], active_testing:
 
     wall_config_objects_to_delete = WallConfig.objects.filter(collect_for_delete_query)
 
-    for wall_config_object in wall_config_objects_to_delete:
-        deletion_result = wall_config_deletion_task.apply_async(
-            kwargs={'wall_config_hash': wall_config_object.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
-        )    # type: ignore
+    if wall_config_objects_to_delete.count() > 0:
+        task_chain = chain(
+            wall_config_deletion_task.si(
+                wall_config_hash=object_to_delete.wall_config_hash, active_testing=active_testing
+            )    # type: ignore
+            for object_to_delete in wall_config_objects_to_delete
+        )
         # Avoid queue overflow - process the deletion tasks sequentially
-        deletion_result.get(60)
+        task_chain_result = task_chain.apply_async(priority=CELERY_TASK_PRIORITY['HIGH'])
+        if task_chain_result is not None:
+            while not task_chain_result.ready():
+                sleep(1)
 
 
 def import_wall_config_deletion_task(active_testing: bool = False):
