@@ -204,6 +204,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/min',
+        'user': '100/min',
+        'user-management': '10/min',
+        'wallconfig-files-management': '5/min',
+    }
 }
 
 DJOSER = {

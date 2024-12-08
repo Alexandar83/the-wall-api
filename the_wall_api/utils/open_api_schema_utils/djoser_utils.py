@@ -2,6 +2,7 @@
 
 from djoser.views import TokenCreateView, TokenDestroyView, UserViewSet
 from drf_spectacular.utils import extend_schema
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
 
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_examples, open_api_resposnes, request_serializers
@@ -11,6 +12,7 @@ from the_wall_api.utils.open_api_schema_utils import (
 # User creation
 class CreateUserExtendSchemaViewSet(UserViewSet):
     authentication_classes = []
+    throttle_classes = [AnonRateThrottle]
 
     @extend_schema(
         tags=['auth'],
@@ -26,6 +28,8 @@ class CreateUserExtendSchemaViewSet(UserViewSet):
 
 # User deletion
 class DeleteUserExtendSchemaViewSet(UserViewSet):
+    throttle_classes = [AnonRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'user-management'
 
     @extend_schema(
         tags=['auth'],
@@ -50,6 +54,8 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
 
 # Change password
 class SetPasswordExtendSchemaView(UserViewSet):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'user-management'
 
     @extend_schema(
         tags=['auth'],
@@ -66,6 +72,7 @@ class SetPasswordExtendSchemaView(UserViewSet):
 # Token login
 class TokenCreateExtendSchemaView(TokenCreateView):
     authentication_classes = []
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
     @extend_schema(
         tags=['auth'],
@@ -85,6 +92,8 @@ class TokenCreateExtendSchemaView(TokenCreateView):
 
 # Token logout
 class TokenDestroyExtendSchemaView(TokenDestroyView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'user-management'
 
     @extend_schema(
         tags=['auth'],

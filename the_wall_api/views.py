@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from the_wall_api.serializers import (
@@ -25,6 +26,8 @@ from the_wall_api.wall_construction import initialize_wall_data
 
 class WallConfigFileUploadView(APIView):
     serializer_class = WallConfigFileUploadSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
         tags=['wallconfig-files'],
@@ -64,6 +67,7 @@ class WallConfigFileUploadView(APIView):
 
 
 class WallConfigFileListView(APIView):
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['wallconfig-files'],
@@ -88,6 +92,8 @@ class WallConfigFileListView(APIView):
 
 class WallConfigFileDeleteView(APIView):
     serializer_class = WallConfigFileDeleteSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
         tags=['wallconfig-files'],
@@ -116,6 +122,7 @@ class WallConfigFileDeleteView(APIView):
 
 
 class DailyIceUsageView(APIView):
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['daily-ice-usage'],
@@ -169,6 +176,7 @@ class DailyIceUsageView(APIView):
 
 
 class CostOverviewView(APIView):
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['cost-overview'],
@@ -224,6 +232,7 @@ class CostOverviewView(APIView):
 
 
 class CostOverviewProfileidView(CostOverviewView):
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['cost-overview'],
