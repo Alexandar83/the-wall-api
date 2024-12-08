@@ -12,7 +12,6 @@ from django.conf import settings
 
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 
-CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_MULTIPROCESSING_NUM_CREWS = settings.MAX_MULTIPROCESSING_NUM_CREWS
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
@@ -49,6 +48,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     def init_multiprocessing(self) -> None:
         self.build_kwargs = {
+            'CONCURRENT_SIMULATION_MODE': self.CONCURRENT_SIMULATION_MODE,
             'filename': self.filename,
             'result_queue': self.result_queue,
             'process_counter': Value('i', 1),
@@ -63,6 +63,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     def init_multiprocessing_with_manager(self) -> None:
         self.build_kwargs = {
+            'CONCURRENT_SIMULATION_MODE': self.CONCURRENT_SIMULATION_MODE,
             'filename': self.filename,
             'result_queue': self.result_queue,
             'process_counter': self.manager.Value('i', 1),
@@ -73,7 +74,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'daily_cost_section': self.daily_cost_section,
         }
 
-        if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
+        if self.CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
             self.build_kwargs['day_condition'] = self.manager.Condition()
         else:
             self.build_kwargs['day_event'] = self.manager.Event()
@@ -196,7 +197,9 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             process_counter.value += 1
 
     @staticmethod
-    def process_sections(sections_queue: Union[Queue, mprcss_Queue], **build_kwargs) -> None:
+    def process_sections(
+        sections_queue: Union[Queue, mprcss_Queue], CONCURRENT_SIMULATION_MODE: str, **build_kwargs
+    ) -> None:
         """
         Processes the sections for the crew until there are no more sections available.
         """
@@ -210,21 +213,25 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
                 break
 
             current_process_day = MultiprocessingWallBuilder.process_section(
-                profile_id, section_id, height, current_process_day, **build_kwargs
+                profile_id, section_id, height, current_process_day,
+                CONCURRENT_SIMULATION_MODE=CONCURRENT_SIMULATION_MODE, **build_kwargs
             )
 
             if build_kwargs['celery_task_aborted_mprcss'].value:
                 break
 
         # When there are no more sections available for the crew, relieve it
-        manage_crew_release = MultiprocessingWallBuilder.get_manage_crew_release_func()
+        manage_crew_release = MultiprocessingWallBuilder.get_manage_crew_release_func(
+            CONCURRENT_SIMULATION_MODE
+        )
         manage_crew_release(**build_kwargs)
 
     @staticmethod
     def process_section(
         profile_id: int, section_id: int, height: int, current_process_day: int, daily_cost_section: int,
         logger: Logger, process_name: str, result_queue: Union[Queue, mprcss_Queue],
-        testing_wall_construction_config_mprcss: list | None = None, **build_kwargs
+        CONCURRENT_SIMULATION_MODE: str, testing_wall_construction_config_mprcss: list | None = None,
+        **build_kwargs
     ) -> int:
         # Initialize section construction variables
         total_ice_used = 0
@@ -249,7 +256,9 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             )
 
             # Synchronize with the other crews at the end of the day
-            end_of_day_synchronization = MultiprocessingWallBuilder.get_end_of_day_synchronization_func()
+            end_of_day_synchronization = MultiprocessingWallBuilder.get_end_of_day_synchronization_func(
+                CONCURRENT_SIMULATION_MODE
+            )
             end_of_day_synchronization(**build_kwargs)
 
             if build_kwargs['celery_task_aborted_mprcss'].value:
@@ -296,13 +305,13 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
 # === Common logic ===
     @staticmethod
-    def get_manage_crew_release_func() -> Callable:
+    def get_manage_crew_release_func(CONCURRENT_SIMULATION_MODE: str) -> Callable:
         if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
             return MultiprocessingWallBuilder.manage_crew_release_v3
         return MultiprocessingWallBuilder.manage_crew_release_v1_v2
 
     @staticmethod
-    def get_end_of_day_synchronization_func() -> Callable:
+    def get_end_of_day_synchronization_func(CONCURRENT_SIMULATION_MODE: str) -> Callable:
         if CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
             return MultiprocessingWallBuilder.end_of_day_synchronization_v3
         return MultiprocessingWallBuilder.end_of_day_synchronization_v1_v2

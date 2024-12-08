@@ -382,8 +382,8 @@ def execute_core_task_logic_with_error_handling(func: Callable, *args, **kwargs)
         return func(*args, **kwargs)
     except OperationalError as oprtnl_err:
         return send_log_error_async('celery_tasks', error=oprtnl_err), []
-    except WallConfig.DoesNotExist:
-        return send_log_error_async('celery_tasks', error_message='Wall config object not existing'), []
+    except WallConfig.DoesNotExist as not_exst_err:
+        return send_log_error_async('celery_tasks', error=not_exst_err), []
     except Exception as unknwn_err:
         return send_log_error_async('celery_tasks', error=unknwn_err), []
 

@@ -17,7 +17,6 @@ from the_wall_api.utils.concurrency_utils.multiprocessing_utils import Multiproc
 from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
 
-CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 ICE_COST_PER_CUBIC_YARD = settings.ICE_COST_PER_CUBIC_YARD
@@ -35,8 +34,10 @@ class WallConstruction:
 
     def __init__(
         self, wall_construction_config: list, sections_count: int, num_crews: int,
-        wall_config_hash: str, simulation_type: str = SEQUENTIAL, celery_task: AbortableTask | None = None
+        wall_config_hash: str, simulation_type: str = SEQUENTIAL, celery_task: AbortableTask | None = None,
+        proxy_wall_creation_call: bool = False
     ):
+        self.CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
         self.wall_construction_config = wall_construction_config
         self.testing_wall_construction_config = deepcopy(wall_construction_config)     # For unit testing purposes
         self.sections_count = sections_count
@@ -54,12 +55,13 @@ class WallConstruction:
 
         # Initialize the wall profile data
         self.wall_profile_data = {}
+        self.proxy_wall_creation_call = proxy_wall_creation_call    # Utilized in proxy_wall_creation
         self.calc_wall_profile_data()
         self.sim_calc_details = self._calc_sim_details()
 
     def manage_celery_task_aborted_mprcss(self):
         # Threading
-        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+        if 'multiprocessing' not in self.CONCURRENT_SIMULATION_MODE:
             from types import SimpleNamespace
             self.celery_task_aborted_mprcss = SimpleNamespace(value=False)
         # Multiprocessing
@@ -69,7 +71,7 @@ class WallConstruction:
             self.celery_task_aborted_mprcss = Value('b', False)
 
     def is_manager_required(self) -> bool:
-        return CONCURRENT_SIMULATION_MODE != 'multiprocessing_v1' or bool(self.celery_task)
+        return self.CONCURRENT_SIMULATION_MODE != 'multiprocessing_v1' or bool(self.celery_task)
 
     def start_abort_signal_listener_thread(self):
         """
@@ -90,7 +92,7 @@ class WallConstruction:
     def calc_wall_profile_data(self):
         if self.simulation_type == SEQUENTIAL:
             self.calc_wall_profile_data_sequential()
-        elif 'threading' in CONCURRENT_SIMULATION_MODE:
+        elif 'threading' in self.CONCURRENT_SIMULATION_MODE:
             ThreadingWallBuilder(self).calc_wall_profile_data_concurrent()
         else:
             MultiprocessingWallBuilder(self).calc_wall_profile_data_concurrent()

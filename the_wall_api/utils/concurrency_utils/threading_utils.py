@@ -8,7 +8,6 @@ from django.conf import settings
 
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 
-CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 
@@ -30,7 +29,7 @@ class ThreadingWallBuilder(BaseWallBuilder):
         self.init_sim_mode_attributes()
 
     def init_sim_mode_attributes(self) -> None:
-        if CONCURRENT_SIMULATION_MODE == 'threading_v2':
+        if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
             self.day_event = Event()
             self.day_event_lock = Lock()
         else:
@@ -136,13 +135,13 @@ class ThreadingWallBuilder(BaseWallBuilder):
 
 # === Common logic ===
     def get_manage_crew_release_func(self) -> Callable:
-        if CONCURRENT_SIMULATION_MODE == 'threading_v2':
+        if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
             return self.manage_crew_release_v2
 
         return self.manage_crew_release_v1
 
     def get_end_of_day_synchronization_func(self) -> Callable:
-        if CONCURRENT_SIMULATION_MODE == 'threading_v2':
+        if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
             return self.end_of_day_synchronization_v2
 
         return self.end_of_day_synchronization_v1
@@ -154,7 +153,7 @@ class ThreadingWallBuilder(BaseWallBuilder):
             self.finished_crews_for_the_day = 0
 
             # Wake up all waiting threads
-            if CONCURRENT_SIMULATION_MODE == 'threading_v2':
+            if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
                 # Event
                 self.day_event.set()        # Wake up all waiting threads
                 self.day_event.clear()      # Reset the event for the next day

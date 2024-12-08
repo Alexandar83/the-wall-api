@@ -14,7 +14,6 @@ from typing import Union
 from django.conf import settings
 
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
-CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_MULTIPROCESSING_NUM_CREWS = settings.MAX_MULTIPROCESSING_NUM_CREWS
 
@@ -32,7 +31,7 @@ class BaseWallBuilder(ABC):
             f'{timestamp}_{self.wall_config_hash}_{self.num_crews}_{token_hex(4)}.log'
         )
         self.sections_queue = self.init_sections_queue()
-        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+        if 'multiprocessing' not in self.CONCURRENT_SIMULATION_MODE:
             self.max_crews = min(self.sections_count, self.num_crews)
         else:
             # Restrict the max number of crews for multiprocessing according to the
@@ -70,6 +69,10 @@ class BaseWallBuilder(ABC):
 
                     self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
                     self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
+
+        if self.proxy_wall_creation_call:
+            print('Done!')
+            print(f'The results are stored in {self.filename}')
 
     @staticmethod
     def setup_logger(
