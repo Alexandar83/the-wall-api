@@ -30,7 +30,7 @@ class WallConfigFileUploadView(APIView):
     throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
-        tags=['wallconfig-files'],
+        tags=['File Management'],
         summary='Upload Wall Configuration File',
         description=(
             'Allows users to upload wall configuration files, which are '
@@ -70,7 +70,7 @@ class WallConfigFileListView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        tags=['wallconfig-files'],
+        tags=['File Management'],
         summary='List Wall Configuration Files',
         description='Retrieve a list of wall configuration files uploaded by the user.',
         responses=open_api_resposnes.wallconfig_file_list_responses
@@ -96,7 +96,7 @@ class WallConfigFileDeleteView(APIView):
     throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
-        tags=['wallconfig-files'],
+        tags=['File Management'],
         summary='Delete Wall Configuration File',
         description='Delete a wall configuration file uploaded by the user.',
         parameters=[open_api_parameters.file_delete_config_id_list_parameter],
@@ -125,7 +125,7 @@ class DailyIceUsageView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        tags=['daily-ice-usage'],
+        tags=['Costs and Daily Ice Usage '],
         summary='Get Daily Ice Usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
         parameters=open_api_parameters.daily_ice_usage_parameters +
@@ -179,7 +179,7 @@ class CostOverviewView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        tags=['cost-overview'],
+        tags=['Costs and Daily Ice Usage '],
         operation_id='get_cost_overview',
         summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
@@ -235,7 +235,7 @@ class CostOverviewProfileidView(CostOverviewView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        tags=['cost-overview'],
+        tags=['Costs and Daily Ice Usage '],
         operation_id='get_cost_overview_profile_id',
         summary='Get Profile Cost Overview',
         description='Retrieve the total cost for a specific wall profile.',

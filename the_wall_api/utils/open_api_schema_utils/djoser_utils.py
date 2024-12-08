@@ -15,7 +15,7 @@ class CreateUserExtendSchemaViewSet(UserViewSet):
     throttle_classes = [AnonRateThrottle]
 
     @extend_schema(
-        tags=['auth'],
+        tags=['User Management'],
         summary='Create User',
         description='Register a new user with email and password.',
         request=request_serializers.create_user_request_serializer,
@@ -32,7 +32,7 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['auth'],
+        tags=['User Management'],
         summary='Delete User',
         description=(
             'This endpoint requires the `current_password` parameter in the request\'s body.\n\n'
@@ -58,7 +58,7 @@ class SetPasswordExtendSchemaView(UserViewSet):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['auth'],
+        tags=['User Management'],
         summary='Update User Password',
         description='Change/reset the user\'s current password.',
         request=request_serializers.set_password_request_serializer,
@@ -75,7 +75,7 @@ class TokenCreateExtendSchemaView(TokenCreateView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
     @extend_schema(
-        tags=['auth'],
+        tags=['User Management'],
         summary='Obtain Authentication Token',
         description=(
             'Obtain an authentication token by creating a new one or '
@@ -96,7 +96,7 @@ class TokenDestroyExtendSchemaView(TokenDestroyView):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['auth'],
+        tags=['User Management'],
         summary='Revoke Authentication Token',
         description='Revoke an existing authentication token - requires only a valid token.',
         responses=open_api_resposnes.token_logout_responses,
