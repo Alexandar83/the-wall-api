@@ -42,6 +42,15 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         cls.deletion_task_fail_msg = 'Wall config deletion failure.'
         if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
             cls.concurrency = 8
+            cls.wall_construction_config = [
+                [21, 25, 28],
+                [17],
+                [17, 22, 17, 19, 17],
+                [1, 2, 3, 4, 5],
+                [6, 7, 8, 9, 10],
+                [11, 12, 13, 14, 15],
+                [16, 17, 18, 19, 20]
+            ]
         else:
             cls.concurrency = 3    # 1 for each type of computation Celery task
         cls.setup_celery_workers()
@@ -455,7 +464,12 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def test_wall_config_deletion_task_concurrent(self):
         """
         Start the deletion task during the orchestration task processing.
-        The exoected result is that the orchestration is gracefully aborted.
+        The expected result is that the orchestration is gracefully aborted.
+        *On a faster machine this test may fail due to one of the tasks not starting at the correct time or
+        finishing prematurely. To avoid this:
+        -Decrease the wait period between the tasks in send_celery_tasks (for deletion == 'concurrent')
+        -Increase the size of wall_construction_config in ConcurrentCeleryTasksTestBase.setUpClass
+        -Both of the above together
         """
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_orchestrate_wall_config_processing_task(deletion='concurrent', test_case_source=test_case_source)
@@ -552,7 +566,7 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
             'wall_config_reference_1': self.wall_config_reference_1,
             'wall_config_reference_2': self.wall_config_reference_2,
         }
-        sleep(5)    # Grace period to ensure objects are properly created in postgres
+        sleep(1)    # Grace period to ensure objects are properly created in postgres
 
     def delete_user(self) -> None:
         self.client.delete(
