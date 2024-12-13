@@ -29,9 +29,9 @@ if not LIGHT_CELERY_CONFIG:
 
 def archive_logs(input_params: dict | None = None, test_input_params: dict | None = None) -> None:
     """Move and compress logs older than the parametrized retention period to the archive directory."""
-    log_retention_date, logs_dir, logs_arhive_dir = get_archive_logs_details(input_params, test_input_params)
+    log_retention_date, logs_dir, logs_archive_dir = get_archive_logs_details(input_params, test_input_params)
 
-    os.makedirs(logs_arhive_dir, exist_ok=True)
+    os.makedirs(logs_archive_dir, exist_ok=True)
 
     for log_file in os.listdir(logs_dir):
         # Skip files in use
@@ -47,7 +47,7 @@ def archive_logs(input_params: dict | None = None, test_input_params: dict | Non
 
             # Archive the file if it's older than the retention period
             if file_mtime < log_retention_date:
-                archive_file(logs_arhive_dir, log_file, log_path)
+                archive_file(logs_archive_dir, log_file, log_path)
 
 
 def get_archive_logs_details(input_params: dict | None = None, test_input_params: dict | None = None) -> tuple[datetime, str, str]:
@@ -75,8 +75,8 @@ def get_test_log_archive_details(root_dir: str, test_file_name: str) -> tuple[st
     return test_logs_dir, test_logs_dir_archive, test_file
 
 
-def archive_file(logs_arhive_dir: str, log_file: str, log_path: str,) -> None:
-    archive_path = os.path.join(logs_arhive_dir, log_file + '.gzip')
+def archive_file(logs_archive_dir: str, log_file: str, log_path: str,) -> None:
+    archive_path = os.path.join(logs_archive_dir, log_file + '.gzip')
 
     # Compress the log file and copy it to the archive
     with open(log_path, 'rb') as f_in, gzip_open(archive_path, 'wb', compresslevel=9) as f_out:

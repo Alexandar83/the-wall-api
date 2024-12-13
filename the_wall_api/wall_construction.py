@@ -1,5 +1,5 @@
 # This module simulates the construction process of a wall, tracking material usage (ice) and costs.
-# It supports both sequential and concurrent simulation modes,and logs progressdata to showcase
+# It supports both sequential and concurrent simulation modes,and logs progress data to showcase
 # the construction process.
 
 from copy import deepcopy
@@ -294,7 +294,7 @@ def store_simulation_result(wall_data):
     """
     simulation_result = wall_data['simulation_result'] = {}
 
-    # Used in the costowverview response
+    # Used in the costoverview response
     simulation_result['wall_total_cost'] = wall_data['sim_calc_details']['total_cost']
 
     # Used in the costoverview/profile_id response

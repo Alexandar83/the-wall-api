@@ -2,7 +2,7 @@
 
 from django.conf import settings
 
-# API ENPOINTS SECTION - only for exposed endpoints
+# API ENDPOINTS SECTION - only for exposed endpoints
 # Changes here are reflected automatically throughout the project:
 endpoint_prefix = f'api/{settings.API_VERSION}'
 exposed_endpoints = {

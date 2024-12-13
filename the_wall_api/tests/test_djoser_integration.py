@@ -28,7 +28,7 @@ class DjoserIntegrationTestBase(BaseTestcase):
     def check_result_and_log(
         self, assertions: list[Callable], input_data: dict, expected_message: str, test_case_source: str
     ) -> None:
-        error_occured = False
+        error_occurred = False
         passed = True
         actual_message = ''
 
@@ -42,7 +42,7 @@ class DjoserIntegrationTestBase(BaseTestcase):
             except Exception as unknwn_err:
                 passed = False
                 actual_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
-                error_occured = True
+                error_occurred = True
                 break
 
         self.log_test_result(
@@ -51,7 +51,7 @@ class DjoserIntegrationTestBase(BaseTestcase):
             expected_message=expected_message,
             actual_message=actual_message,
             test_case_source=test_case_source,
-            error_occurred=error_occured
+            error_occurred=error_occurred
         )
 
     def process_request_chain(self, request_type: str = 'user_creation') -> HttpResponse:

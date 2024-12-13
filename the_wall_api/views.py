@@ -15,7 +15,7 @@ from the_wall_api.serializers import (
 )
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.open_api_schema_utils import (
-    open_api_parameters, open_api_resposnes, open_api_schemas
+    open_api_parameters, open_api_responses, open_api_schemas
 )
 from the_wall_api.utils.storage_utils import (
     fetch_user_wall_config_files, fetch_wall_data,
@@ -38,7 +38,7 @@ class WallConfigFileUploadView(APIView):
             'accessed through the `daily-ice-usage`, `cost-overview`, and `cost-overview-profile` endpoints.'
         ),
         request=open_api_schemas.wallconfig_file_upload_schema,
-        responses=open_api_resposnes.wallconfig_file_upload_responses
+        responses=open_api_responses.wallconfig_file_upload_responses
     )
     def post(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -73,7 +73,7 @@ class WallConfigFileListView(APIView):
         tags=['File Management'],
         summary='List Wall Configuration Files',
         description='Retrieve a list of wall configuration files uploaded by the user.',
-        responses=open_api_resposnes.wallconfig_file_list_responses
+        responses=open_api_responses.wallconfig_file_list_responses
     )
     def get(self, request):
         wall_data = initialize_wall_data(
@@ -100,7 +100,7 @@ class WallConfigFileDeleteView(APIView):
         summary='Delete Wall Configuration File',
         description='Delete a wall configuration file uploaded by the user.',
         parameters=[open_api_parameters.file_delete_config_id_list_parameter],
-        responses=open_api_resposnes.wallconfig_file_delete_responses
+        responses=open_api_responses.wallconfig_file_delete_responses
     )
     def delete(self, request):
         serializer = WallConfigFileDeleteSerializer(
@@ -130,7 +130,7 @@ class DailyIceUsageView(APIView):
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
         parameters=open_api_parameters.daily_ice_usage_parameters +
         [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_resposnes.daily_ice_usage_responses
+        responses=open_api_responses.daily_ice_usage_responses
     )
     def get(self, request: Request, profile_id: int, day: int) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
@@ -184,7 +184,7 @@ class CostOverviewView(APIView):
         summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_resposnes.cost_overview_responses
+        responses=open_api_responses.cost_overview_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
@@ -241,7 +241,7 @@ class CostOverviewProfileidView(CostOverviewView):
         description='Retrieve the total cost for a specific wall profile.',
         parameters=open_api_parameters.cost_overview_profile_id_parameters +
         [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_resposnes.cost_overview_profile_id_responses
+        responses=open_api_responses.cost_overview_profile_id_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
         return super().get(request, profile_id)

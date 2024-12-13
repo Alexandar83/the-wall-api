@@ -106,13 +106,13 @@ class LogErrorTaskTest(BaseTestcase):
 
     def get_log_error_task_result(self, unknwn_err: Exception, error_type: str, input_data: dict, expected_message: str) -> str:
         # Extract error details
-        error_mesasge = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+        error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
         error_traceback = extract_error_traceback(unknwn_err)
         input_data['error_type'] = error_type
-        input_data['error_message'] = error_mesasge
+        input_data['error_message'] = error_message
 
         # Log the error
-        task_result = log_error_task.delay(error_type, error_mesasge, error_traceback, error_id_prefix=self.error_id_prefix)      # type: ignore
+        task_result = log_error_task.delay(error_type, error_message, error_traceback, error_id_prefix=self.error_id_prefix)      # type: ignore
         task_result.get(timeout=5)  # Blocks until the task is done
 
         # Check log error task success
@@ -132,14 +132,14 @@ class LogErrorTaskTest(BaseTestcase):
             return actual_message
 
         # Check logged error details
-        check_log_file_result = self.check_logged_error_details(error_log_file, error_id, error_mesasge)
+        check_log_file_result = self.check_logged_error_details(error_log_file, error_id, error_message)
         if check_log_file_result != 'OK':
             actual_message = f'Logged error details inconsistency: {check_log_file_result}!'
             return actual_message
 
         return expected_message
 
-    def check_logged_error_details(self, error_log_file: str, error_id: str, error_mesasge: str) -> str:
+    def check_logged_error_details(self, error_log_file: str, error_id: str, error_message: str) -> str:
         with open(error_log_file, 'r') as error_log:
             for logged_error in error_log:
                 logged_error_json = json.loads(logged_error)
@@ -150,10 +150,10 @@ class LogErrorTaskTest(BaseTestcase):
 
                 # If the log is found, check its error message
                 logged_error_message = logged_error_json.get('message')
-                if logged_error_message != error_mesasge:
+                if logged_error_message != error_message:
                     return (
                         f'Logged error message: {logged_error_message}\n'
-                        f'does not match expected error message: {error_mesasge}'
+                        f'does not match expected error message: {error_message}'
                     )
 
                 return 'OK'
@@ -172,8 +172,8 @@ class LogErrorTaskTest(BaseTestcase):
             try:
                 actual_message = self.get_log_error_task_result(unknwn_err, error_type, input_data, expected_message)
             except Exception as task_err:
-                error_mesasge = f'{task_err.__class__.__name__}: {str(task_err)}'
-                actual_message = f'Log error task failed: {error_mesasge}'
+                error_message = f'{task_err.__class__.__name__}: {str(task_err)}'
+                actual_message = f'Log error task failed: {error_message}'
                 error_occurred = True
 
         passed = expected_message == actual_message

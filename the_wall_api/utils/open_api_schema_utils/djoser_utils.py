@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
 
 from the_wall_api.utils.open_api_schema_utils import (
-    open_api_examples, open_api_resposnes, request_serializers
+    open_api_examples, open_api_responses, request_serializers
 )
 
 
@@ -19,7 +19,7 @@ class CreateUserExtendSchemaViewSet(UserViewSet):
         summary='Create User',
         description='Register a new user with email and password.',
         request=request_serializers.create_user_request_serializer,
-        responses=open_api_resposnes.create_user_responses,
+        responses=open_api_responses.create_user_responses,
         examples=[open_api_examples.create_user_request_example]
     )
     def create(self, request, *args, **kwargs):
@@ -46,7 +46,7 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
             'and examples cannot be included in the schema documentation for DELETE endpoints.\n\n'
             '*The "Try it out" functionality also doesn\'t work properly in Swagger UI.*" '
         ),
-        responses=open_api_resposnes.delete_user_responses,
+        responses=open_api_responses.delete_user_responses,
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
@@ -62,7 +62,7 @@ class SetPasswordExtendSchemaView(UserViewSet):
         summary='Update User Password',
         description='Change/reset the user\'s current password.',
         request=request_serializers.set_password_request_serializer,
-        responses=open_api_resposnes.set_password_responses,
+        responses=open_api_responses.set_password_responses,
         examples=[open_api_examples.set_password_request_example]
     )
     def set_password(self, request, *args, **kwargs):
@@ -83,7 +83,7 @@ class TokenCreateExtendSchemaView(TokenCreateView):
         ),
         # Override the default request serializer to indicate the required arguments
         request=request_serializers.token_login_request_serializer,
-        responses=open_api_resposnes.token_login_responses,
+        responses=open_api_responses.token_login_responses,
         examples=[open_api_examples.token_login_request_example]
     )
     def post(self, request, *args, **kwargs):
@@ -99,7 +99,7 @@ class TokenDestroyExtendSchemaView(TokenDestroyView):
         tags=['User Management'],
         summary='Revoke Authentication Token',
         description='Revoke an existing authentication token - requires only a valid token.',
-        responses=open_api_resposnes.token_logout_responses,
+        responses=open_api_responses.token_logout_responses,
         request=request_serializers.token_logout_request_serializer
     )
     def post(self, request, *args, **kwargs):

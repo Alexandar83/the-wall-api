@@ -55,14 +55,14 @@ def validate_wall_config_file_data(wall_data: Dict[str, Any]) -> None:
 
 def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config_msg: str) -> None:
     if not isinstance(wall_config_file_data, list):
-        raise WallConstructionError(f'{invalid_wall_config_msg} Must be a list of nested lists of integers.')
+        raise WallConstructionError(f'{invalid_wall_config_msg} Must be a nested list of lists of integers.')
 
     if len(wall_config_file_data) > MAX_WALL_LENGTH:
         raise WallConstructionError(f'The loaded wall config exceeds the maximum wall length of {MAX_WALL_LENGTH}.')
 
     for profile in wall_config_file_data:
         if not isinstance(profile, list):
-            raise WallConstructionError(f'{invalid_wall_config_msg} The data in each profile must be a list of integers.')
+            raise WallConstructionError(f'{invalid_wall_config_msg} Each profile must be a list of integers.')
 
         if len(profile) > MAX_WALL_PROFILE_SECTIONS:
             raise WallConstructionError(
@@ -71,7 +71,7 @@ def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config
 
         for section_number, section_height in enumerate(profile, start=1):
             if not isinstance(section_height, int):
-                raise WallConstructionError(f'{invalid_wall_config_msg} The data in each profile must be a list of integers.')
+                raise WallConstructionError(f'{invalid_wall_config_msg} Each profile must contain only integers.')
 
             if section_height > MAX_SECTION_HEIGHT:
                 raise WallConstructionError(

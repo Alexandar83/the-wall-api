@@ -301,7 +301,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
                     f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
                 )
             )
-        expected_message = 'Sequential proile costs match the concurrent values'
+        expected_message = 'Sequential profile costs match the concurrent values'
         self.log_test_result(
             passed=True,
             input_data=input_data,

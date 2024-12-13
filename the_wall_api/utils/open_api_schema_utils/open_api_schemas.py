@@ -9,7 +9,7 @@ wallconfig_file_upload_schema = {
                 'format': 'binary',
                 'description': (
                     'A JSON file containing Wall configuration data.\n\n'
-                    'Should contain a list of nested lists of integers.\n\n'
+                    'Should contain a nested list of lists of integers.\n\n'
                     '**Example**:\n'
                     '[[1, 5, 10], [5, 7, 16, 23]]'
                 )

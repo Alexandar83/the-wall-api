@@ -253,7 +253,7 @@ def fetch_daily_ice_usage_from_redis_cache(
 
     # No check_if_cached_on_another_day_redis_cache method is implemented:
     # Explanation:
-    # Don't mix DB with Redis cache fethes in this case, to avoid theoretical
+    # Don't mix DB with Redis cache fetches in this case, to avoid theoretical
     # race conditions, where 1 process has already cached the wall
     # and its construction days in the DB, but the Redis cache is still
     # not committed
