@@ -297,7 +297,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         total_cost: int, logger: Logger, process_name: str
     ) -> None:
         if height == MAX_SECTION_HEIGHT:
-            sleep(0.025)     # Grace period to ensure finish section records are at the end of the day's records
+            sleep(0.05)     # Grace period to ensure finish section records are at the end of the day's records
             section_completion_msg = BaseWallBuilder.get_section_completion_msg(
                 profile_id, section_id, current_process_day, total_ice_used, total_cost
             )

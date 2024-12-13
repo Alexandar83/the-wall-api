@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import count
 from queue import Empty, Queue
 from threading import Condition, current_thread, Event, Lock, Thread
+from time import sleep
 from typing import Callable
 
 from django.conf import settings
@@ -121,6 +122,7 @@ class ThreadingWallBuilder(BaseWallBuilder):
 
             # Log the section finalization
             if height == MAX_SECTION_HEIGHT:
+                sleep(0.02)     # Grace period to ensure finish section records are at the end of the day's records
                 section_completion_msg = BaseWallBuilder.get_section_completion_msg(
                     profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost
                 )
