@@ -238,9 +238,6 @@ APPEND_SLASH = True
 TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 
 # === Filesystem configuration ===
-# General
-WALL_CONFIG_PATH = os.getenv('WALL_CONFIG_PATH', 'config/wall_config.json')             # Location of the wall profile configuration
-
 # Construction simulation logs
 LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Parent logs folder
 os.makedirs(LOGS_DIR, exist_ok=True)
