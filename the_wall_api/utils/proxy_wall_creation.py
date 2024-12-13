@@ -19,7 +19,7 @@ from the_wall_api.wall_construction import (                    # noqa: E402
 # multiprocessing_v2 - multiprocessing ProcessPoolExecutor + Manager().Event sync.
 # multiprocessing_v3 - multiprocessing ProcessPoolExecutor + Manager().Condition sync.
 
-@override_settings(CONCURRENT_SIMULATION_MODE='multiprocessing_v3')
+@override_settings(CONCURRENT_SIMULATION_MODE='threading_v1')
 def construct_wall(wall_construction_config: list[list[int]], num_crews: int) -> None:
     sections_count = get_sections_count(wall_construction_config)
     simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count)
