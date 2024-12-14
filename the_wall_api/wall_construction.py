@@ -101,30 +101,34 @@ class WallConstruction:
     def calc_wall_profile_data_sequential(self) -> None:
         """
         Sequential construction process simulation.
-        All unfinished sections have their designated crew assigned.
+        All unfinished sections have a designated crew.
+        Increment the heights of all sections, before proceeding to the next day.
         """
-        for profile_index, profile in enumerate(self.wall_construction_config):
-            day = 1
-            daily_ice_usage = {}
-            # Increment the heights of all sections until they reach MAX_SECTION_HEIGHT
-            while any(height < MAX_SECTION_HEIGHT for height in profile):
+        day = 1
+
+        # Increment the heights of all sections until they reach MAX_SECTION_HEIGHT
+        while any(height < MAX_SECTION_HEIGHT for profile in self.wall_construction_config for height in profile):
+            # Increment each profile's unfinished sections
+            for profile_index, profile in enumerate(self.wall_construction_config, start=1):
+                # Initialize wall profile data if not already done
+                self.wall_profile_data.setdefault(profile_index, {})
+
                 ice_used = 0
                 for i, height in enumerate(profile):
                     if height < MAX_SECTION_HEIGHT:
-                        ice_used += ICE_PER_FOOT
                         profile[i] += 1  # Increment the height of the section
-                        self.testing_wall_construction_config[profile_index][i] = profile[i]
+                        ice_used += ICE_PER_FOOT
+                        self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
+
+                        # Logging to stdout is muted in the workers
                         if self.celery_task_aborted:
-                            # Logging to stdout is muted in the workers
                             print('Sequential simulation interrupted by a celery task abort signal!')
                             return
 
-                # Keep track of daily ice usage
-                daily_ice_usage[day] = {'ice_used': ice_used}
-                day += 1
+                # Keep track of the daily ice usage
+                self.wall_profile_data[profile_index][day] = {'ice_used': ice_used}
 
-            # Store the results
-            self.wall_profile_data[profile_index + 1] = daily_ice_usage
+            day += 1
 
     def _daily_ice_usage(self, profile_id: int, day: int) -> int:
         """
