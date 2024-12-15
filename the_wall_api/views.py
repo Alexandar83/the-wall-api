@@ -183,29 +183,26 @@ class CostOverviewView(APIView):
         operation_id='get_cost_overview',
         summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
-        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
+        parameters=[open_api_parameters.config_id_parameter],
         responses=open_api_responses.cost_overview_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
-        request_num_crews = api_utils.get_request_num_crews(request)
         config_id = request.query_params.get('config_id')
-        num_crews = request.query_params.get('num_crews', 0)
-        request_data = {'config_id': config_id, 'profile_id': profile_id, 'num_crews': num_crews}
+        request_data = {'config_id': config_id, 'profile_id': profile_id}
         cost_serializer = CostOverviewSerializer(data=request_data)
         if not cost_serializer.is_valid():
             return Response(cost_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         config_id = cost_serializer.validated_data['config_id']     # type: ignore
         profile_id = cost_serializer.validated_data['profile_id']   # type: ignore
-        num_crews = cost_serializer.validated_data['num_crews']     # type: ignore
 
         request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
 
         wall_data = initialize_wall_data(
             config_id=config_id, user=request.user,
-            profile_id=profile_id, day=None, request_num_crews=request_num_crews
+            profile_id=profile_id, day=None
         )
-        fetch_wall_data(wall_data, num_crews, profile_id, request_type)
+        fetch_wall_data(wall_data, profile_id=profile_id, request_type=request_type)
         if wall_data['error_response']:
             return wall_data['error_response']
 
@@ -240,7 +237,7 @@ class CostOverviewProfileidView(CostOverviewView):
         summary='Get Profile Cost Overview',
         description='Retrieve the total cost for a specific wall profile.',
         parameters=open_api_parameters.cost_overview_profile_id_parameters +
-        [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
+        [open_api_parameters.config_id_parameter],
         responses=open_api_responses.cost_overview_profile_id_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:

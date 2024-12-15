@@ -160,9 +160,7 @@ class CacheTest(BaseTransactionTestcase):
                 self.assertEqual(ice_used_sim, profile_ice_usage_db['profile_daily_ice_used'])
 
 
-class DailyIceUsageCacheTest(CacheTest):
-    description = 'Test daily ice usage cache'
-
+class CostAndUsageCacheTestBase(CacheTest):
     cache_types_msg = 'wall cost and profile cost'
 
     def setUp(self):
@@ -184,6 +182,35 @@ class DailyIceUsageCacheTest(CacheTest):
             return 'All data is restored in the Redis cache'
 
         return ''
+
+    @BaseTransactionTestcase.cache_clear
+    def process_fetch_db_data_evicted_from_cache(self, test_case_source: str) -> None:
+        """
+        Simulate cache eviction from Redis and refresh from DB.
+        """
+        # Create and commit the test data to the DB and Redis cache
+        # and then simulate cache eviction
+        self.initialize_test_data(num_crews=0, cache_eviction=True)
+
+        # Fetch the data from the DB to restore it in Redis
+        with self.subTest(redis_cache_status='evicted'):
+            expected_message = self.get_expected_message('cache_eviction_1')
+            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            # The Redis cache is restored from the DB
+            self.redis_cache_status = 'restored'
+
+        # Check the data is restored in Redis
+        with self.subTest(redis_cache_status='restored'):
+            expected_message = self.get_expected_message('cache_eviction_2')
+            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+
+
+class DailyIceUsageCacheTest(CostAndUsageCacheTestBase):
+    description = 'Test daily ice usage cache'
+
+    def test_fetch_db_data_evicted_from_cache(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.process_fetch_db_data_evicted_from_cache(test_case_source)
 
     @BaseTransactionTestcase.cache_clear
     def test_fetch_missing_data_sequential(self):
@@ -237,33 +264,8 @@ class DailyIceUsageCacheTest(CacheTest):
             expected_message = self.get_expected_message('missing_data')
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
-    @BaseTransactionTestcase.cache_clear
-    def test_fetch_db_data_evicted_from_cache(self):
-        """
-        Simulate cache eviction from Redis and refresh from DB.
-        """
-        num_crews = 0
 
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-
-        # Create and commit the test data to the DB and Redis cache
-        # and then simulate cache eviction
-        self.initialize_test_data(num_crews=num_crews, cache_eviction=True)
-
-        # Fetch the data from the DB to restore it in Redis
-        with self.subTest(redis_cache_status='evicted'):
-            expected_message = self.get_expected_message('cache_eviction_1')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
-            # The Redis cache is restored from the DB
-            self.redis_cache_status = 'restored'
-
-        # Check the data is restored in Redis
-        with self.subTest(redis_cache_status='restored'):
-            expected_message = self.get_expected_message('cache_eviction_2')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
-
-
-class CostOverviewProfileidCacheTest(DailyIceUsageCacheTest):
+class CostOverviewProfileidCacheTest(CostAndUsageCacheTestBase):
     description = 'Test cost overview profile_id cache'
 
     def setUp(self):
@@ -272,8 +274,12 @@ class CostOverviewProfileidCacheTest(DailyIceUsageCacheTest):
         self.profile_id = 1
         self.day = None
 
+    def test_fetch_db_data_evicted_from_cache(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.process_fetch_db_data_evicted_from_cache(test_case_source)
 
-class CostOverviewCacheTest(DailyIceUsageCacheTest):
+
+class CostOverviewCacheTest(CostAndUsageCacheTestBase):
     description = 'Test cost overview cache'
 
     def setUp(self):
@@ -281,3 +287,7 @@ class CostOverviewCacheTest(DailyIceUsageCacheTest):
         self.request_type = 'costoverview'
         self.profile_id = None
         self.day = None
+
+    def test_fetch_db_data_evicted_from_cache(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.process_fetch_db_data_evicted_from_cache(test_case_source)

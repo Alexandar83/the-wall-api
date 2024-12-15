@@ -15,7 +15,6 @@ class DailyIceUsageSerializer(serializers.Serializer):
 
 class CostOverviewSerializer(serializers.Serializer):
     profile_id = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
-    num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
     config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
 

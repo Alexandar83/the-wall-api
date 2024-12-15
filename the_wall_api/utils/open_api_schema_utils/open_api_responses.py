@@ -423,8 +423,7 @@ cost_overview_profile_id_responses = {
                     'error': 'The profile number is out of range. The wall has 3 profiles.',
                     'error_details': {
                         'request_params': {
-                            'profile_id': 5,
-                            'num_crews': 1
+                            'profile_id': 5
                         },
                     },
                 },
@@ -446,8 +445,7 @@ cost_overview_profile_id_responses = {
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1',
-                            'profile_id': 5,
-                            'num_crews': 1
+                            'profile_id': 5
                         },
                         'error_id': '1',
                         'tech_info': 'WallConstructionError: Invalid wall configuration file.',

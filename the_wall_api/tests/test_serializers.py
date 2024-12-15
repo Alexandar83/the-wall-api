@@ -137,32 +137,6 @@ class CostOverviewSerializerTest(SerializerTest):
                         test_case_source, serializer_params={'data': input_data}
                     )
 
-    def test_num_crews_valid(self):
-        valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-
-        for num_crews in valid_values:
-            input_data = {'num_crews': num_crews, 'config_id': self.valid_config_id}
-            expected_errors = {}
-            with self.subTest(num_crews=num_crews):
-                self.validate_and_log(
-                    CostOverviewSerializer, input_data, expected_errors,
-                    test_case_source, serializer_params={'data': input_data}
-                )
-
-    def test_num_crews_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-
-        for error_message, invalid_num_crews in invalid_input_groups['num_crews'].items():
-            for num_crews in invalid_num_crews:
-                input_data = {'num_crews': num_crews, 'config_id': self.valid_config_id}
-                expected_errors = {'num_crews': error_message}
-                with self.subTest(num_crews=num_crews):
-                    self.validate_and_log(
-                        CostOverviewSerializer, input_data, expected_errors,
-                        test_case_source, serializer_params={'data': input_data}
-                    )
-
     def test_config_id_invalid(self, *args, **kwargs):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
