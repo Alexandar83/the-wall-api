@@ -366,8 +366,8 @@ LOGGING = {
 
 # Wall Configuration Settings
 MAX_SECTION_HEIGHT = int(os.getenv('MAX_SECTION_HEIGHT', 30))                           # Maximum height of a wall section
-MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 5))              # Maximum sections in a wall profile
-MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 1000))                               # Maximum length of a wall
+MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 8))              # Maximum sections in a wall profile
+MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 250))                                # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
 MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = int(                                       # Maximum allowed number of crews in the wall configuration task
@@ -381,7 +381,7 @@ MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))              
 
 # Switching between different simulation implementations
 # threading_v1 - condition sync.
-# threading_v2 - even sync.
+# threading_v2 - event sync.
 # multiprocessing_v1 - multiprocessing Process + Event sync.
 # multiprocessing_v2 - multiprocessing ProcessPoolExecutor + Manager().Event sync.
 # multiprocessing_v3 - multiprocessing ProcessPoolExecutor + Manager().Condition sync.
