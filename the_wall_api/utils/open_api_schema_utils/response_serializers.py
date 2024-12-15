@@ -60,6 +60,8 @@ wall_config_file_upload_400_response_serializer = inline_serializer(
         'wall_config_file': serializers.ListField(child=serializers.CharField(), required=False),
         'config_id': serializers.ListField(child=serializers.CharField(), required=False),
         'non_field_errors': serializers.ListField(child=serializers.CharField(), required=False),
+        'error': serializers.CharField(required=False),
+        'error_details': serializers.DictField(required=False),
     }
 )
 wall_config_file_upload_503_response_serializer = inline_serializer(

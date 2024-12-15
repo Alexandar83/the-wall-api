@@ -221,10 +221,6 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Wall construction tracker.',
     'VERSION': '',
     'SERVE_INCLUDE_SCHEMA': False,
-    'SWAGGER_UI_SETTINGS': {
-        # Select Schema tab by default in the Request body examples section
-        'defaultModelRendering': 'model',
-    },
     'OAS_VERSION': '3.1.0',
     'TAGS': [
         {'name': 'User Management', 'description': 'Manage users, authentication, and passwords.'},

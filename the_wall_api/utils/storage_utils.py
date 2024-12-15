@@ -323,6 +323,10 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
         return
 
     if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
+        # Check if the user has already uploaded a wall config with the same hash
+        error_utils.handle_reference_already_exists(wall_data, wall_config_object)
+        if wall_data['error_response']:
+            return
         create_new_wall_config_reference(wall_data, wall_config_object)
     else:
         error_utils.handle_wall_config_deletion_in_progress(wall_data)

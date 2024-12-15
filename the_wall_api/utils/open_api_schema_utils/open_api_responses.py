@@ -7,6 +7,9 @@ from the_wall_api.utils.open_api_schema_utils import open_api_examples, response
 from the_wall_api.serializers import CONFIG_ID_MAX_LENGTH
 
 MAX_USER_WALL_CONFIGS = settings.MAX_USER_WALL_CONFIGS
+MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
+MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
 
 
 # == Common ==
@@ -58,15 +61,9 @@ wallconfig_file_upload_responses = {
         response=response_serializers.wall_config_file_upload_400_response_serializer,
         examples=[
             OpenApiExample(
-                name='Already exists',
+                name='config_id already exists',
                 value={
                     'non_field_errors': ["Wall config 'test_config_1' already exists for user 'testuser'."],
-                },
-            ),
-            OpenApiExample(
-                name='config_id Null object',
-                value={
-                    'config_id': ['This field may not be null.'],
                 },
             ),
             OpenApiExample(
@@ -76,9 +73,21 @@ wallconfig_file_upload_responses = {
                 },
             ),
             OpenApiExample(
+                name='config_id Null object',
+                value={
+                    'config_id': ['This field may not be null.'],
+                },
+            ),
+            OpenApiExample(
                 name='Empty file',
                 value={
                     'wall_config_file': ['The submitted file is empty.'],
+                },
+            ),
+            OpenApiExample(
+                name='File limit reached',
+                value={
+                    'non_field_errors': [f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'],
                 },
             ),
             OpenApiExample(
@@ -106,9 +115,54 @@ wallconfig_file_upload_responses = {
                 },
             ),
             OpenApiExample(
-                name='File limit reached',
+                name='Invalid sections count',
                 value={
-                    'non_field_errors': [f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'],
+                    'error': (
+                        'Invalid wall configuration! The maximum number of sections '
+                        f'({MAX_WALL_LENGTH * MAX_WALL_PROFILE_SECTIONS}) has been exceeded.'
+                    ),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '21'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name='Invalid section height 1',
+                value={
+                    'error': f"Invalid wall configuration! The section height '31' of profile 1 - section 1 must be <= {MAX_SECTION_HEIGHT}.",
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '23'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name='Invalid section height 2',
+                value={
+                    'error': "Invalid wall configuration! The section height '-1' of profile 1 - section 1 must be >= 0.",
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '11'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name='Invalid section type',
+                value={
+                    'error': "Invalid wall configuration! The section height 'text' of profile 1 - section 1 must be an integer.",
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '22'
+                    }
                 },
             ),
             OpenApiExample(
@@ -127,6 +181,42 @@ wallconfig_file_upload_responses = {
                 name='Not a file',
                 value={
                     'wall_config_file': ['The submitted data was not a file. Check the encoding type on the form.'],
+                },
+            ),
+            OpenApiExample(
+                name='Profile not a list',
+                value={
+                    'error': 'Invalid wall configuration! Each profile must be a list of integers.',
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '20'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name='Wall config already exists',
+                value={
+                    'error': "This wall configuration is already uploaded with config_id = 'test_config_1'.",
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '18'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name='Wall config not a list',
+                value={
+                    'error': 'Invalid wall configuration! Must be a nested list of lists of integers.',
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '18'
+                    }
                 },
             ),
         ]
@@ -448,7 +538,7 @@ cost_overview_profile_id_responses = {
                             'profile_id': 5
                         },
                         'error_id': '1',
-                        'tech_info': 'WallConstructionError: Invalid wall configuration file.',
+                        'tech_info': 'WallConstructionError: Invalid wall configuration.',
                     }
                 },
             ),

@@ -84,6 +84,15 @@ class WallConfigFileUploadViewTest(WallConfigFileUploadViewTestBase):
             wall_config_file=self.valid_wall_config_file, token=self.valid_token
         )
 
+    def test_wall_config_already_existing(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+
+        self.prepare_initial_test_data(1)
+        self.execute_test_case(
+            self.client_post_method, status.HTTP_400_BAD_REQUEST, test_case_source,
+            wall_config_file=self.valid_wall_config_file, token=self.valid_token
+        )
+
     def test_wallconfig_file_upload_with_invalid_file(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
@@ -109,7 +118,7 @@ class WallConfigFileUploadViewTest(WallConfigFileUploadViewTestBase):
             wall_config_file=self.valid_wall_config_file, token=self.valid_token
         )
 
-    def test_wallconfig_file_upload_already_existing(self):
+    def test_config_id_already_existing(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.prepare_initial_test_data(1)

@@ -8,8 +8,9 @@ from django.contrib.auth.models import User
 from django.db.models import Q, QuerySet
 from rest_framework.response import Response
 from rest_framework import status
-
-from the_wall_api.models import Wall, WallProfileProgress, WallConfigReference, WallConfigStatusEnum
+from the_wall_api.models import (
+    Wall, WallConfig, WallProfileProgress, WallConfigReference, WallConfigStatusEnum
+)
 from the_wall_api.tasks import log_error_task
 
 TASK_RESULT_RETRIES = 3
@@ -301,3 +302,14 @@ def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
         status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
         error_message = f"The resource is not found. Wall configuration status = '{status_label}'"
         handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
+
+
+def handle_reference_already_exists(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:
+    reference = WallConfigReference.objects.filter(
+        user=wall_data['request_user'], wall_config=wall_config_object
+    ).first()
+    if wall_data.get('request_type') == 'wallconfig-files/upload' and reference is not None:
+        error_message = f"This wall configuration is already uploaded with config_id = '{reference.config_id}'."
+        handle_known_error(
+            wall_data, 'caching', error_message, status.HTTP_400_BAD_REQUEST
+        )
