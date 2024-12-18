@@ -27,7 +27,6 @@ from the_wall_api.wall_construction import get_sections_count, manage_num_crews
 
 CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
-MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 PROJECT_MODE = settings.PROJECT_MODE
 
@@ -42,15 +41,6 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         cls.deletion_task_fail_msg = 'Wall config deletion failure.'
         if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
             cls.concurrency = 8
-            cls.wall_construction_config = [
-                [21, 25, 28],
-                [17],
-                [17, 22, 17, 19, 17],
-                [1, 2, 3, 4, 5],
-                [6, 7, 8, 9, 10],
-                [11, 12, 13, 14, 15],
-                [16, 17, 18, 19, 20]
-            ]
         else:
             cls.concurrency = 3    # 1 for each type of computation Celery task
         cls.setup_celery_workers()
@@ -105,12 +95,31 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     description = 'Wall Config Processing and Deletion Tasks Tests'
 
     def setUp(self):
+        self.manage_wall_construction_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
         self.wall_profile_config_hash_data = {
             i: hash_calc(profile) for i, profile in enumerate(self.wall_construction_config, start=1)
         }
         self.sections_count = get_sections_count(self.wall_construction_config)
         super().setUp()
+
+    def manage_wall_construction_config(self):
+        if self._testMethodName == 'test_wall_config_deletion_task_concurrent':
+            if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+                # Threading mode is faster and requires more sections
+                # for the test to work as expected
+                self.wall_construction_config = self.wall_construction_config + [
+                    [1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10],
+                    [5, 3, 1, 2, 4],
+                    [3, 3, 2, 2, 1],
+                    [5, 3, 1, 2, 4],
+                    [1, 2, 3, 4, 5]
+                ]
+            else:
+                self.wall_construction_config = self.wall_construction_config + [
+                    [1, 2, 3, 4, 5]
+                ]
 
     def init_test_data(self):
         self.input_data = {
@@ -171,7 +180,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
                 # -If too long - the orchestration task finishes and the interruption is
                 # not properly simulated
                 # - If too short - the orchestration task has no time to start
-                sleep(0.015)
+                sleep(0.5)
             deletion_result = wall_config_deletion_task_test.apply_async(
                 kwargs={'wall_config_hash': self.wall_config_hash}, priority=CELERY_TASK_PRIORITY['HIGH']
             )    # type: ignore
