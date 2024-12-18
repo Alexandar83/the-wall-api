@@ -49,7 +49,7 @@ class WallConfigFileUploadView(APIView):
 
         wall_data = initialize_wall_data(
             source='wallconfig_file_view', request_type='wallconfig-files/upload', user=request.user,
-            wall_config_file_data=wall_config_file_data, config_id=config_id
+            wall_config_file_data=wall_config_file_data, config_id=config_id, input_data=request.data
         )
         manage_wall_config_file_upload(wall_data)
         if wall_data['error_response']:
@@ -148,8 +148,8 @@ class DailyIceUsageView(APIView):
         num_crews = serializer.validated_data['num_crews']      # type: ignore
 
         wall_data = initialize_wall_data(
-            config_id=config_id, user=request.user,
-            profile_id=profile_id, day=day, request_num_crews=request_num_crews
+            config_id=config_id, user=request.user, profile_id=profile_id,
+            day=day, request_num_crews=request_num_crews, input_data=request.query_params
         )
         fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
         if wall_data['error_response']:
@@ -200,7 +200,7 @@ class CostOverviewView(APIView):
 
         wall_data = initialize_wall_data(
             config_id=config_id, user=request.user,
-            profile_id=profile_id, day=None
+            profile_id=profile_id, day=None, input_data=request.query_params
         )
         fetch_wall_data(wall_data, profile_id=profile_id, request_type=request_type)
         if wall_data['error_response']:

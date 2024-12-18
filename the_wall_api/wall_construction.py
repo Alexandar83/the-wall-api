@@ -3,6 +3,7 @@
 # the construction process.
 
 from copy import deepcopy
+import json
 from multiprocessing import Value, Manager
 from threading import Thread
 from time import sleep
@@ -177,7 +178,7 @@ def initialize_wall_data(
     source: str = 'usage_or_cost_view', profile_id: int | None = None, day: int | None = None,
     request_num_crews: int | None = None, request_type: str | None = None, user: AbstractUser | None = None,
     wall_config_file_data: list | None = None, config_id: str | None = None,
-    request_config_id_list: list | None = None, test_data: dict = {}
+    request_config_id_list: list | None = None, input_data={}
 
 ) -> Dict[str, Any]:
     """
@@ -185,6 +186,9 @@ def initialize_wall_data(
     throughout the wall construction simulation or the
     wallconfig file management process.
     """
+    test_data_json = input_data.get('test_data', '{}') if settings.ACTIVE_TESTING else '{}'
+    test_data = json.loads(test_data_json)
+
     if source in ['wallconfig_file_view', 'test_cost_and_usage_views']:
         return {
             'request_type': request_type,
@@ -193,6 +197,7 @@ def initialize_wall_data(
             'request_config_id': config_id,
             'request_config_id_list': request_config_id_list,
             'error_response': None,
+            'test_data': test_data
         }
 
     return {
@@ -204,6 +209,7 @@ def initialize_wall_data(
         'wall_construction': None,
         'request_config_id': config_id,
         'request_user': user,
+        'test_data': test_data
     }
 
 

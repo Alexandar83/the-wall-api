@@ -141,10 +141,11 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
 
     # Redis DB2 is used for persistent data
     redis_connection = Redis.from_url(CELERY_BROKER_URL)
-    error_id = error_id_prefix + str(redis_connection.incr('unknown_errors_counter'))
+    error_id = str(redis_connection.incr('unknown_errors_counter'))
+    error_id_log = error_id_prefix + error_id
 
     logger = logging.getLogger(error_type)
-    logger.error(error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id})
+    logger.error(error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id_log})
 
     return error_id
 

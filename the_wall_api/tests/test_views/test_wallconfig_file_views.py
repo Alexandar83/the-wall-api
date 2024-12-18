@@ -21,15 +21,24 @@ class WallConfigFileTestBase(BaseViewTest):
         super().setUp(*args, **kwargs)
 
         # Valid test data
-        self.init_valid_wall_config_file()
+        self.init_valid_wall_config_files()
 
         # Invalid test data
         self.invalid_wall_config_file = 'invalid_wall_config_file'
 
-    def init_valid_wall_config_file(self):
+    def init_valid_wall_config_files(self):
         json_content = json.dumps(self.wall_construction_config).encode('utf-8')
         self.valid_wall_config_file = BytesIO(json_content)
         self.valid_wall_config_file.name = 'wall_config.json'
+        valid_config_file_ls = []
+        wall_construction_config = deepcopy(self.wall_construction_config)
+        for i in range(MAX_USER_WALL_CONFIGS):
+            wall_construction_config.append([i])
+            json_content_i = json.dumps(wall_construction_config).encode('utf-8')
+            valid_config_file = BytesIO(json_content_i)
+            valid_config_file.name = f'wall_config_{i}.json'
+            valid_config_file_ls.append(valid_config_file)
+        self.valid_config_file_ls = valid_config_file_ls
 
     def prepare_url(self) -> str:
         return reverse(self.url_name)
@@ -40,22 +49,30 @@ class WallConfigFileTestBase(BaseViewTest):
         """
         url = reverse(exposed_endpoints['wallconfig-files-upload']['name'])
         for i in range(uploaded_files):
+            data: dict = {'config_id': self.valid_config_id + f'_{i}'}
+            if uploaded_files == 1:
+                data['wall_config_file'] = self.valid_wall_config_file
+            else:
+                data['wall_config_file'] = self.valid_config_file_ls[i]
+
             request_params = {
-                'data': {
-                    'config_id': self.valid_config_id + f'_{i}',
-                    'wall_config_file': self.valid_wall_config_file
-                },
+                'data': data,
                 'headers': {
                     'Authorization': f'Token {self.valid_token}'
-                }
+                },
             }
             self.client.post(url, **request_params)
-            self.valid_wall_config_file.seek(0)
+            if uploaded_files == 1:
+                self.valid_wall_config_file.seek(0)
+            else:
+                self.valid_config_file_ls[i].seek(0)
 
 
 class WallConfigFileUploadViewTestBase(WallConfigFileTestBase):
 
-    def prepare_final_test_data(self, wall_config_file: BytesIO, token: str) -> tuple[str, dict, dict]:
+    def prepare_final_test_data(
+        self, wall_config_file: BytesIO, token: str, error_id_prefix: str = ''
+    ) -> tuple[str, dict, dict]:
         url = self.prepare_url()
         request_params = {
             'data': {
@@ -67,6 +84,9 @@ class WallConfigFileUploadViewTestBase(WallConfigFileTestBase):
             }
         }
         input_data = deepcopy(request_params)
+
+        if error_id_prefix:
+            request_params['data']['test_data'] = json.dumps({'error_id_prefix': error_id_prefix})
 
         return url, request_params, input_data
 
@@ -90,7 +110,7 @@ class WallConfigFileUploadViewTest(WallConfigFileUploadViewTestBase):
         self.prepare_initial_test_data(1)
         self.execute_test_case(
             self.client_post_method, status.HTTP_400_BAD_REQUEST, test_case_source,
-            wall_config_file=self.valid_wall_config_file, token=self.valid_token
+            wall_config_file=self.valid_wall_config_file, token=self.valid_token, error_id_prefix=f'{test_case_source}_'
         )
 
     def test_wallconfig_file_upload_with_invalid_file(self):

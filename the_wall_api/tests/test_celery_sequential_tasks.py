@@ -101,10 +101,9 @@ class FileRetentionCeleryTaskTest(BaseTestcase):
 class LogErrorTaskTest(BaseTestcase):
     description = 'Log Error Celery Task Tests'
 
-    def setUp(self, *args, **kwargs):
-        self.error_id_prefix = 'test_suite_'
-
-    def get_log_error_task_result(self, unknwn_err: Exception, error_type: str, input_data: dict, expected_message: str) -> str:
+    def get_log_error_task_result(
+        self, unknwn_err: Exception, error_type: str, input_data: dict, expected_message: str, test_case_source: str
+    ) -> str:
         # Extract error details
         error_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
         error_traceback = extract_error_traceback(unknwn_err)
@@ -112,7 +111,7 @@ class LogErrorTaskTest(BaseTestcase):
         input_data['error_message'] = error_message
 
         # Log the error
-        task_result = log_error_task.delay(error_type, error_message, error_traceback, error_id_prefix=self.error_id_prefix)      # type: ignore
+        task_result = log_error_task.delay(error_type, error_message, error_traceback, error_id_prefix=f'{test_case_source}_')      # type: ignore
         task_result.get(timeout=5)  # Blocks until the task is done
 
         # Check log error task success
@@ -145,7 +144,7 @@ class LogErrorTaskTest(BaseTestcase):
                 logged_error_json = json.loads(logged_error)
 
                 logged_error_id = logged_error_json.get('error_id')
-                if logged_error_id != error_id:
+                if logged_error_id.rpartition('_')[2] != error_id:
                     continue
 
                 # If the log is found, check its error message
@@ -170,7 +169,9 @@ class LogErrorTaskTest(BaseTestcase):
             raise Exception(f'Test exception for log_error_task of type \'{error_type}\'.')
         except Exception as unknwn_err:
             try:
-                actual_message = self.get_log_error_task_result(unknwn_err, error_type, input_data, expected_message)
+                actual_message = self.get_log_error_task_result(
+                    unknwn_err, error_type, input_data, expected_message, test_case_source
+                )
             except Exception as task_err:
                 error_message = f'{task_err.__class__.__name__}: {str(task_err)}'
                 actual_message = f'Log error task failed: {error_message}'

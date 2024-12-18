@@ -1,3 +1,6 @@
+from copy import deepcopy
+from io import BytesIO
+import json
 from typing import Any
 from inspect import currentframe
 
@@ -33,6 +36,13 @@ class WallConfigFileUploadThrottlingTest(WallConfigFileUploadViewTestBase):
         config_id = f'{self.valid_config_id}_{self.throttling_counter}'
         self.throttling_counter += 1
         request_params['data']['config_id'] = config_id
+
+        wall_construction_config = deepcopy(self.wall_construction_config)
+        wall_construction_config.append([self.throttling_counter])
+        json_content = json.dumps(wall_construction_config).encode('utf-8')
+        valid_config_file = BytesIO(json_content)
+        valid_config_file.name = f'wall_config_{self.throttling_counter}.json'
+        request_params['data']['wall_config_file'] = valid_config_file
 
     def post_request_hook(self, request_params: dict[str, Any]) -> None:
         request_params['data']['wall_config_file'].seek(0)

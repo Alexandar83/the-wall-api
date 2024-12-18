@@ -1,5 +1,6 @@
 from copy import deepcopy
 from inspect import currentframe
+import json
 from typing import Any, Dict, List
 
 from django.conf import settings
@@ -97,7 +98,7 @@ class CostAndUsageViewTestBase(BaseViewTest):
 
     def prepare_final_test_data(
         self, profile_id: int | None = None, day: int | None = None, num_crews: int | None = None,
-        token: str | None = None
+        token: str | None = None, error_id_prefix: str = ''
     ) -> tuple[str, dict, dict]:
         url = self.prepare_url(profile_id, day)
         if token is None:
@@ -112,6 +113,9 @@ class CostAndUsageViewTestBase(BaseViewTest):
                 'Authorization': f'Token {token}'
             }
         }
+        if error_id_prefix:
+            request_params['query_params']['test_data'] = json.dumps({'error_id_prefix': error_id_prefix})
+
         input_data = {
             key: value for key, value in [
                 ('profile_id', profile_id), ('day', day), ('num_crews', num_crews), ('config_id', self.valid_config_id)
@@ -302,7 +306,7 @@ class AbnormalCasesDailyIceUsageViewTest(CostAndUsageViewTestBase):
 
         self.execute_test_case(
             self.client_get_method, status.HTTP_409_CONFLICT, test_case_source,
-            profile_id=self.profile_id, day=self.day, num_crews=self.num_crews
+            profile_id=self.profile_id, day=self.day, num_crews=self.num_crews, error_id_prefix=f'{test_case_source}_'
         )
 
     def test_invalid_token(self):

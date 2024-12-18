@@ -4,6 +4,7 @@ from time import sleep
 from traceback import format_exception
 from typing import Any, Dict
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Q, QuerySet
 from rest_framework.response import Response
@@ -93,8 +94,11 @@ def get_log_error_task_params(
 def get_request_info(wall_data, request_params) -> Dict[str, Any]:
     user = wall_data.get('request_user')
     username = user.username if user else None
+    request_type = wall_data.get('request_type', 'root')
+    if settings.ACTIVE_TESTING:
+        request_type = f'test_suite_{request_type}'
     request_info = {
-        'request_type': wall_data.get('request_type', 'root'),
+        'request_type': request_type,
         'request_params': request_params
     }
     if username:
@@ -140,7 +144,10 @@ def handle_known_error(wall_data: Dict[str, Any], error_type: str, error_message
     """Known inconsistencies - handle logging and response."""
     request_params = get_request_params(wall_data)
     request_info = get_request_info(wall_data, request_params)
-    task_result = log_error_task.delay(error_type, error_message, error_traceback=[], request_info=request_info)  # type: ignore
+    error_id_prefix = wall_data.get('test_data', {}).get('error_id_prefix', '')
+    task_result = log_error_task.delay(
+        error_type, error_message, error_traceback=[], request_info=request_info, error_id_prefix=error_id_prefix
+    )  # type: ignore
     error_id = get_error_id_from_task_result(task_result)
 
     error_response_data = {
