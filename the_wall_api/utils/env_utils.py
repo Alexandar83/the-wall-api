@@ -8,7 +8,7 @@ PROJECT_MODE = os.getenv('PROJECT_MODE', 'dev')
 def configure_connections_settings(DATABASES=None) -> dict:
     result = {}
 
-    REDIS_URL = os.getenv('REDIS_URL')
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/REDIS_DB_NUMBER')
 
     REDIS_DB_NUMBER = os.getenv('REDIS_DB_NUMBER', '0')
     REDIS_DB_NUMBER_CELERY = os.getenv('REDIS_DB_NUMBER_CELERY', '2')

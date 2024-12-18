@@ -1,0 +1,108 @@
+services:
+  the_wall_api:
+    image: ghcr.io/alexandar83/the-wall-api-demo:latest
+    container_name: app
+    ports:
+      - 8000:8000
+    command: >
+      sh -c "python manage.py makemigrations the_wall_api &&
+             python manage.py migrate &&
+             exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
+    environment:
+      - PROJECT_MODE=demo
+      - TEST_LOGGING_LEVEL=FAILED
+      - CONCURRENT_SIMULATION_MODE=threading_v1
+    depends_on:
+      postgres:
+        condition: service_healthy  # Wait for PostgreSQL health check to pass
+    volumes:
+      - shared_sim_logs:/app/logs
+
+  redis:
+    image: redis:7.4.1
+    container_name: redis_data_demo
+    ports:
+      - 6379:6379
+    volumes:
+      - the_wall_api_redis_data_demo:/data
+    command: sh -c "redis-server --maxmemory 512mb
+                    --maxmemory-policy volatile-lru
+                    --appendonly yes
+                    --auto-aof-rewrite-percentage 100
+                    --auto-aof-rewrite-min-size 64mb"
+  
+  postgres:
+    image: postgres:15.3
+    container_name: postgres_data_demo
+    ports:
+      - 5432:5432
+    volumes:
+      - the_wall_api_postgres_data_demo:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=db_name_demo
+      - POSTGRES_USER=db_user_demo
+      - POSTGRES_PASSWORD=db_password_demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s  # How often to check
+      timeout: 5s    # How long to wait for a response
+      retries: 5     # How many retries before marking as unhealthy
+
+  celery_worker_1:
+    image: ghcr.io/alexandar83/the-wall-api-demo:latest
+    container_name: celery_worker_1_demo
+    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
+    environment:
+      - PROJECT_MODE=demo
+      - CONCURRENT_SIMULATION_MODE=threading_v1
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config status"]
+      interval: 2s    # How often to check
+      timeout: 8s     # How long to wait for a response
+      retries: 5      # How many retries before marking as unhealthy
+    # Shared access with the app so the worker can manage the simulation logs
+    volumes:
+      - shared_sim_logs:/app/logs
+
+  celery_worker_2:
+    image: ghcr.io/alexandar83/the-wall-api-demo:latest
+    container_name: celery_worker_2_demo
+    command: sh -c "celery -A config worker --loglevel=info --queues=sequential_tasks --concurrency=1"
+    environment:
+      - PROJECT_MODE=demo
+      - CONCURRENT_SIMULATION_MODE=threading_v1
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config status"]
+      interval: 2s    # How often to check
+      timeout: 8s     # How long to wait for a response
+      retries: 5      # How many retries before marking as unhealthy
+    # Shared access with the app so the worker can manage the simulation logs
+    volumes:
+      - shared_sim_logs:/app/logs
+
+  celery_beat:
+    image: ghcr.io/alexandar83/celery-lightweight-demo:latest
+    container_name: celery_beat_demo
+    # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
+    # Persist the schedule in a docker volume
+    command: sh -c "celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"
+    volumes:
+      - celery_beat_schedule:/var/lib/celery/data
+    environment:
+      - LIGHT_CELERY_CONFIG=True
+      - PROJECT_MODE=demo
+    depends_on:
+      celery_worker_1:
+        condition: service_healthy
+      celery_worker_2:
+        condition: service_healthy
+
+volumes:
+  the_wall_api_redis_data_demo:
+    name: the_wall_api_redis_data_demo
+  the_wall_api_postgres_data_demo:
+    name: the_wall_api_postgres_data_demo
+  celery_beat_schedule:
+    name: the_wall_api_celery_beat_schedule_demo
+  shared_sim_logs:
+    name: the_wall_api_shared_sim_logs_demo

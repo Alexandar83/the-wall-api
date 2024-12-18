@@ -1,0 +1,75 @@
+# === Stage 1: Base Python environment with common setup ===
+FROM python:3.11.9-slim-bullseye AS base
+
+EXPOSE 8000
+
+# Keeps Python from generating .pyc files in the container
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Turns off buffering for easier container logging
+ENV PYTHONUNBUFFERED=1
+
+ENV PYTHON_VERSION=3.11.9
+
+# Embed .env settings in the demo build
+ENV REDIS_URL=redis://redis:6379/REDIS_DB_NUMBER
+
+# Postgres settings
+ENV POSTGRES_DB=db_name_demo
+ENV POSTGRES_USER=db_user_demo
+ENV POSTGRES_PASSWORD=db_password_demo
+
+# Common
+ENV LOGS_DIR=logs
+ENV API_VERSION=v1
+
+# Set the working directory of the container to “app”
+WORKDIR /app
+
+# Create a non-root user
+RUN adduser -u 5678 --disabled-password --gecos "" appuser
+
+# === Stage 2: App image ===
+FROM base AS the_wall_api_demo_image
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y gcc libpq-dev && \
+rm -rf /var/lib/apt/lists/*
+
+# Install pip requirements
+COPY requirements.txt .
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+# Install gunicorn separately, because it is not a dependency of the Django app
+RUN python -m pip install --no-cache-dir gunicorn
+
+# Copy the whole app
+COPY . /app
+
+# Create the build simulation logs folder to avoid permission issues in the Celery worker service
+# Add user permissions
+RUN mkdir -p /app/${LOGS_DIR} && chown -R appuser:appuser /app
+
+USER appuser
+
+# === Stage 3: Celery image ===
+FROM base AS celery_lightweight_demo_image
+
+# Install pip requirements
+# Filter out only the celery and redis dependencies (avoid django-redis)
+COPY requirements.txt .
+RUN grep -E '^celery==|^redis==' /app/requirements.txt > filtered-requirements.txt
+RUN pip install --no-cache-dir -r filtered-requirements.txt
+
+# Copy the whole app
+COPY . /app
+
+# Create a Celery beat schedule folder for mounting only in the beat service
+# Create the build simulation logs folder to avoid permission issues in the Celery worker service
+# Add user permissions for the folders
+RUN mkdir -p /var/lib/celery/data && \
+mkdir -p /app/${LOGS_DIR} && \
+chown -R appuser:appuser /app && \
+chown -R appuser:appuser /var/lib/celery/data
+
+USER appuser

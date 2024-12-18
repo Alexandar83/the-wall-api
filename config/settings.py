@@ -32,21 +32,21 @@ SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # === Database configuration ===
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+        'HOST': os.getenv('DB_HOST', 'postgres'),
+        'PORT': os.getenv('DB_PORT', 5432),
         'OPTIONS': {
             'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', 10)),
             'options': f'-c statement_timeout={int(os.getenv("DB_STATEMENT_TIMEOUT", 5000))}',
         }
     }
 }
-if PROJECT_MODE in ['dev', 'prod_v1']:
+if PROJECT_MODE in ['dev', 'prod_v1', 'demo']:
     DATABASES['default']['NAME'] = os.getenv('POSTGRES_DB')
     DATABASES['default']['USER'] = os.getenv('POSTGRES_USER')
     DATABASES['default']['PASSWORD'] = os.getenv('POSTGRES_PASSWORD')
@@ -244,9 +244,9 @@ os.makedirs(BUILD_SIM_LOGS_DIR, exist_ok=True)
 BUILD_SIM_LOGS_ARCHIVE_DIR = os.path.join(BUILD_SIM_LOGS_DIR, 'archive')                # Construction simulation logs archive
 os.makedirs(BUILD_SIM_LOGS_ARCHIVE_DIR, exist_ok=True)
 
-BUILD_SIM_LOGS_RETENTION_DAYS = int(os.getenv('BUILD_SIM_LOGS_RETENTION_DAYS', 1))      # Days of logs retention
+BUILD_SIM_LOGS_RETENTION_DAYS = int(os.getenv('BUILD_SIM_LOGS_RETENTION_DAYS', 7))      # Days of logs retention
 BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = int(                                            # Days of logs archive retention
-    os.getenv('BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS', 7)
+    os.getenv('BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS', 14)
 )
 
 # == Loging ==
