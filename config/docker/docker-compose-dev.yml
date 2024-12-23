@@ -41,6 +41,11 @@ services:
       context: ../..
       dockerfile: ./config/docker/Dockerfile.dev
       target: the_wall_api_image
+      args:
+        LOGS_DIR_NAME: ${LOGS_DIR_NAME:-logs}
+        APP_USER_ID: ${APP_USER_ID:-5678}
+        APP_GROUP_ID: ${APP_GROUP_ID:-5678}
+        APP_GROUP_NAME: ${APP_GROUP_NAME:-wall_app_group}
     command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
     volumes:
       - ../..:/app
@@ -77,6 +82,11 @@ services:
       context: ../..
       dockerfile: ./config/docker/Dockerfile.dev
       target: celery_lightweight_image
+      args:
+        LOGS_DIR_NAME: ${LOGS_DIR_NAME:-logs}
+        APP_USER_ID: ${APP_USER_ID:-5678}
+        APP_GROUP_ID: ${APP_GROUP_ID:-5678}
+        APP_GROUP_NAME: ${APP_GROUP_NAME:-wall_app_group}
     # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
     # Persist the schedule in a docker volume
     command: sh -c "celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"

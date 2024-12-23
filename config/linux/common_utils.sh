@@ -200,3 +200,78 @@ validate_env_vars() {
         fi
     done
 }
+
+# Create the logs directory
+# (Linux-only) Set ownership and permissions if not yet configured
+create_and_setup_logs_directory() {
+    # 2 - Group ownership and permissions inheritance
+    # 7 - Owner permissions: rwx
+    # 7 - Group permissions: rwx
+    # 5 - Other permissions: r-x
+    # Create the logs directory if not existing and set the appropriate ownership and permissions
+    # Required on Linux systems, for the Celery workers to be able to write in the mounted logs directory
+    local permissions="2775"
+    
+    local project_root
+    project_root=$(resolve_project_root) || return $?
+
+    validate_and_load_env "$project_root" || return $?
+    
+    validate_env_vars "APP_USER_ID" "APP_GROUP_ID" "APP_GROUP_NAME" "LOGS_DIR_NAME" || return $?
+    
+    # Export the environment variables used in the dockerfile for DEV image builds
+    export APP_USER_ID=$APP_USER_ID
+    export APP_GROUP_ID=$APP_GROUP_ID
+    export APP_GROUP_NAME=$APP_GROUP_NAME
+    export LOGS_DIR_NAME=$LOGS_DIR_NAME
+
+    local logs_path="${project_root}/${LOGS_DIR_NAME}"
+    local group_name="$APP_GROUP_NAME"
+    
+    if [[ ! -d "$logs_path" ]]; then
+        mkdir -p "$logs_path" || {
+            print_result "Error: Failed to create logs directory '$logs_path'."
+            return 11
+        }
+    fi
+
+    # Permissions and ownership management is required only on Linux
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        return 0
+    fi
+    
+    local current_group=$(stat -c "%G" "$logs_path" 2>/dev/null)
+    local current_permissions=$(stat -c "%a" "$logs_path" 2>/dev/null)
+    
+    if [[ "$current_group" == "$group_name" && "$current_permissions" == "$permissions" ]]; then
+        return 2
+    fi
+
+    set_directory_ownership_and_permissions "$logs_path" "$APP_GROUP_NAME" "$permissions" || return $?
+}
+
+# Linux: change the group of the logs directory to the one used in the Celery containers.
+# Both the non-root app user of the celery services' containers and the root user
+#are assigned to this group.
+# Change also the dir's permissions to ensure the app user can write in the mounted logs directory.
+set_directory_ownership_and_permissions() {
+    local logs_path=$1
+    local group_name="$2"
+    local permissions=$3
+    
+    if ! getent group "$group_name" >/dev/null 2>&1; then
+        print_result "Error: Group name '$group_name' does not exist - run the linux_install_prerequisites.sh script to create it."
+        return 1
+    fi
+    
+    echo "Changing ownership AND permissions of logs directory '$logs_path' to group '$group_name' AND $permissions..."
+    sudo chown -R :"$group_name" "$logs_path" || {
+        print_result "Error: Failed to change ownership of logs directory '$logs_path' to group '$group_name'."
+        return 1
+    }
+        
+    sudo chmod -R "$permissions" "$logs_path" || {
+        print_result "Error: Failed to change permissions of logs directory '$logs_path'."
+        return 1
+    }
+}

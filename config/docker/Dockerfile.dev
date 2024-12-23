@@ -9,13 +9,18 @@ ENV PYTHONUNBUFFERED=1
 
 ENV PYTHON_VERSION=3.11.9
 
-ENV LOGS_DIR_NAME=logs
+# Dynamic arguments for group and user creation
+ARG LOGS_DIR_NAME
+ARG APP_USER_ID
+ARG APP_GROUP_ID
+ARG APP_GROUP_NAME
 
 # Set the working directory of the container to “app”
 WORKDIR /app
 
-# Create a non-root user
-RUN adduser -u 5678 --disabled-password --gecos "" appuser
+# Create a group and a non-root user and add the user to the group
+RUN groupadd --gid ${APP_GROUP_ID} ${APP_GROUP_NAME} && \
+adduser --uid ${APP_USER_ID} --gid ${APP_GROUP_ID} --disabled-login --gecos "" appuser
 
 # === Stage 2: App image ===
 FROM base AS the_wall_api_image
@@ -33,7 +38,7 @@ COPY . /app
 
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions
-RUN mkdir -p /app/${LOGS_DIR_NAME} && chown -R appuser:appuser /app
+RUN mkdir -p /app/${LOGS_DIR_NAME} && chown -R appuser:${APP_GROUP_ID} /app
 
 USER appuser
 
@@ -54,7 +59,7 @@ COPY . /app
 # Add user permissions for the folders
 RUN mkdir -p /var/lib/celery/data && \
 mkdir -p /app/${LOGS_DIR_NAME} && \
-chown -R appuser:appuser /app && \
-chown -R appuser:appuser /var/lib/celery/data
+chown -R appuser:${APP_GROUP_ID} /app && \
+chown -R appuser:${APP_GROUP_ID} /var/lib/celery/data
 
 USER appuser
