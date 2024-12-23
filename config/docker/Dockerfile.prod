@@ -1,8 +1,6 @@
 # === Stage 1: Base Python environment with common setup ===
 FROM python:3.11.9-slim-bullseye AS base
 
-EXPOSE 8000
-
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
 

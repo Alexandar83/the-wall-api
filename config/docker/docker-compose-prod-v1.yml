@@ -23,8 +23,6 @@ services:
   redis:
     image: redis:7.4.1
     container_name: redis_data_prod
-    ports:
-      - 6379:6379
     volumes:
       - the_wall_api_redis_data_prod:/data
       - ../../config/envs/common/redis.conf:/usr/local/etc/redis/redis.conf
@@ -35,8 +33,6 @@ services:
   postgres:
     image: postgres:15.3
     container_name: postgres_data_prod
-    ports:
-      - 5432:5432
     volumes:
       - the_wall_api_postgres_data_prod:/var/lib/postgresql/data
     env_file:
