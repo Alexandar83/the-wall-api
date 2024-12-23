@@ -1,4 +1,5 @@
 from inspect import currentframe
+import os
 from time import sleep
 
 from config.celery import app as celery_app
@@ -56,10 +57,13 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         if 'multiprocessing' in CONCURRENT_SIMULATION_MODE or PROJECT_MODE == 'dev':
             pool = 'threads'                   # 'prefork' is not supported in dev (on Windows)
             concurrency = cls.concurrency
-            logfile = 'nul'                 # Discard Celery console logs - Windows
         else:
             pool = 'prefork'                # 'prefork' is well suited for the containerized app
             concurrency = cls.concurrency
+
+        if os.name == 'nt':
+            logfile = 'nul'                 # Discard Celery console logs - Windows
+        else:
             logfile = '/dev/null'           # Discard Celery console logs - Unix
         cls.celery_worker = start_worker(
             celery_app, queues=[cls.test_queue_name], concurrency=concurrency,

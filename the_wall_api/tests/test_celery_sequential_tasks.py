@@ -29,9 +29,22 @@ class FileRetentionCeleryTaskTest(BaseTestcase):
         self.test_logs_dir_archive = test_logs_dir_archive
         self.test_file = test_file
 
-        os.makedirs(self.test_logs_dir, exist_ok=True)
+        if os.name == 'nt' or settings.PROJECT_MODE != 'dev':
+            os.makedirs(self.test_logs_dir, exist_ok=True)
+        else:
+            self.manage_test_logs_dir_permissions()
         with open(self.test_file, 'a') as test_file:
             test_file.write('This is a test log.')
+
+    def manage_test_logs_dir_permissions(self):
+        """
+        On Linux override the default 2755 permissions for newly created folders to 2775.
+        This ensures the app group and the assigned to it non-root appuser in celery_worker_2_dev
+        has permissions to write to the new folder.
+        """
+        os.makedirs(self.test_logs_dir, exist_ok=True)
+        target_permissions = 0o2775
+        os.chmod(self.test_logs_dir, target_permissions)
 
     def get_file_retention_tasks_result(self, test_input_params: dict, expected_message: str) -> str:
         # Check if the test file is existing
