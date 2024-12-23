@@ -20,7 +20,7 @@ ENV POSTGRES_USER=db_user_demo
 ENV POSTGRES_PASSWORD=db_password_demo
 
 # Common
-ENV LOGS_DIR=logs
+ENV LOGS_DIR_NAME=logs
 ENV API_VERSION=v1
 
 # Set the working directory of the container to “app”
@@ -48,7 +48,7 @@ COPY . /app
 
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions
-RUN mkdir -p /app/${LOGS_DIR} && chown -R appuser:appuser /app
+RUN mkdir -p /app/${LOGS_DIR_NAME} && chown -R appuser:appuser /app
 
 USER appuser
 
@@ -68,7 +68,7 @@ COPY . /app
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions for the folders
 RUN mkdir -p /var/lib/celery/data && \
-mkdir -p /app/${LOGS_DIR} && \
+mkdir -p /app/${LOGS_DIR_NAME} && \
 chown -R appuser:appuser /app && \
 chown -R appuser:appuser /var/lib/celery/data
 

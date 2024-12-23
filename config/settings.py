@@ -235,10 +235,10 @@ TEST_RUNNER = 'the_wall_api.tests.test_utils.CustomTestRunner'
 
 # === Filesystem configuration ===
 # Construction simulation logs
-LOGS_DIR = os.getenv('LOGS_DIR', 'logs')                                                # Parent logs folder
-os.makedirs(LOGS_DIR, exist_ok=True)
+LOGS_DIR_NAME = os.getenv('LOGS_DIR_NAME', 'logs')                                                # Parent logs folder
+os.makedirs(LOGS_DIR_NAME, exist_ok=True)
 
-BUILD_SIM_LOGS_DIR = os.path.join(LOGS_DIR, 'build_simulations')                        # Construction simulation logs
+BUILD_SIM_LOGS_DIR = os.path.join(LOGS_DIR_NAME, 'build_simulations')                        # Construction simulation logs
 os.makedirs(BUILD_SIM_LOGS_DIR, exist_ok=True)
 
 BUILD_SIM_LOGS_ARCHIVE_DIR = os.path.join(BUILD_SIM_LOGS_DIR, 'archive')                # Construction simulation logs archive
@@ -250,7 +250,7 @@ BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS = int(                                    
 )
 
 # == Loging ==
-ERROR_LOGS_DIR = os.path.join(LOGS_DIR, 'errors')
+ERROR_LOGS_DIR = os.path.join(LOGS_DIR_NAME, 'errors')
 
 ERROR_LOG_FILES_CONFIG = {}
 

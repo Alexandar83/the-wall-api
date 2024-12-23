@@ -9,6 +9,8 @@ ENV PYTHONUNBUFFERED=1
 
 ENV PYTHON_VERSION=3.11.9
 
+ENV LOGS_DIR_NAME=logs
+
 # Set the working directory of the container to “app”
 WORKDIR /app
 
@@ -19,7 +21,8 @@ RUN adduser -u 5678 --disabled-password --gecos "" appuser
 FROM base AS the_wall_api_image
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y gcc libpq-dev
+RUN apt-get update && apt-get install -y gcc libpq-dev && \
+rm -rf /var/lib/apt/lists/*
 
 # Install pip requirements
 COPY requirements.txt .
@@ -30,7 +33,7 @@ COPY . /app
 
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+RUN mkdir -p /app/${LOGS_DIR_NAME} && chown -R appuser:appuser /app
 
 USER appuser
 
@@ -50,7 +53,7 @@ COPY . /app
 # Create the build simulation logs folder to avoid permission issues in the Celery worker service
 # Add user permissions for the folders
 RUN mkdir -p /var/lib/celery/data && \
-mkdir -p /app/logs && \
+mkdir -p /app/${LOGS_DIR_NAME} && \
 chown -R appuser:appuser /app && \
 chown -R appuser:appuser /var/lib/celery/data
 
