@@ -52,7 +52,7 @@ class Wall(models.Model):
     wall_config = models.ForeignKey(WallConfig, on_delete=models.CASCADE)
     wall_config_hash = models.CharField(max_length=64)
     num_crews = models.IntegerField(validators=[MinValueValidator(0)])
-    total_cost = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    total_cost = models.DecimalField(max_digits=17, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     construction_days = models.IntegerField()
     date_created = models.DateTimeField(auto_now_add=True)
 

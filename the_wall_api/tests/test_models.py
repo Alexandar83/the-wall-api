@@ -1,9 +1,13 @@
 from decimal import Decimal
 from inspect import currentframe
 import re
+from typing import Callable
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db.models import DecimalField
+from django.db.utils import DataError
 
 from the_wall_api.models import Wall, WallConfig, WallProfile, WallProfileProgress, WallConfigReference
 from the_wall_api.tests.test_utils import BaseTestcase
@@ -619,4 +623,121 @@ class CascadeDeletionTest(BaseTestcase):
             expected_message=expected_message,
             actual_message=actual_message,
             test_case_source=test_case_source
+        )
+
+
+class MaxTotalCostTest(BaseTestcase):
+    description = 'Max total cost tests'
+
+    def setUp(self, *args, **kwargs):
+        self.wall_config_object = WallConfig.objects.create(
+            wall_config_hash='wall_config_hash',
+            wall_construction_config=[]
+        )
+        self.wall_object = None
+
+        self.max_total_cost_wall_profile = (
+            settings.MAX_SECTION_HEIGHT *
+            settings.MAX_WALL_PROFILE_SECTIONS *
+            settings.ICE_PER_FOOT * settings.ICE_COST_PER_CUBIC_YARD
+        )
+        self.max_total_cost_wall = settings.MAX_WALL_LENGTH * self.max_total_cost_wall_profile
+
+        self.expected_message = 'Configuration cost limit does not exceed model cost limit.'
+
+    def _get_total_cost_limit(self, model_class: type[Wall] | type[WallProfile]) -> tuple[str, str]:
+        """
+        Extracts and returns the max_digits and decimal_places for the `total_cost` field.
+        """
+        if model_class == Wall:
+            cost_field = 'total_cost'
+        elif model_class == WallProfile:
+            cost_field = 'cost'
+        else:
+            raise ValueError(f'Invalid model class: {model_class}')
+
+        field = model_class._meta.get_field(cost_field)
+        if not isinstance(field, DecimalField):
+            raise ValueError(f"The field '{cost_field}' is not a DecimalField.")
+        max_digits = field.max_digits
+        decimal_places = field.decimal_places
+        integer_places = max_digits - decimal_places
+
+        return str(integer_places), cost_field
+
+    def run_max_total_cost_test(
+        self, test_case_source: str, test_func: Callable, model_type: type[Wall] | type[WallProfile], config_limit: int | float
+    ) -> None:
+        error_occurred = False
+        if model_type == Wall:
+            model_type_name = 'Wall'
+        elif model_type == WallProfile:
+            model_type_name = 'WallProfile'
+        else:
+            raise ValueError(f'Invalid model type: {model_type}')
+        try:
+            test_func()
+            actual_message = self.expected_message
+        except DataError as data_err:
+            if 'numeric field overflow' in str(data_err):
+                integer_places, cost_field = self._get_total_cost_limit(model_type)
+                config_limit_formatted = f'{config_limit:,}'.replace(',', ' ')
+                actual_message = (
+                    f"{model_type_name} '{cost_field}' configuration limit ({config_limit_formatted}) "
+                    f'exceeds model limit (10^{integer_places}).'
+                )
+            else:
+                error_occurred = True
+                actual_message = f'{data_err.__class__.__name__}: {str(data_err)}'
+        except Exception as unknwn_err:
+            error_occurred = True
+            actual_message = f'{unknwn_err.__class__.__name__}: {str(unknwn_err)}'
+
+        passed = actual_message == self.expected_message
+        self.log_test_result(
+            passed=passed,
+            input_data={'model': model_type_name},
+            expected_message=self.expected_message,
+            actual_message=actual_message,
+            test_case_source=test_case_source,
+            error_occurred=error_occurred
+        )
+
+    def test_max_total_cost_wall_profile(self):
+        """Verify that the configuration wall profile limits do not exceed the model limits."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+        wall = Wall.objects.create(
+            wall_config=self.wall_config_object,
+            wall_config_hash=self.wall_config_object.wall_config_hash,
+            num_crews=5,
+            total_cost=100,
+            construction_days=1
+        )
+
+        def create_wall_profile() -> None:
+            WallProfile.objects.create(
+                wall=wall,
+                wall_profile_config_hash='profile_hash',
+                cost=self.max_total_cost_wall_profile
+            )
+
+        self.run_max_total_cost_test(
+            test_case_source, create_wall_profile, WallProfile, self.max_total_cost_wall_profile
+        )
+
+    def test_max_total_cost_wall(self):
+        """Verify that the configuration wall limits do not exceed the model limits."""
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
+
+        def create_wall() -> None:
+            Wall.objects.create(
+                wall_config=self.wall_config_object,
+                wall_config_hash=self.wall_config_object.wall_config_hash,
+                num_crews=5,
+                total_cost=self.max_total_cost_wall,
+                construction_days=1
+            )
+
+        self.run_max_total_cost_test(
+            test_case_source, create_wall, Wall, self.max_total_cost_wall
         )
