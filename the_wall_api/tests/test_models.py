@@ -4,17 +4,12 @@ import re
 from typing import Callable
 
 from django.conf import settings
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import DecimalField
 from django.db.utils import DataError
 
 from the_wall_api.models import Wall, WallConfig, WallProfile, WallProfileProgress, WallConfigReference
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils.storage_utils import (
-    get_daily_ice_usage_cache_key, get_wall_cache_key, get_wall_profile_cache_key, set_redis_cache
-)
-from the_wall_api.utils.wall_config_utils import SEQUENTIAL
 
 
 class UniqueConstraintTestBase(BaseTestcase):
@@ -403,41 +398,6 @@ class CascadeDeletionTest(BaseTestcase):
             'wall_profile_progress': str(self.wall_profile_progress),
         }
 
-    def create_redis_cache(self):
-        wall_data = {
-            'request_type': 'test_models',
-            'wall_config_hash': self.wall_config_hash,
-            'num_crews': self.num_crews,
-            'simulation_type': SEQUENTIAL
-        }
-
-        # Wall
-        self.wall_cache_key = get_wall_cache_key(wall_data)
-        set_redis_cache(self.wall_cache_key, self.wall.total_cost)
-
-        # Wall profile
-        self.wall_profile_cache_key = get_wall_profile_cache_key(self.wall_profile_config_hash)
-        set_redis_cache(self.wall_profile_cache_key, self.wall_profile.cost)
-
-        # Wall profile progress
-        self.daily_ice_usage_cache_key = get_daily_ice_usage_cache_key(wall_data, self.wall_profile_config_hash, self.day, self.profile_id)
-        set_redis_cache(self.daily_ice_usage_cache_key, self.wall_profile_progress.ice_used)
-
-    def evaluate_redis_cache_deletion_result(self, expected_message: str) -> str:
-        wall_cache = cache.get(self.wall_cache_key)
-        if wall_cache is not None:
-            return 'Wall Redis cache not deleted!'
-
-        wall_profile_cache = cache.get(self.wall_profile_cache_key)
-        if wall_profile_cache is not None:
-            return 'Wall profile Redis cache not deleted!'
-
-        daily_ice_usage_cache = cache.get(self.daily_ice_usage_cache_key)
-        if daily_ice_usage_cache is not None:
-            return 'Daily ice usage Redis cache not deleted!'
-
-        return expected_message
-
     def test_cascade_deletion_of_wall_config(self):
         """Test that deleting a WallConfig deletes related Wall, WallProfile and WallProfileProgress records."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
@@ -603,25 +563,6 @@ class CascadeDeletionTest(BaseTestcase):
             input_data=self.input_data,
             expected_message='Validation passed',
             actual_message=actual_error,
-            test_case_source=test_case_source
-        )
-
-    @BaseTestcase.cache_clear
-    def test_redis_cache_deletion_on_db_deletion_signal(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-        expected_message = 'All Redis caches deleted.'
-
-        self.create_redis_cache()
-        self.wall_config_object.delete()
-
-        actual_message = self.evaluate_redis_cache_deletion_result(expected_message)
-
-        passed = actual_message == expected_message
-        self.log_test_result(
-            passed=passed,
-            input_data=self.input_data,
-            expected_message=expected_message,
-            actual_message=actual_message,
             test_case_source=test_case_source
         )
 

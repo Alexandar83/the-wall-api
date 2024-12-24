@@ -1,12 +1,9 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
-from django.core.cache import cache
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
-from django.db.models.signals import post_delete
-from django.dispatch import receiver
 
 CONFIG_ID_MAX_LENGTH = 30
 
@@ -60,18 +57,6 @@ class Wall(models.Model):
         unique_together = ('wall_config_hash', 'num_crews')
 
 
-@receiver(post_delete, sender=Wall)
-def delete_wall_cache(sender: models.Model, instance: Wall, **kwargs) -> None:
-    from the_wall_api.utils.storage_utils import get_wall_cache_key
-
-    wall_data = {
-        'request_type': 'delete_wall',
-        'wall_config_hash': instance.wall_config_hash,
-    }
-    wall_cache_key = get_wall_cache_key(wall_data)
-    cache.delete(wall_cache_key)
-
-
 class WallProfile(models.Model):
     """
     A single profile from the wall with one or multiple sections
@@ -100,14 +85,6 @@ class WallProfile(models.Model):
         ]
 
 
-@receiver(post_delete, sender=WallProfile)
-def delete_wall_profile_cache(sender: models.Model, instance: WallProfile, **kwargs) -> None:
-    from the_wall_api.utils.storage_utils import get_wall_profile_cache_key
-
-    wall_profile_cache_key = get_wall_profile_cache_key(instance.wall_profile_config_hash)
-    cache.delete(wall_profile_cache_key)
-
-
 class WallProfileProgress(models.Model):
     """
     The result for each simulated day of the wall construction
@@ -119,19 +96,3 @@ class WallProfileProgress(models.Model):
 
     class Meta:
         unique_together = ('wall_profile', 'day')
-
-
-@receiver(post_delete, sender=WallProfileProgress)
-def delete_wall_profile_progress_cache(sender: models.Model, instance: WallProfileProgress, **kwargs) -> None:
-    from the_wall_api.utils.storage_utils import get_daily_ice_usage_cache_key
-    from the_wall_api.utils.wall_config_utils import SEQUENTIAL
-
-    wall_data = {
-        'wall_config_hash': instance.wall_profile.wall.wall_config_hash,
-        'num_crews': instance.wall_profile.wall.num_crews,
-        'simulation_type': SEQUENTIAL
-    }
-    wall_profile_progress_cache_key = get_daily_ice_usage_cache_key(
-        wall_data, instance.wall_profile.wall_profile_config_hash, instance.day, instance.wall_profile.profile_id
-    )
-    cache.delete(wall_profile_progress_cache_key)
