@@ -6,7 +6,7 @@
 #
 # Usage:
 #   ./refresh_allowed_hosts_wsl2.sh --deployment_mode=<mode>
-#   <mode>: -Required- Supported values are 'demo', 'dev', or 'prod_v2'
+#   <mode>: -Required- Supported values are 'dev' or 'prod_v2'
 #
 # Dependencies:
 #   - common_utils.sh
@@ -33,11 +33,16 @@ allowed_hosts_update() {
     fi
 
     # Locate the dev.env file
-    source "$(dirname "$0")/common_utils.sh"
     local project_root
     project_root=$(resolve_project_root) || {
-        echo
-        return $?
+        if [[ "$deployment_mode" != "prod_v2" ]]; then
+            echo
+            echo "Error: Failed to resolve project root."
+            return $?
+        else
+            # Fallback rule, in case the repo is not cloned
+            project_root=$(dirname "$(dirname "$(dirname "$0")")")
+        fi
     }
     
     get_env_file "$project_root" "$deployment_mode" || {
@@ -77,7 +82,18 @@ allowed_hosts_refresh() {
     local current_hosts=$1
     local wsl2_ip=$2
     local env_file=$3
+    local line_ending
     local updated_hosts
+    
+    # Detect the global line-ending style of the file
+    if file "$env_file" | grep -q "CRLF"; then
+        file_line_ending=$'\r\n'  # File uses CRLF
+    else
+        file_line_ending=$'\n'    # File uses LF
+    fi
+
+    # Strip out any trailing CR for processing the specific line
+    current_hosts=$(echo "$current_hosts" | tr -d '\r')
     
     if [[ -z "$current_hosts" ]]; then
         echo
@@ -99,17 +115,20 @@ allowed_hosts_refresh() {
 
     local escaped_hosts=$(printf '%s' "$updated_hosts" | sed 's/[&/\]/\\&/g')
     sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$escaped_hosts|" "$env_file"
+
+    # Update ALLOWED_HOSTS while ensuring consistent global line-ending format
+    sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$escaped_hosts|" "$env_file"
+
+    # Fix the line ending of the updated line
+    if [[ "$file_line_ending" == $'\r\n' ]]; then
+        sed -i "s|ALLOWED_HOSTS=.*|&\r|" "$env_file"
+    fi
 }
 
 main () {
-    if [[ -z "$DEPLOYMENT_MODE" ]]; then
-        echo
-        echo "Error: --deployment_mode is required."
-        echo "Info:  Supported values: demo, dev, prod_v2"
-        echo "$PREREQUISITES_FAIL_MESSAGE"
-        echo
-        exit 1
-    fi
+    source "$(dirname "$0")/common_utils.sh"
+
+    validate_deployment_mode "$DEPLOYMENT_MODE"
 
     allowed_hosts_update $DEPLOYMENT_MODE
 }

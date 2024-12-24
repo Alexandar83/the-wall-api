@@ -141,8 +141,6 @@ resolve_project_root() {
         project_root="$(dirname "$project_root")"
     done
 
-    # Fallback logic if no match is found
-    >&2 echo "Error: Failed to resolve project root."
     return 1
 }
 
@@ -274,4 +272,29 @@ set_directory_ownership_and_permissions() {
         print_result "Error: Failed to change permissions of logs directory '$logs_path'."
         return 1
     }
+}
+
+# Verify that the provided deployment mode is supported
+validate_deployment_mode() {
+    local deployment_mode=$1
+
+    if [[ -z "$deployment_mode" ]]; then
+        echo
+        echo "Error: --deployment_mode is required."
+        echo "Info:  Supported values: dev, prod_v2"
+        echo
+        exit 1
+    fi
+    
+    case "$deployment_mode" in
+        dev|prod_v2)
+            ;;
+        *)
+            echo
+            echo "Error: Invalid deployment mode: $deployment_mode."
+            echo "Info:  Supported values: dev, prod_v2"
+            echo
+            exit 1
+            ;;
+    esac
 }
