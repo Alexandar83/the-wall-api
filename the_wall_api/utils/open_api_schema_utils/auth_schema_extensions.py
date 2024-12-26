@@ -18,7 +18,7 @@ class TokenAuthScheme(OpenApiAuthenticationExtension):
             'description': (
                 # Use &lt; to represent a literal < and &gt; to represent a literal >
                 # in the description, ensuring proper rendering in Markdown viewers like Redoc.
-                'Enter your token in the format: **Token &lt;your_token&gt;**\n\n'
+                'Enter your token in the format: <b>Token &lt;your_token&gt;</b>\n\n'
                 'Example header:\n'
                 '{"Authorization": "Token abcdef1234567890"}'
             )

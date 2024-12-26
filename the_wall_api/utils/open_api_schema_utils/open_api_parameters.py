@@ -10,9 +10,12 @@ num_crews_parameter = OpenApiParameter(
     type=int,
     required=False,
     description=(
-        'The number of crews involved in the simulation.\n\n'
-        'When included: the wall build simulation is concurrent.\n\n'
-        'When omitted: the simulation defaults to sequential processing.'
+        'The number of crews involved in the simulation.'
+        '<br><br>'
+        '<i><b>When included</b>: the wall build simulation is concurrent.</i>'
+        '<br><br>'
+        '<i><b>When omitted</b>: the simulation defaults to sequential processing.</i>'
+        '<br><br>'
     ),
     location=OpenApiParameter.QUERY
 )
@@ -32,9 +35,12 @@ file_delete_config_id_list_parameter = OpenApiParameter(
     type=str,
     required=False,
     description=(
-        'Comma-separated list of wall configuration file IDs to be deleted.\n\n'
-        '**Example**:\n'
-        'test_config_1,test_config_2'
+        'Comma-separated list of wall configuration file IDs to be deleted, <b><i>(provided as a single string)</i></b>.'
+        '<br><br>'
+        '<b><i>Example</b>: test_config_1,test_config_2,test_config_3</i>'
+        '<br><br>'
+        '<b><i>Important: Deletes all user files if omitted!</i></b>'
+        '<br><br>'
     ),
     location=OpenApiParameter.QUERY
 )

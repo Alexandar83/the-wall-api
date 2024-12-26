@@ -36,15 +36,15 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
         summary='Delete User',
         description=(
             'This endpoint requires the `current_password` parameter in the request\'s body.\n\n'
-            '**Example request body:**\n'
+            '<b>Example request body:</b>\n'
             '```json\n'
             '{\n'
             '  "current_password": "strongpassword#123"\n'
             '}\n'
             '```\n'
-            '**Note:** Due to OpenAPI 3.1 limitations, request body schema '
+            '<b>Note:</b> Due to OpenAPI 3.1 limitations, request body schema '
             'and examples cannot be included in the schema documentation for DELETE endpoints.\n\n'
-            '*The "Try it out" functionality also doesn\'t work properly in Swagger UI.*" '
+            '<i>*The "Try it out" functionality also doesn\'t work properly in Swagger UI.</i>'
         ),
         responses=open_api_responses.delete_user_responses,
     )

@@ -36,6 +36,11 @@ class WallConfigFileUploadView(APIView):
             'Allows users to upload wall configuration files, which are '
             'parsed and stored as structured data in the database. \n\nThe processed data can be '
             'accessed through the `daily-ice-usage`, `cost-overview`, and `cost-overview-profile` endpoints.'
+            '<br><br>'
+            '*<b><i>Swagger UI-only:</i></b> \n\n'
+            '<i>If a file upload fails due to validation errors,</i> \n\n'
+            '<i>and the file is subsequently modified to meet the validation requirements,</i> \n\n'
+            '<i>the "Try it out" functionality must be reset before attempting a second upload.</i>'
         ),
         request=open_api_schemas.wallconfig_file_upload_schema,
         responses=open_api_responses.wallconfig_file_upload_responses
