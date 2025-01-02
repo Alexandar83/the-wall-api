@@ -15,6 +15,7 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
 from the_wall_api.utils import error_utils
+from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 from the_wall_api.utils.concurrency_utils.multiprocessing_utils import MultiprocessingWallBuilder
 from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
 from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
@@ -114,9 +115,13 @@ class WallConstruction:
         Increment the heights of all sections, before proceeding to the next day.
         """
         day = 1
+        num_available_crews = self.num_crews if self.num_crews else None
 
-        # Increment the heights of all sections until they reach MAX_SECTION_HEIGHT
-        while any(height < MAX_SECTION_HEIGHT for profile in self.wall_construction_config for height in profile):
+        while True:
+            num_crews_worked_today = 0 if num_available_crews is not None else None
+            all_crews_finished_work_for_the_day = False
+            work_done_today = False
+
             # Increment each profile's unfinished sections
             for profile_index, profile in enumerate(self.wall_construction_config, start=1):
                 # Initialize wall profile data if not already done
@@ -124,26 +129,40 @@ class WallConstruction:
 
                 ice_used = 0
                 for i, height in enumerate(profile):
-                    if height < MAX_SECTION_HEIGHT:
-                        profile[i] += 1  # Increment the height of the section
-                        ice_used += ICE_PER_FOOT
-                        self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
+                    if height >= MAX_SECTION_HEIGHT:
+                        continue
 
-                        # Logging to stdout is muted in the workers
-                        if self.celery_task_aborted:
-                            print('Sequential simulation interrupted by a celery task abort signal!')
-                            return
+                    profile[i] += 1  # Increment the height of the section
+                    ice_used += ICE_PER_FOOT
+                    self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
+
+                    BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, day, profile_index)
+
+                    work_done_today = True
+                    if num_crews_worked_today is not None:
+                        num_crews_worked_today += 1
+                        if num_crews_worked_today == num_available_crews:
+                            all_crews_finished_work_for_the_day = True
+                            break
+
+                    # Logging to stdout is muted in the workers
+                    if self.celery_task_aborted:
+                        print('Sequential simulation interrupted by a celery task abort signal!')
+                        return
+
+                # All crews are finished - proceed to the next day
+                if all_crews_finished_work_for_the_day:
+                    break
 
                 # Keep track of the daily ice usage
                 self.wall_profile_data[profile_index][day] = {'ice_used': ice_used}
 
+            if not work_done_today:
+                break
+
             day += 1
 
-    def _daily_ice_usage(self, profile_id: int, day: int) -> int:
-        """
-        For internal testing purposes only.
-        """
-        return self.wall_profile_data.get(profile_id, {}).get(day, {}).get('ice_used', 0)
+        self.wall_profile_data['profiles_overview']['construction_days'] = day - 1
 
     def _calc_sim_details(self) -> Dict[str, Any]:
         """
@@ -256,7 +275,7 @@ def evaluate_simulation_params(
     num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
 ) -> tuple[str, dict, int]:
     # num_crews
-    simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count, wall_data)
+    simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count)
 
     # configuration hashes
     wall_config_hash_details = generate_config_hash_details(wall_construction_config)
@@ -264,7 +283,7 @@ def evaluate_simulation_params(
     return simulation_type, wall_config_hash_details, num_crews_final
 
 
-def manage_num_crews(num_crews: int, sections_count: int, wall_data: Dict[str, Any] = {}) -> tuple[str, int]:
+def manage_num_crews(num_crews: int, sections_count: int) -> tuple[str, int]:
     if num_crews == 0:
         # No num_crews provided - sequential mode
         simulation_type = SEQUENTIAL
@@ -274,9 +293,25 @@ def manage_num_crews(num_crews: int, sections_count: int, wall_data: Dict[str, A
         # which is the same as the sequential mode
         simulation_type = SEQUENTIAL
         num_crews_final = 0
-        # For eventual future response message
-        if wall_data:
-            wall_data['concurrent_not_needed'] = True
+    elif (
+        # Fine-tuning of multiprocessing limits
+        (
+            'threading' in settings.CONCURRENT_SIMULATION_MODE and
+            (
+                num_crews > settings.MAX_CONCURRENT_NUM_CREWS_THREADING or
+                sections_count > settings.MAX_SECTIONS_COUNT_CONCURRENT_THREADING
+            )
+        ) or
+        (
+            'multiprocessing' in settings.CONCURRENT_SIMULATION_MODE and
+            (
+                num_crews > settings.MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING or
+                sections_count > settings.MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING
+            )
+        )
+    ):
+        simulation_type = SEQUENTIAL
+        num_crews_final = num_crews
     else:
         # The crews are less than the number of sections
         simulation_type = CONCURRENT

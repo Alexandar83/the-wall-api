@@ -376,11 +376,25 @@ MAX_CONCURRENT_NUM_CREWS_THREADING = int(
     os.getenv('MAX_CONCURRENT_NUM_CREWS_THREADING', 250)
 )
 
+# If the sections count is above this limit in threading,
+# the build simulation is in sequential mode
+MAX_SECTIONS_COUNT_CONCURRENT_THREADING = int(
+    os.getenv('MAX_SECTIONS_COUNT_CONCURRENT_THREADING', 4000)
+)
+
 # Number of CPU threads
 CPU_THREADS = int(os.getenv('CPU_THREADS', 8))
-# Number of multiprocessing processes for concurrent build simulaion
-# 2 threads are reserved for the main process
-MAX_MULTIPROCESSING_NUM_CREWS = CPU_THREADS - 2
+
+# If num_crews is above this limit in multiprocessing,
+# the build simulation is in sequential mode.
+# *2 threads are reserved for the main process
+MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = CPU_THREADS - 2
+
+# If sections count is above this limit in multiprocessing,
+# the build simulation is in sequential mode.
+MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING = int(
+    os.getenv('MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING', 2000)
+)
 
 # 1. Up to this limit the wall configurations are cached on upload with their full range:
 # for all num_crews in range(sections_count).
