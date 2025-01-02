@@ -257,7 +257,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         return redis_daily_ice_usage_cache, daily_ice_usage_cache_key
 
     def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
-        url_name = exposed_endpoints['profiles-days']['name']
+        url_name = exposed_endpoints['daily-ice-usage']['name']
         url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
         request_params = {
             'query_params': {'num_crews': normal_request_num_crews, 'config_id': self.valid_config_id},
@@ -319,7 +319,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         if not isinstance(self.wall_config_object, WallConfig):
             return self.wall_config_object
         self.wall_config_object.refresh_from_db()
-        if self.wall_config_object.status != WallConfigStatusEnum.COMPLETED:
+        if self.wall_config_object.status != WallConfigStatusEnum.CALCULATED:
             return 'Wall config processing failed.'
 
         for task_result in task_results:
@@ -510,7 +510,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self, normal_request_num_crews: int | None = None, test_case_source: str = ''
     ):
         """
-        Send a profiles get request shortly after an orchestration task has started.
+        Send a cost/usage get request shortly after an orchestration task has started.
         The request's wall build simulation is expected to already be processed by the orchestration task.
         """
         if not normal_request_num_crews:
@@ -538,7 +538,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 
     def test_simultaneous_orchestration_task_and_late_normal_request(self):
         """
-        Send a profiles get request shortly after an orchestration task has started.
+        Send a cost/usage get request shortly after an orchestration task has started.
         The request's wall build simulation is expected to not be processed by the orchestration task yet.
         The wall build should be fully simulated with the request's parameters
         in the main process. The build simulation with these parameters should be skipped
