@@ -320,3 +320,11 @@ def handle_reference_already_exists(wall_data: Dict[str, Any], wall_config_objec
         handle_known_error(
             wall_data, 'caching', error_message, status.HTTP_400_BAD_REQUEST
         )
+
+
+def handle_user_task_in_progress_exists(user_tasks_in_progress: list[str], wall_data: Dict[str, Any]) -> None:
+    error_message = (
+        'The following config IDs have calculations in progress for this user: '
+        f'{user_tasks_in_progress}. Please wait until they are completed.'
+    )
+    handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)

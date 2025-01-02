@@ -49,7 +49,27 @@ def fetch_wall_data(
 
     set_simulation_params(wall_data, num_crews, wall_construction_config, request_type)
 
+    # Check for other user tasks in progress
+    verify_no_other_user_tasks_in_progress(wall_data)
+    if wall_data['error_response']:
+        return
+
     get_or_create_cache(wall_data, request_type)
+
+
+def verify_no_other_user_tasks_in_progress(wall_data) -> None:
+    """Ensure a single calculation is in progress per user"""
+    if wall_data['request_type'] != 'create_wall_task':
+        user_tasks_in_progress = WallConfigReference.objects.filter(
+            user=wall_data['request_user'],
+            status__in=[
+                WallConfigReferenceStatusEnum.CELERY_CALCULATION,
+                WallConfigReferenceStatusEnum.SYNC_CALCULATION
+            ]
+        ).exclude(config_id=wall_data['request_config_id']).values_list('config_id', flat=True)
+
+        if user_tasks_in_progress:
+            error_utils.handle_user_task_in_progress_exists(list(user_tasks_in_progress), wall_data)
 
 
 def get_or_create_cache(wall_data, request_type) -> None:
@@ -307,6 +327,9 @@ def fetch_daily_ice_usage_from_db(
 
 
 def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
+    # Check for other user tasks in progress
+    verify_no_other_user_tasks_in_progress(wall_data)
+
     # Uploaded config data validation
     wall_config_utils.validate_wall_config_file_data(wall_data)
     if wall_data['error_response']:
