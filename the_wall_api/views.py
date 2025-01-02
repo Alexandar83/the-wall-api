@@ -10,7 +10,7 @@ from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from the_wall_api.serializers import (
-    CostOverviewSerializer, ProfilesDaysSerializer,
+    ProfilesOverviewSerializer, ProfilesDaysSerializer,
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
@@ -35,7 +35,7 @@ class WallConfigFileUploadView(APIView):
         description=(
             'Allows users to upload wall configuration files, which are '
             'parsed and stored as structured data in the database. \n\nThe processed data can be '
-            'accessed through the `profiles-days`, `cost-overview`, and `cost-overview-profile` endpoints.'
+            'accessed through the `profiles-days` and `profiles-overview` endpoints.'
             '<br><br>'
             '*<b><i>Swagger UI-only:</i></b> \n\n'
             '<i>If a file upload fails due to validation errors,</i> \n\n'
@@ -180,28 +180,28 @@ class ProfilesDaysView(APIView):
         return Response(response_data, status=status.HTTP_404_NOT_FOUND)
 
 
-class CostOverviewView(APIView):
+class ProfilesOverviewView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['Costs and Daily Ice Usage '],
-        operation_id='get_cost_overview',
+        operation_id='get_profiles_overview',
         summary='Get Cost Overview',
         description='Retrieve the total wall construction cost.',
         parameters=[open_api_parameters.config_id_parameter],
-        responses=open_api_responses.cost_overview_responses
+        responses=open_api_responses.profiles_overview_responses
     )
     def get(self, request: Request, profile_id: int | None = None) -> Response:
         config_id = request.query_params.get('config_id')
         request_data = {'config_id': config_id, 'profile_id': profile_id}
-        cost_serializer = CostOverviewSerializer(data=request_data)
-        if not cost_serializer.is_valid():
-            return Response(cost_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        profiles_overview_serializer = ProfilesOverviewSerializer(data=request_data)
+        if not profiles_overview_serializer.is_valid():
+            return Response(profiles_overview_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        config_id = cost_serializer.validated_data['config_id']     # type: ignore
-        profile_id = cost_serializer.validated_data['profile_id']   # type: ignore
+        config_id = profiles_overview_serializer.validated_data['config_id']     # type: ignore
+        profile_id = profiles_overview_serializer.validated_data['profile_id']   # type: ignore
 
-        request_type = 'costoverview' if not profile_id else 'costoverview/profile_id'
+        request_type = 'profiles-overview' if not profile_id else 'profiles-overview/profile_id'
 
         wall_data = initialize_wall_data(
             config_id=config_id, user=request.user,
@@ -211,9 +211,9 @@ class CostOverviewView(APIView):
         if wall_data['error_response']:
             return wall_data['error_response']
 
-        return self.build_cost_overview_response(wall_data, profile_id)
+        return self.build_profiles_overview_response(wall_data, profile_id)
 
-    def build_cost_overview_response(self, wall_data: Dict[str, Any], profile_id: int | None) -> Response:
+    def build_profiles_overview_response(self, wall_data: Dict[str, Any], profile_id: int | None) -> Response:
         result_data = wall_data['cached_result']
         if not result_data:
             result_data = wall_data['simulation_result']
@@ -231,22 +231,6 @@ class CostOverviewView(APIView):
                 'details': f'Profile {profile_id} construction cost: {wall_profile_cost:.0f} Gold Dragon coins',
             }
         return Response(response_data, status=status.HTTP_200_OK)
-
-
-class CostOverviewProfileidView(CostOverviewView):
-    throttle_classes = [UserRateThrottle]
-
-    @extend_schema(
-        tags=['Costs and Daily Ice Usage '],
-        operation_id='get_cost_overview_profile_id',
-        summary='Get Profile Cost Overview',
-        description='Retrieve the total cost for a specific wall profile.',
-        parameters=open_api_parameters.cost_overview_profile_id_parameters +
-        [open_api_parameters.config_id_parameter],
-        responses=open_api_responses.cost_overview_profile_id_responses
-    )
-    def get(self, request: Request, profile_id: int | None = None) -> Response:
-        return super().get(request, profile_id)
 
 
 def custom_404_view(request, exception=None):

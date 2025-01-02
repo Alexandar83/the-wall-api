@@ -175,7 +175,7 @@ class WallConstruction:
 
 
 def initialize_wall_data(
-    source: str = 'usage_or_cost_view', profile_id: int | None = None, day: int | None = None,
+    source: str = 'profiles_view', profile_id: int | None = None, day: int | None = None,
     request_num_crews: int | None = None, request_type: str | None = None, user: AbstractUser | None = None,
     wall_config_file_data: list | None = None, config_id: str | None = None,
     request_config_id_list: list | None = None, input_data={}
@@ -189,7 +189,7 @@ def initialize_wall_data(
     test_data_json = input_data.get('test_data', '{}') if settings.ACTIVE_TESTING else '{}'
     test_data = json.loads(test_data_json)
 
-    if source in ['wallconfig_file_view', 'test_cost_and_usage_views']:
+    if source in ['wallconfig_file_view', 'test_profiles_views']:
         return {
             'request_type': request_type,
             'request_user': user,
@@ -304,10 +304,10 @@ def store_simulation_result(wall_data):
     """
     simulation_result = wall_data['simulation_result'] = {}
 
-    # Used in the costoverview response
+    # Used in the profiles-overview response
     simulation_result['wall_total_cost'] = wall_data['sim_calc_details']['total_cost']
 
-    # Used in the costoverview/profile_id response
+    # Used in the profiles-overview/profile_id response
     request_profile_id = wall_data['request_profile_id']
     if request_profile_id:
         simulation_result['wall_profile_cost'] = wall_data['sim_calc_details']['profile_costs'][request_profile_id]

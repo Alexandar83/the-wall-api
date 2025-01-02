@@ -14,14 +14,14 @@ wall_app_error_response_serializer = inline_serializer(
         'config_id': serializers.CharField(required=False),
     }
 )
-cost_usage_404_response_serializer = inline_serializer(
-    name='CostUsageError404Response',
+profiles_404_response_serializer = inline_serializer(
+    name='ProfilesError404Response',
     fields={
         'error': serializers.CharField(),
     }
 )
-cost_usage_409_response_serializer = inline_serializer(
-    name='CostUsageError409Response',
+profiles_409_response_serializer = inline_serializer(
+    name='ProfilesError409Response',
     fields={
         'error': serializers.CharField(),
         'error_details': serializers.DictField(),
@@ -104,19 +104,12 @@ profiles_days_response_serializer = inline_serializer(
     }
 )
 
-# *CostOverviewView and CostOverviewProfileidView*
-cost_overview_profile_id_response_serializer = inline_serializer(
-    name='CostOverviewProfileIdResponse',
+# *ProfilesOverviewView*
+profiles_overview_response_serializer = inline_serializer(
+    name='ProfilesOverviewResponse',
     fields={
         'profile_id': serializers.IntegerField(),
         'profile_cost': serializers.CharField(),
-        'details': serializers.CharField(),
-    }
-)
-cost_overview_response_serializer = inline_serializer(
-    name='CostOverviewResponse',
-    fields={
-        'total_cost': serializers.CharField(),
         'details': serializers.CharField(),
     }
 )

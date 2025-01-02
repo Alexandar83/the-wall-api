@@ -160,7 +160,7 @@ class CacheTest(BaseTransactionTestcase):
                 self.assertEqual(ice_used_sim, profile_ice_usage_db['profile_daily_ice_used'])
 
 
-class CostAndUsageCacheTestBase(CacheTest):
+class ProfilesCacheTestBase(CacheTest):
     cache_types_msg = 'wall cost and profile cost'
 
     def setUp(self):
@@ -205,7 +205,7 @@ class CostAndUsageCacheTestBase(CacheTest):
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
 
-class ProfilesDaysCacheTest(CostAndUsageCacheTestBase):
+class ProfilesDaysCacheTest(ProfilesCacheTestBase):
     description = 'Test daily ice usage cache'
 
     def test_fetch_db_data_evicted_from_cache(self):
@@ -265,26 +265,12 @@ class ProfilesDaysCacheTest(CostAndUsageCacheTestBase):
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
 
-class CostOverviewProfileidCacheTest(CostAndUsageCacheTestBase):
-    description = 'Test cost overview profile_id cache'
+class ProfilesOverviewCacheTest(ProfilesCacheTestBase):
+    description = 'Test profiles overview cache'
 
     def setUp(self):
         super().setUp()
-        self.request_type = 'costoverview/profile_id'
-        self.profile_id = 1
-        self.day = None
-
-    def test_fetch_db_data_evicted_from_cache(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        self.process_fetch_db_data_evicted_from_cache(test_case_source)
-
-
-class CostOverviewCacheTest(CostAndUsageCacheTestBase):
-    description = 'Test cost overview cache'
-
-    def setUp(self):
-        super().setUp()
-        self.request_type = 'costoverview'
+        self.request_type = 'profiles-overview'
         self.profile_id = None
         self.day = None
 

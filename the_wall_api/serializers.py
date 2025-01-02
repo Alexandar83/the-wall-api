@@ -13,7 +13,7 @@ class ProfilesDaysSerializer(serializers.Serializer):
     config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
 
-class CostOverviewSerializer(serializers.Serializer):
+class ProfilesOverviewSerializer(serializers.Serializer):
     profile_id = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
     config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 

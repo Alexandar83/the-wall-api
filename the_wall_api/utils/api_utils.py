@@ -10,13 +10,17 @@ exposed_endpoints = {
         'path': f'{endpoint_prefix}/profiles/<int:profile_id>/days/<int:day>/',
         'name': f'profiles-days-{settings.API_VERSION}',
     },
-    'cost-overview': {
-        'path': f'{endpoint_prefix}/cost-overview/',
-        'name': f'cost-overview-{settings.API_VERSION}',
+    'single-profile-overview-day': {
+        'path': f'{endpoint_prefix}/profiles/<int:profile_id>/overview/<int:day>/',
+        'name': f'single-profile-overview-day-{settings.API_VERSION}',
     },
-    'cost-overview-profile': {
-        'path': f'{endpoint_prefix}/cost-overview/<profile_id>/',
-        'name': f'cost-overview-profile-{settings.API_VERSION}',
+    'profiles-overview-day': {
+        'path': f'{endpoint_prefix}/profiles/overview/<int:day>/',
+        'name': f'profiles-overview-day-{settings.API_VERSION}',
+    },
+    'profiles-overview': {
+        'path': f'{endpoint_prefix}/profiles/overview/',
+        'name': f'profiles-overview-{settings.API_VERSION}',
     },
     'wallconfig-files-upload': {
         'path': f'{endpoint_prefix}/wallconfig-files/upload/',

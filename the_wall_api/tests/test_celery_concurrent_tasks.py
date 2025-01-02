@@ -510,7 +510,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         self, normal_request_num_crews: int | None = None, test_case_source: str = ''
     ):
         """
-        Send a cost/usage get request shortly after an orchestration task has started.
+        Send a profiles get request shortly after an orchestration task has started.
         The request's wall build simulation is expected to already be processed by the orchestration task.
         """
         if not normal_request_num_crews:
@@ -538,7 +538,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 
     def test_simultaneous_orchestration_task_and_late_normal_request(self):
         """
-        Send a cost/usage get request shortly after an orchestration task has started.
+        Send a profiles get request shortly after an orchestration task has started.
         The request's wall build simulation is expected to not be processed by the orchestration task yet.
         The wall build should be fully simulated with the request's parameters
         in the main process. The build simulation with these parameters should be skipped

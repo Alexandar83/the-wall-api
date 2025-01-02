@@ -9,7 +9,7 @@ from rest_framework.test import APIRequestFactory
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.serializers import (
-    CostOverviewSerializer, ProfilesDaysSerializer,
+    ProfilesOverviewSerializer, ProfilesDaysSerializer,
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
@@ -97,13 +97,13 @@ class SerializerTest(BaseTestcase):
             expected_errors = {'config_id': error_message}
             with self.subTest(config_id=invalid_config_id):
                 self.validate_and_log(
-                    CostOverviewSerializer, input_data, expected_errors,
+                    ProfilesOverviewSerializer, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data}
                 )
 
 
-class CostOverviewSerializerTest(SerializerTest):
-    description = 'Cost overview serializer tests'
+class ProfilesOverviewSerializerTest(SerializerTest):
+    description = 'Profiles overview serializer tests'
 
     def test_profile_id_config_id_valid(self):
         valid_values = generate_valid_values()
@@ -114,7 +114,7 @@ class CostOverviewSerializerTest(SerializerTest):
             expected_errors = {}
             with self.subTest(profile_id=profile_id):
                 self.validate_and_log(
-                    CostOverviewSerializer, input_data, expected_errors,
+                    ProfilesOverviewSerializer, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data}
                 )
 
@@ -123,7 +123,8 @@ class CostOverviewSerializerTest(SerializerTest):
 
         for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for profile_id in invalid_profile_ids:
-                # CostOverview: profile_id is optional and None is a properly handled value
+                #TODO: rework comment
+                # ProfilesOverviewSerializer: profile_id is optional and None is a properly handled value
                 # ProfilesDays: profile_id is required, but:
                 #   -api/v1/profiles-days/null/5/ -> is parsed as a 'null' in the GET method
                 #   -api/v1/profiles-days/?day=5&profile_id=None -> leads to Page not found (404)
@@ -133,7 +134,7 @@ class CostOverviewSerializerTest(SerializerTest):
                 expected_errors = {'profile_id': error_message}
                 with self.subTest(profile_id=profile_id):
                     self.validate_and_log(
-                        CostOverviewSerializer, input_data, expected_errors,
+                        ProfilesOverviewSerializer, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 

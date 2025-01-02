@@ -4,7 +4,7 @@ from drf_spectacular.utils import OpenApiParameter
 
 # === Wall app parameters ===
 
-# Optional query parameter for num_crews in the usage and cost endpoints
+# Optional query parameter for num_crews in the profiles endpoints
 num_crews_parameter = OpenApiParameter(
     name='num_crews',
     type=int,
@@ -19,7 +19,7 @@ num_crews_parameter = OpenApiParameter(
     ),
     location=OpenApiParameter.QUERY
 )
-# Obligatory query parameter for config_id in the usage and cost endpoints
+# Obligatory query parameter for config_id in the profiles endpoints
 config_id_parameter = OpenApiParameter(
     name='config_id',
     type=str,
@@ -66,9 +66,9 @@ profiles_days_parameters = [
 ]
 # == ProfilesDaysView (end) ==
 
-# *CostOverviewView and CostOverviewProfileidView*
+# *ProfilesOverviewView*
 # PATH parameters
-cost_overview_profile_id_parameters = [
+profiles_overview_parameters = [
     OpenApiParameter(
         name='profile_id',
         type=int,

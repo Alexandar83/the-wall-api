@@ -2,7 +2,7 @@ from django.urls import path
 
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.views import (
-    CostOverviewView, CostOverviewProfileidView, ProfilesDaysView,
+    ProfilesOverviewView, ProfilesDaysView,
     WallConfigFileDeleteView, WallConfigFileListView, WallConfigFileUploadView
 )
 
@@ -14,14 +14,19 @@ urlpatterns = [
         name=exposed_endpoints['profiles-days']['name']
     ),
     path(
-        exposed_endpoints['cost-overview']['path'],
-        CostOverviewView.as_view(),
-        name=exposed_endpoints['cost-overview']['name']
+        exposed_endpoints['single-profile-overview-day']['path'],
+        ProfilesOverviewView.as_view(),
+        name=exposed_endpoints['single-profile-overview-day']['name']
     ),
     path(
-        exposed_endpoints['cost-overview-profile']['path'],
-        CostOverviewProfileidView.as_view(),
-        name=exposed_endpoints['cost-overview-profile']['name']
+        exposed_endpoints['profiles-overview-day']['path'],
+        ProfilesOverviewView.as_view(),
+        name=exposed_endpoints['profiles-overview-day']['name']
+    ),
+    path(
+        exposed_endpoints['profiles-overview']['path'],
+        ProfilesOverviewView.as_view(),
+        name=exposed_endpoints['profiles-overview']['name']
     ),
     path(
         exposed_endpoints['wallconfig-files-upload']['path'],

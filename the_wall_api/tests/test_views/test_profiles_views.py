@@ -16,7 +16,7 @@ from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
 from the_wall_api.wall_construction import get_sections_count, initialize_wall_data, WallConstruction
 
 
-class CostAndUsageViewTestBase(BaseViewTest):
+class ProfilesViewTestBase(BaseViewTest):
 
     @classmethod
     def setUpClass(cls, skip_test_data_creation: bool = False, *args, **kwargs):
@@ -27,7 +27,7 @@ class CostAndUsageViewTestBase(BaseViewTest):
     @classmethod
     def prepare_initial_usage_view_test_data(cls, init_wall_config_network: bool = True) -> None:
         """Ensure a proper test wall config object with all its network is created."""
-        source = 'test_cost_and_usage_views'
+        source = 'test_profiles_views'
         wall_config_file_upload_wall_data = initialize_wall_data(
             source=source, request_type='wallconfig-files/upload', user=cls.test_user,
             wall_config_file_data=cls.wall_construction_config, config_id=cls.valid_config_id
@@ -132,7 +132,7 @@ class CostAndUsageViewTestBase(BaseViewTest):
         return reverse(self.url_name)
 
 
-class ProfilesDaysViewTest(CostAndUsageViewTestBase):
+class ProfilesDaysViewTest(ProfilesViewTestBase):
     description = 'Profiles Days View Tests'
 
     url_name = exposed_endpoints['profiles-days']['name']
@@ -215,32 +215,12 @@ class ProfilesDaysViewTest(CostAndUsageViewTestBase):
                 )
 
 
-class CostOverviewViewTest(CostAndUsageViewTestBase):
-    description = 'Cost Overview View Tests'
+class ProfilesOverviewViewTest(ProfilesViewTestBase):
+    description = 'Profiles Overview View Tests'
 
-    url_name = exposed_endpoints['cost-overview']['name']
+    url_name = exposed_endpoints['profiles-overview']['name']
 
-    def test_cost_overview_valid(self, test_case_source=None, consistency_test=False):
-        if test_case_source is None:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        num_crews = 0
-
-        self.execute_test_case(
-            self.client_get_method, status.HTTP_200_OK, test_case_source, num_crews=num_crews,
-            consistency_test=consistency_test
-        )
-
-    def test_cost_overview_results_consistency(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        self.test_cost_overview_valid(test_case_source=test_case_source, consistency_test=True)
-
-
-class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
-    description = 'Cost Overview Profileid View Tests'
-
-    url_name = exposed_endpoints['cost-overview-profile']['name']
-
-    def test_cost_overview_profileid_valid(self, test_case_source=None, consistency_test=False):
+    def test_profiles_overview_valid(self, test_case_source=None, consistency_test=False):
         if test_case_source is None:
             test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
@@ -253,11 +233,11 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
                     num_crews=num_crews, consistency_test=consistency_test
                 )
 
-    def test_cost_overview_profileid_results_consistency(self):
+    def test_profiles_overview_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        self.test_cost_overview_profileid_valid(test_case_source=test_case_source, consistency_test=True)
+        self.test_profiles_overview_valid(test_case_source=test_case_source, consistency_test=True)
 
-    def test_cost_overview_profileid_invalid_profile_id(self):
+    def test_profiles_overview_profileid_invalid_profile_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
         num_crews = 0
@@ -270,7 +250,7 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
                 )
 
 
-class AbnormalCasesProfilesDaysViewTest(CostAndUsageViewTestBase):
+class AbnormalCasesProfilesDaysViewTest(ProfilesViewTestBase):
     description = 'Abnormal Daily Ice Usage View Tests'
 
     url_name = exposed_endpoints['profiles-days']['name']
@@ -318,22 +298,10 @@ class AbnormalCasesProfilesDaysViewTest(CostAndUsageViewTestBase):
         )
 
 
-class AbnormalCostOverviewProfileidViewTest(AbnormalCasesProfilesDaysViewTest):
-    description = 'Abnormal Cost Overview Profileid View Tests'
+class AbnormalProfilesOverviewViewTest(AbnormalCasesProfilesDaysViewTest):
+    description = 'Abnormal Profiles Overview View Tests'
 
-    url_name = exposed_endpoints['cost-overview-profile']['name']
-
-    def setUp(self):
-        super().setUp()
-        self.profile_id = 1
-        self.day = None
-        self.num_crews = None
-
-
-class AbnormalCostOverviewViewTest(AbnormalCasesProfilesDaysViewTest):
-    description = 'Abnormal Cost Overview View Tests'
-
-    url_name = exposed_endpoints['cost-overview']['name']
+    url_name = exposed_endpoints['profiles-overview']['name']
 
     def setUp(self):
         super().setUp()

@@ -1082,19 +1082,20 @@ The Wall is a massive fortification being built along the northern border of the
 
 ### Endpoints
 
-| Endpoint              | URL                                         | Requires token authentication |            Rate limit scopes            |
-| --------------------- | ------------------------------------------- | :---------------------------: | :-------------------------------------: |
-| Create User           | `/api/v1/auth/users/`                       |              No               |             Unauthenticated             |
-| Set Password          | `/api/v1/auth/users/set_password/`          |              Yes              |             User management             |
-| Login (authenticate)  | `/api/v1/auth/token/login/`                 |              No               |  Authenticated + <br>Unauthenticated 🗒️ |
-| Logout (revoke token) | `/api/v1/auth/token/logout/`                |              Yes              |             User management             |
-| Delete User           | `/api/v1/auth/users/me/{username}/`         |              Yes              | User management + <br>Unauthenticated 🗒️|
-| Upload File           | `/api/v1/wallconfig-files/upload/`          |              Yes              |             File management             |
-| List Files            | `/api/v1/wallconfig-files/list/`            |              Yes              |              Authenticated              |
-| Delete File           | `/api/v1/wallconfig-files/delete/`          |              Yes              |             File management             |
-| Cost Overview         | `/api/v1/cost-overview/`                    |              Yes              |              Authenticated              |
-| Cost Overview Profile | `/api/v1/cost-overview/{profile_id}/`       |              Yes              |              Authenticated              |
-| Daily Ice Usage       | `/api/v1/profiles/{profile_id}/days/{day}/` |              Yes              |              Authenticated              |
+| Endpoint                | URL                                                     | Requires token authentication |            Rate limit scopes            |
+| ----------------------- | ------------------------------------------------------- | :---------------------------: | :-------------------------------------: |
+| Create User             | `/api/v1/auth/users/`                                   |              No               |             Unauthenticated             |
+| Set Password            | `/api/v1/auth/users/set_password/`                      |              Yes              |             User management             |
+| Login (authenticate)    | `/api/v1/auth/token/login/`                             |              No               |  Authenticated + <br>Unauthenticated 🗒️  |
+| Logout (revoke token)   | `/api/v1/auth/token/logout/`                            |              Yes              |             User management             |
+| Delete User             | `/api/v1/auth/users/me/{username}/`                     |              Yes              | User management + <br>Unauthenticated 🗒️ |
+| Upload File             | `/api/v1/wallconfig-files/upload/`                      |              Yes              |             File management             |
+| List Files              | `/api/v1/wallconfig-files/list/`                        |              Yes              |              Authenticated              |
+| Delete File             | `/api/v1/wallconfig-files/delete/`                      |              Yes              |             File management             |
+| Profile Daily Overview  | `/api/v1/profiles/<int:profile_id>/overview/<int:day>/` |              Yes              |              Authenticated              |
+| Profiles Daily Overview | `/api/v1/profiles/overview/<int:day>/`                  |              Yes              |              Authenticated              |
+| Profiles Overview       | `/api/v1/profiles/overview/`                            |              Yes              |              Authenticated              |
+| Profile Daily Ice Usage | `/api/v1/profiles/<int:profile_id>/days/<int:day>/`     |              Yes              |              Authenticated              |
 
 <br>
 
@@ -1241,13 +1242,11 @@ graph TD
 
   - **a.** API Endpoints are available to query ice usage and construction costs for each wall section.
 
-  - **b.** The ***Cost Overview*** endpoint provides the total cost of the wall in Gold Dragon coins.
+  - **b.** The ***Profiles Overview*** endpoint provides the total cost of the wall in Gold Dragon coins.
 
-  - **c.** The ***Cost Overview Profile*** endpoint provides the cost for a specific wall profile in Gold Dragon coins.
+  - **c.** The ***Profile Daily Ice Usage*** endpoint provides the ice usage for a specific wall profile on a specific day in cubic yards.
 
-  - **d.** The ***Daily Ice Usage*** endpoint provides the ice usage for a specific wall profile on a specific day in cubic yards.
-
-  - **e.** Example use cases:
+  - **d.** Example use cases:
     <i>
     - A wall configuration file is uploaded:  
 
@@ -1264,9 +1263,9 @@ graph TD
         - Profile **`2`** total progress: (30 - 27) + (30 - 27) = **6 feet**
         - Profile **`3`** total progress: (30 - 28) + (30 - 29) = **3 feet**
         - Wall total progress = 3 + 6 + 3 = **12 feet** constructed
-      - **`cost-overview`** calculates the total cost of the wall:        
+      - **`profiles-overview`** calculates the total cost of the wall:        
         - Total cost = **12**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = ***4 446 000 Gold Dragon coins***
-      - **`cost-overview/2`** calculates the cost for profile **`2`**:
+      - **`profiles-overview/2`** calculates the cost for profile **`2`**:
         - **6**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = **2 223 000 Gold Dragon coins**
       - **`profiles/2/days/2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
         - **2**(total feet raised on profile **`2`** on the **`2nd`** day) \* **195**(cubic yards of ice) = **390 cubic yards of ice**

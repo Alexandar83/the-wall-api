@@ -10,9 +10,7 @@ from django.test.utils import override_settings
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.utils.open_api_schema_utils.djoser_utils import TokenCreateExtendSchemaView
 from the_wall_api.tests.test_djoser_integration import DjoserIntegrationTestBase
-from the_wall_api.tests.test_views.test_cost_and_usage_views import (
-    CostAndUsageViewTestBase
-)
+from the_wall_api.tests.test_views.test_profiles_views import ProfilesViewTestBase
 from the_wall_api.tests.test_views.test_wallconfig_file_views import (
     WallConfigFileDeleteViewTestBase, WallConfigFileListViewTestBase, WallConfigFileUploadViewTestBase
 )
@@ -101,18 +99,18 @@ class WallConfigFileDeleteThrottlingTest(WallConfigFileDeleteViewTestBase):
         )
 
 
-class CostAndUsageThrottlingTestBase(CostAndUsageViewTestBase):
+class ProfilesThrottlingTestBase(ProfilesViewTestBase):
 
     @classmethod
     def setUpClass(cls, *args, **kwargs):
         super().setUpClass(bypass_throttling=False, *args, **kwargs)
 
-    @CostAndUsageViewTestBase.cache_clear
+    @ProfilesViewTestBase.cache_clear
     def setUp(self) -> None:
         super().setUp()
 
 
-class ProfilesDaysThrottlingTest(CostAndUsageThrottlingTestBase):
+class ProfilesDaysThrottlingTest(ProfilesThrottlingTestBase):
     description = 'Profiles Days Throttling Tests'
     url_name = exposed_endpoints['profiles-days']['name']
     throttle_scope = 'user'
@@ -129,32 +127,16 @@ class ProfilesDaysThrottlingTest(CostAndUsageThrottlingTestBase):
         )
 
 
-class CostOverviewThrottlingTest(CostAndUsageThrottlingTestBase):
-    description = 'Cost Overview Throttling Tests'
-    url_name = exposed_endpoints['cost-overview']['name']
+class ProfilesOverviewThrottlingTest(ProfilesThrottlingTestBase):
+    description = 'Profiles Overview Throttling Tests'
+    url_name = exposed_endpoints['profiles-overview']['name']
     throttle_scope = 'user'
 
-    def test_cost_overview_throttling(self):
+    def test_profiles_overview_throttling(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         self.execute_throttling_test(
             self.client_get_method, test_case_source, self.throttle_scope
-        )
-
-
-class CostOverviewProfileidThrottlingTest(CostAndUsageThrottlingTestBase):
-    description = 'Cost Overview Profileid Throttling Tests'
-    url_name = exposed_endpoints['cost-overview-profile']['name']
-    throttle_scope = 'user'
-
-    def test_cost_overview_profileid_throttling(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-
-        valid_profile_id = self.get_valid_profile_ids()[0]
-
-        self.execute_throttling_test(
-            self.client_get_method, test_case_source, self.throttle_scope,
-            profile_id=valid_profile_id
         )
 
 

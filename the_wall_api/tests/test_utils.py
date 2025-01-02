@@ -19,7 +19,7 @@ from the_wall_api.utils.open_api_schema_utils.djoser_utils import (
     TokenCreateExtendSchemaView, TokenDestroyExtendSchemaView
 )
 from the_wall_api.views import (
-    CostOverviewView, CostOverviewProfileidView, ProfilesDaysView,
+    ProfilesOverviewView, ProfilesDaysView,
     WallConfigFileDeleteView, WallConfigFileListView, WallConfigFileUploadView
 )
 
@@ -141,8 +141,7 @@ logger = configure_test_logger()
 
 
 view_classes_throttling_details = [
-    (CostOverviewView, CostOverviewView.throttle_classes.copy()),
-    (CostOverviewProfileidView, CostOverviewProfileidView.throttle_classes.copy()),
+    (ProfilesOverviewView, ProfilesOverviewView.throttle_classes.copy()),
     (ProfilesDaysView, ProfilesDaysView.throttle_classes.copy()),
     (WallConfigFileDeleteView, WallConfigFileDeleteView.throttle_classes.copy()),
     (WallConfigFileListView, WallConfigFileListView.throttle_classes.copy()),

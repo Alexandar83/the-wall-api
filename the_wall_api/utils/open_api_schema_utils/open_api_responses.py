@@ -20,14 +20,14 @@ unauthorized_401_responses = OpenApiResponse(
         open_api_examples.not_authenticated,
     ]
 )
-cost_usage_404_responses = OpenApiResponse(
-    response=response_serializers.cost_usage_404_response_serializer,
+profiles_404_responses = OpenApiResponse(
+    response=response_serializers.profiles_404_response_serializer,
     examples=[
         open_api_examples.file_not_existing_for_user,
     ]
 )
-cost_usage_409_responses = OpenApiResponse(
-    response=response_serializers.cost_usage_409_response_serializer,
+profiles_409_responses = OpenApiResponse(
+    response=response_serializers.profiles_409_response_serializer,
     examples=[
         open_api_examples.wall_config_409_status,
     ]
@@ -417,7 +417,7 @@ profiles_days_responses = {
             ),
         ]
     ),
-    409: cost_usage_409_responses,
+    409: profiles_409_responses,
     429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
@@ -443,10 +443,10 @@ profiles_days_responses = {
 }
 # == ProfilesDaysView (end) ==
 
-# == CostOverviewView and CostOverviewProfileidView ==
-cost_overview_responses = {
+# == ProfilesOverviewView ==
+profiles_overview_responses = {
     200: OpenApiResponse(
-        response=response_serializers.cost_overview_response_serializer,
+        response=response_serializers.profiles_overview_response_serializer,
         examples=[
             OpenApiExample(
                 name='Valid response',
@@ -467,8 +467,8 @@ cost_overview_responses = {
         ]
     ),
     401: unauthorized_401_responses,
-    404: cost_usage_404_responses,
-    409: cost_usage_409_responses,
+    404: profiles_404_responses,
+    409: profiles_409_responses,
     429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
@@ -488,9 +488,10 @@ cost_overview_responses = {
     ),
 }
 
-cost_overview_profile_id_responses = {
+#TODO: to merge with ProfilesOverview responses
+profiles_overview_profile_id_responses = {
     200: OpenApiResponse(
-        response=response_serializers.cost_overview_profile_id_response_serializer,
+        response=response_serializers.profiles_overview_response_serializer,
         examples=[
             OpenApiExample(
                 name='Valid response',
@@ -522,8 +523,8 @@ cost_overview_profile_id_responses = {
         ]
     ),
     401: unauthorized_401_responses,
-    404: cost_usage_404_responses,
-    409: cost_usage_409_responses,
+    404: profiles_404_responses,
+    409: profiles_409_responses,
     429: throttled_429_responses,
     500: OpenApiResponse(
         response=response_serializers.wall_app_error_response_serializer,
@@ -546,7 +547,7 @@ cost_overview_profile_id_responses = {
     ),
 }
 
-# == CostOverviewView and CostOverviewProfileidView (end) ==
+# == ProfilesOverviewView(end) ==
 
 # == Djoser ==
 # = Create user =
@@ -595,7 +596,7 @@ create_user_responses = {
             ),
         ]
     ),
-    404: cost_usage_404_responses,
+    404: profiles_404_responses,
     429: throttled_429_responses,
 }
 # = Create user (end)

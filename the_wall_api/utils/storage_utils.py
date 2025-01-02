@@ -42,7 +42,7 @@ def fetch_wall_data(
     # and user file reference filtering are not needed
     wall_construction_config = wall_data.get('wall_construction_config', [])
     if not wall_construction_config:
-        # Coming from an usage/cost endpoint
+        # Coming from a profiles endpoint
         wall_construction_config = wall_config_utils.get_wall_construction_config(wall_data, profile_id)
         if wall_data['error_response']:
             return
@@ -59,7 +59,7 @@ def get_or_create_cache(wall_data, request_type) -> None:
         return
 
     if wall_data['request_type'] != 'create_wall_task':
-        # Cache not found for usage/cost endpoints - evaluate the WallConfig status
+        # Cache not found for profiles endpoints - evaluate the WallConfig status
         error_utils.handle_cache_not_found(wall_data)
         if wall_data['error_response']:
             return
@@ -96,9 +96,9 @@ def collect_cached_data(wall_data: Dict[str, Any], request_type: str) -> None:
 
     request_type = wall_data['request_type']
     try:
-        if request_type in ['costoverview', 'create_wall_task']:
+        if request_type in ['profiles-overview', 'create_wall_task']:
             fetch_wall_cost(wall_data, cached_result)
-        elif request_type == 'costoverview/profile_id':
+        elif request_type == 'profiles-overview/profile_id':
             fetch_wall_profile_cost(wall_data, cached_result)
         elif request_type == 'profiles-days':
             fetch_daily_ice_usage(wall_data, cached_result)
