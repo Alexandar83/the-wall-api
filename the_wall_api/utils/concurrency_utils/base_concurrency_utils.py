@@ -2,12 +2,12 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from io import StringIO
 import logging
 import logging.handlers
 from multiprocessing import Queue as mprcss_Queue
 import os
 from queue import Queue
-import re
 from secrets import token_hex
 from typing import Union
 
@@ -15,7 +15,6 @@ from django.conf import settings
 
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
 ICE_PER_FOOT = settings.ICE_PER_FOOT
-MAX_MULTIPROCESSING_NUM_CREWS = settings.MAX_MULTIPROCESSING_NUM_CREWS
 
 
 class BaseWallBuilder(ABC):
@@ -31,12 +30,6 @@ class BaseWallBuilder(ABC):
             f'{timestamp}_{self.wall_config_hash}_{self.num_crews}_{token_hex(4)}.log'
         )
         self.sections_queue = self.init_sections_queue()
-        if 'multiprocessing' not in self.CONCURRENT_SIMULATION_MODE:
-            self.max_crews = min(self.sections_count, self.num_crews)
-        else:
-            # Restrict the max number of crews for multiprocessing according to the
-            # CPU limitations
-            self.max_crews = min(self.sections_count, self.num_crews, MAX_MULTIPROCESSING_NUM_CREWS)
 
     @abstractmethod
     def create_queue(self) -> Union[Queue, mprcss_Queue]:
@@ -54,21 +47,14 @@ class BaseWallBuilder(ABC):
         return queue
 
     def extract_log_data(self) -> None:
+        # Write the log stream to the log file
+        with open(self.filename, 'w') as log_file:
+            log_file.write(self.log_stream.getvalue())
+
         if self.celery_task_aborted:
-            message = 'WRK_INTRRPTD: Work interrupted by a celery task abort signal.'
+            message = 'Work interrupted by a celery task abort signal.'
             self.logger.debug(message, extra={'source_name': 'MainThread'})
             return
-
-        with open(self.filename, 'r') as log_file:
-            for line in log_file:
-                # Extract profile_id, day, ice used, and cost
-                match = re.search(
-                    r'HGHT_INCRS: Section ID: (\d+)-\d+ - DAY_(\d+) - .*Ice used: (\d+) cbc\. yrds\.', line)
-                if match:
-                    profile_id, day, ice_used = map(int, match.groups())
-
-                    self.wall_profile_data.setdefault(profile_id, {}).setdefault(day, {'ice_used': 0})
-                    self.wall_profile_data[profile_id][day]['ice_used'] += ice_used
 
         if self.proxy_wall_creation_call:
             print('Done!')
@@ -76,17 +62,14 @@ class BaseWallBuilder(ABC):
 
     @staticmethod
     def setup_logger(
-        filename: str, queue: Union[Queue, mprcss_Queue, None] = None, manage_formatter: bool = True, source_name: str = ''
+        filename: str, log_stream: StringIO | None = None, queue: Union[Queue, mprcss_Queue, None] = None,
+        manage_formatter: bool = True, source_name: str = ''
     ) -> logging.Logger:
         """
         Set up the logger dynamically.
         Using the Django LOGGING config leads to Celery tasks hijacking
         each other's loggers in concurrent mode.
         """
-        # Ensure the directory exists
-        log_dir = os.path.dirname(filename)
-        os.makedirs(log_dir, exist_ok=True)
-
         if queue is None:
             logger_name = filename
         else:
@@ -99,7 +82,9 @@ class BaseWallBuilder(ABC):
         if queue:
             handler = logging.handlers.QueueHandler(queue)
         else:
-            handler = logging.FileHandler(filename, mode='w')
+            if log_stream is None:
+                raise ValueError('Log stream is required when queue is not provided!')
+            handler = logging.StreamHandler(log_stream)
         handler.setLevel(logging.DEBUG)
 
         if manage_formatter:
@@ -113,24 +98,33 @@ class BaseWallBuilder(ABC):
         return logger
 
     @staticmethod
-    def get_section_progress_msg(
-        profile_id: int, section_id: int, day: int, height: int, daily_cost_section: int
-    ) -> str:
+    def get_section_progress_msg(profile_id: int, section_id: int, day: int, height: int) -> str:
         message = (
-            f'HGHT_INCRS: Section ID: {profile_id}-{section_id} - DAY_{day} - '
-            f'New height: {height} ft - Ice used: {ICE_PER_FOOT} cbc. yrds. - '
-            f'Cost: {daily_cost_section} gold drgns.'
+            f'| DAY_{day} | {profile_id}-{section_id} | New height: {height} ft'
         )
 
         return message
 
     @staticmethod
-    def get_section_completion_msg(
-        profile_id: int, section_id: int, day: int, total_ice_used: int, total_cost: int
-    ) -> str:
-        message = (
-            f'FNSH_SCTN: Section ID: {profile_id}-{section_id} - DAY_{day} - finished. '
-            f'Ice used: {total_ice_used} cbc. yrds. - Cost: {total_cost} gold drgns.'
-        )
+    def get_section_completion_msg(profile_id: int, section_id: int, day: int) -> str:
+        message = f'| DAY_{day} | {profile_id}-{section_id} | section finished'
 
         return message
+
+    @staticmethod
+    def get_relieved_crew_msg(day: int) -> str:
+        message = f'| DAY_{day} | relieved'
+
+        return message
+
+    @staticmethod
+    def update_wall_profile_data(wall_profile_data: dict, day: int, profile_id: int) -> None:
+        daily_details = wall_profile_data['profiles_overview']['daily_details'].setdefault(day, {})
+        # Profile daily amount - overview is derived
+        daily_details.setdefault(profile_id, 0)
+        daily_details[profile_id] += settings.ICE_PER_FOOT
+        # Profiles daily overview
+        daily_details.setdefault('dly_ttl', 0)
+        daily_details['dly_ttl'] += settings.ICE_PER_FOOT
+        # Wall total overview
+        wall_profile_data['profiles_overview']['total_ice_amount'] += settings.ICE_PER_FOOT

@@ -9,23 +9,31 @@ from django.conf import settings
 
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 
-ICE_PER_FOOT = settings.ICE_PER_FOOT
+MAX_CONCURRENT_NUM_CREWS_THREADING = settings.MAX_CONCURRENT_NUM_CREWS_THREADING
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+VERBOSE_MULTIPROCESSING_LOGGING = settings.VERBOSE_MULTIPROCESSING_LOGGING
 
 
 class ThreadingWallBuilder(BaseWallBuilder):
 
     def __init__(self, wall_construction):
         super().__init__(wall_construction)
+        if self.num_crews > MAX_CONCURRENT_NUM_CREWS_THREADING:
+            from the_wall_api.utils.error_utils import WallConstructionError
+            # Threading limitations, due to:
+            # -the nature of the build simulation - 1 crew (thread) per section
+            raise WallConstructionError(
+                f'Max. allowed number of sections for multi-threading is {MAX_CONCURRENT_NUM_CREWS_THREADING}'
+            )
         self.init_concurrent_config()
-        self.logger = BaseWallBuilder.setup_logger(self.filename, source_name='threadName')
+        self.logger = BaseWallBuilder.setup_logger(self.filename, self.log_stream, source_name='threadName')
         self.start_abort_signal_listener_thread()
 
     def init_concurrent_config(self):
         self.thread_counter = count(1)
         self.counter_lock = Lock()
         self.thread_days = {}
-        self.active_crews = self.max_crews
+        self.active_crews = self.num_crews
         self.finished_crews_for_the_day = 0
         self.init_sim_mode_attributes()
 
@@ -44,10 +52,11 @@ class ThreadingWallBuilder(BaseWallBuilder):
         Concurrent construction process simulation.
         Using a limited number of crews.
         """
-        with ThreadPoolExecutor(max_workers=self.max_crews) as executor:
-            for _ in range(self.max_crews):  # Start with the available crews
+        with ThreadPoolExecutor(max_workers=self.num_crews) as executor:
+            for _ in range(self.num_crews):  # Start with the available crews
                 executor.submit(self.build_section)
 
+        self.wall_profile_data['profiles_overview']['construction_days'] = max(self.thread_days.values())
         self.extract_log_data()
 
     def build_section(self) -> None:
@@ -76,6 +85,8 @@ class ThreadingWallBuilder(BaseWallBuilder):
         """
         Processes the sections for the crew until there are no more sections available.
         """
+        log_message_prefx = ' ' * (len(str(self.num_crews)) - len(str(thread.name.partition('-')[2])))
+
         while not self.sections_queue.empty():
             try:
                 profile_id, section_id, height = self.sections_queue.get_nowait()
@@ -84,13 +95,13 @@ class ThreadingWallBuilder(BaseWallBuilder):
                 break
 
             self.initialize_thread_days(thread)
-            self.process_section(profile_id, section_id, height, thread)
+            self.process_section(profile_id, section_id, height, thread, log_message_prefx)
             if self.celery_task_aborted:
                 break
 
         # When there are no more sections available for the crew, relieve it
         manage_crew_release = self.get_manage_crew_release_func()
-        manage_crew_release()
+        manage_crew_release(log_message_prefx, thread)
 
     def initialize_thread_days(self, thread: Thread) -> None:
         """
@@ -99,41 +110,53 @@ class ThreadingWallBuilder(BaseWallBuilder):
         if thread.name not in self.thread_days:
             self.thread_days[thread.name] = 0
 
-    def process_section(self, profile_id: int, section_id: int, height: int, thread: Thread) -> None:
+    def process_section(self, profile_id: int, section_id: int, height: int, thread: Thread, log_message_prefx: str) -> None:
         """
         Processes a single section until the required height is reached.
         """
-        total_ice_used = 0
         total_cost = 0
 
         while height < MAX_SECTION_HEIGHT:
             # Perform daily increment
             height += 1
             self.thread_days[thread.name] += 1
-            total_ice_used += ICE_PER_FOOT
             total_cost += self.daily_cost_section
 
-            # Log the daily progress
-            section_progress_msg = BaseWallBuilder.get_section_progress_msg(
-                profile_id, section_id, self.thread_days[thread.name], height, self.daily_cost_section
-            )
-            self.logger.debug(section_progress_msg, extra={'source_name': thread.name})
+            # Daily progress
+            self.log_daily_progress(profile_id, section_id, thread, height)
+
+            # Test data
             self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
 
-            # Log the section finalization
-            if height == MAX_SECTION_HEIGHT:
-                sleep(0.02)     # Grace period to ensure finish section records are at the end of the day's records
-                section_completion_msg = BaseWallBuilder.get_section_completion_msg(
-                    profile_id, section_id, self.thread_days[thread.name], total_ice_used, total_cost
-                )
-                self.logger.debug(section_completion_msg, extra={'source_name': thread.name})
+            # Section finalization
+            self.log_section_completion(
+                height, log_message_prefx, profile_id, section_id, thread
+            )
 
             # Synchronize with the other crews at the end of the day
             end_of_day_synchronization = self.get_end_of_day_synchronization_func()
-            end_of_day_synchronization()
+            end_of_day_synchronization(self.thread_days[thread.name], profile_id, thread)
 
             if self.celery_task_aborted:
                 return
+
+    def log_daily_progress(self, profile_id: int, section_id: int, thread: Thread, height: int) -> None:
+        if VERBOSE_MULTIPROCESSING_LOGGING:
+            section_progress_msg = BaseWallBuilder.get_section_progress_msg(
+                profile_id, section_id, self.thread_days[thread.name], height
+            )
+            self.logger.debug(section_progress_msg, extra={'source_name': thread.name})
+
+    def log_section_completion(
+        self, height: int, log_message_prefx: str, profile_id: int, section_id: int, thread: Thread
+    ) -> None:
+        if height == MAX_SECTION_HEIGHT:
+            if VERBOSE_MULTIPROCESSING_LOGGING:
+                sleep(0.02)     # Grace period to ensure finish section records are at the end of the day's records
+            section_completion_msg = log_message_prefx + BaseWallBuilder.get_section_completion_msg(
+                profile_id, section_id, self.thread_days[thread.name]
+            )
+            self.logger.debug(section_completion_msg, extra={'source_name': thread.name})
 
 # === Common logic ===
     def get_manage_crew_release_func(self) -> Callable:
@@ -170,13 +193,17 @@ class ThreadingWallBuilder(BaseWallBuilder):
 # === Common logic (end) ===
 
 # === v1 Condition sync. ===
-    def manage_crew_release_v1(self) -> None:
+    def manage_crew_release_v1(self, log_message_prefx: str, thread: Thread) -> None:
         with self.day_condition:
+            relieved_crew_msg = log_message_prefx + BaseWallBuilder.get_relieved_crew_msg(self.thread_days[thread.name])
+            self.logger.debug(relieved_crew_msg, extra={'source_name': thread.name})
             self.active_crews -= 1
             self.check_notify_all_workers_to_resume_work()
 
-    def end_of_day_synchronization_v1(self) -> None:
+    def end_of_day_synchronization_v1(self, day: int, profile_id: int, thread: Thread) -> None:
         with self.day_condition:
+            BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, day, profile_id)
+
             self.finished_crews_for_the_day += 1
             if self.check_notify_all_workers_to_resume_work():
                 return
@@ -187,13 +214,17 @@ class ThreadingWallBuilder(BaseWallBuilder):
 # === v1 Condition sync. (end) ===
 
 # === v2 Event sync. ===
-    def manage_crew_release_v2(self) -> None:
+    def manage_crew_release_v2(self, log_message_prefx: str, thread: Thread) -> None:
         with self.day_event_lock:
+            relieved_crew_msg = log_message_prefx + BaseWallBuilder.get_relieved_crew_msg(self.thread_days[thread.name])
+            self.logger.debug(relieved_crew_msg, extra={'source_name': thread.name})
             self.active_crews -= 1
             self.check_notify_all_workers_to_resume_work()
 
-    def end_of_day_synchronization_v2(self) -> None:
+    def end_of_day_synchronization_v2(self, day: int, profile_id: int, thread: Thread) -> None:
         with self.day_event_lock:
+            BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, day, profile_id)
+
             self.finished_crews_for_the_day += 1
             other_crews_notified = self.check_notify_all_workers_to_resume_work()
 

@@ -13,8 +13,9 @@ from django.conf import settings
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 
 ICE_PER_FOOT = settings.ICE_PER_FOOT
-MAX_MULTIPROCESSING_NUM_CREWS = settings.MAX_MULTIPROCESSING_NUM_CREWS
+MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = settings.MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
+VERBOSE_MULTIPROCESSING_LOGGING = settings.VERBOSE_MULTIPROCESSING_LOGGING
 
 
 class MultiprocessingWallBuilder(BaseWallBuilder):
@@ -22,13 +23,13 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
     def __init__(self, wall_construction):
         self.manager = Manager()
         super().__init__(wall_construction)
-        if self.max_crews > MAX_MULTIPROCESSING_NUM_CREWS:
+        if self.num_crews > MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING:
             from the_wall_api.utils.error_utils import WallConstructionError
             # Multiprocessing limitations, due to:
             # -the nature of the build simulation - 1 crew (process) per section
             # -CPU limitations
             raise WallConstructionError(
-                f'Max. allowed number of sections for multiprocessing is {MAX_MULTIPROCESSING_NUM_CREWS}'
+                f'Max. allowed number of sections for multiprocessing is {MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING}'
             )
         self.init_result_handler()
         if self.is_manager_required():
@@ -37,14 +38,37 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             self.init_multiprocessing()
 
     def init_result_handler(self) -> None:
-        self.logger = BaseWallBuilder.setup_logger(self.filename, manage_formatter=False)
+        self.logger = BaseWallBuilder.setup_logger(self.filename, self.log_stream, manage_formatter=False)
+
+        # result_queue usage:
+        # -v1:
+        #   -logging:
+        #       -the result_handler thread in the main process collects the logs from the processes' qhandlers
+        #   -managing wall_profile_data and test data:
+        #       -the result_handler thread in the main process collects data put in the queue from the processes
+        #
+        # -v2 and 3:
+        #   -logging:
+        #       - qlistener in the main thread and qhandlers in the processes
         self.result_queue = self.create_queue()
+
         if self.is_manager_required():
             self.qlistener = logging.handlers.QueueListener(self.result_queue, *self.logger.handlers)
             self.qlistener.start()
+
+            # result_queue_with_manager usage:
+            # -v2 and v3:
+            #   -managing wall_profile_data and test data:
+            #       -the result_handler thread in the main process collects data put in the queue from the processes
+            self.result_queue_with_manager = self.create_queue()
+            result_handler_queue = self.result_queue_with_manager
         else:
-            self.result_handler_thread = Thread(name='LoggerThread', target=self.result_handler, daemon=True)
-            self.result_handler_thread.start()
+            result_handler_queue = self.result_queue
+
+        self.result_handler_thread = Thread(
+            name='ResultHandlerThread', target=self.result_handler, daemon=True, args=(result_handler_queue,)
+        )
+        self.result_handler_thread.start()
 
     def init_multiprocessing(self) -> None:
         self.build_kwargs = {
@@ -56,7 +80,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'day_event': Event(),
             'day_event_lock': Lock(),
             'finished_crews_for_the_day': Value('i', 0),
-            'active_crews': Value('i', self.max_crews),
+            'active_crews': Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
             'daily_cost_section': self.daily_cost_section,
         }
@@ -69,9 +93,10 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'process_counter': self.manager.Value('i', 1),
             'sections_queue': self.sections_queue,
             'finished_crews_for_the_day': self.manager.Value('i', 0),
-            'active_crews': self.manager.Value('i', self.max_crews),
+            'active_crews': self.manager.Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
             'daily_cost_section': self.daily_cost_section,
+            'result_queue_with_manager': self.result_queue_with_manager,
         }
 
         if self.CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
@@ -85,22 +110,37 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
                 self.testing_wall_construction_config
             )
 
-    def result_handler(self) -> None:
+    def result_handler(self, result_queue: Union[Queue, mprcss_Queue]) -> None:
         """
         Dedicated thread for handling logging and accumulating results.
         """
         while True:
-            record = self.result_queue.get()
+            if self.is_manager_required():
+                result_queue = self.result_queue_with_manager
+            else:
+                result_queue = self.result_queue
+
+            record = result_queue.get()
             if record is None:
                 break
 
             if isinstance(record, LogRecord):
+                # Logging
                 self.logger.handle(record)
-            else:
+
+            elif record.get('type') == 'daily_progress_test_data':
+                # Test data
                 profile_id = record['profile_id']
                 section_id = record['section_id']
                 height = record['height']
                 self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
+
+            elif record.get('type') == 'wall_profile_data':
+                # Build progress data
+                profile_id = record['profile_id']
+                current_process_day = record['current_process_day']
+                BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, current_process_day, profile_id)
+                self.wall_profile_data['profiles_overview']['construction_days'] = current_process_day
 
     def create_queue(self) -> Union[Queue, mprcss_Queue]:
         if self.is_manager_required():
@@ -131,17 +171,16 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         # and store the testing results
         if self.is_manager_required():
             self.qlistener.stop()
+            self.result_queue_with_manager.put(None)
             testing_wall_construction_config = self.build_kwargs.get('testing_wall_construction_config_mprcss')
             if testing_wall_construction_config is not None:
                 self.testing_wall_construction_config.clear()
                 self.testing_wall_construction_config.extend(
                     self.convert_list(testing_wall_construction_config)
                 )
-        else:
-            self.result_queue.put(None)
-            self.result_handler_thread.join()
+        self.result_queue.put(None)
+        self.result_handler_thread.join()
 
-        # Extract the result from the logs and store it in the WallConstruction
         self.extract_log_data()
 
         # Raise any exceptions from the ProcessPoolExecutor
@@ -151,12 +190,12 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
     def manage_processes(self) -> list:
         futures = []
         if self.is_manager_required():
-            with ProcessPoolExecutor(max_workers=self.max_crews) as executor:
-                futures = [executor.submit(MultiprocessingWallBuilder.build_section, **self.build_kwargs) for _ in range(self.max_crews)]
+            with ProcessPoolExecutor(max_workers=self.num_crews) as executor:
+                futures = [executor.submit(MultiprocessingWallBuilder.build_section, **self.build_kwargs) for _ in range(self.num_crews)]
         else:
             process_list = []
 
-            for _ in range(self.max_crews):  # Start with the available crews
+            for _ in range(self.num_crews):  # Start with the available crews
                 build_section_process = Process(
                     target=MultiprocessingWallBuilder.build_section, kwargs=self.build_kwargs
                 )
@@ -224,13 +263,13 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         manage_crew_release = MultiprocessingWallBuilder.get_manage_crew_release_func(
             CONCURRENT_SIMULATION_MODE
         )
-        manage_crew_release(**build_kwargs)
+        manage_crew_release(current_process_day, **build_kwargs)
 
     @staticmethod
     def process_section(
         profile_id: int, section_id: int, height: int, current_process_day: int, daily_cost_section: int,
-        logger: Logger, process_name: str, result_queue: Union[Queue, mprcss_Queue],
-        CONCURRENT_SIMULATION_MODE: str, testing_wall_construction_config_mprcss: list | None = None,
+        logger: Logger, process_name: str, CONCURRENT_SIMULATION_MODE: str,
+        testing_wall_construction_config_mprcss: list | None = None,
         **build_kwargs
     ) -> int:
         # Initialize section construction variables
@@ -243,23 +282,22 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             total_ice_used += ICE_PER_FOOT
             total_cost += daily_cost_section
 
-            # Log the daily progress
+            # Daily progress
             MultiprocessingWallBuilder.log_daily_progress(
-                profile_id, section_id, current_process_day, height, daily_cost_section,
-                logger, process_name, result_queue, testing_wall_construction_config_mprcss
+                profile_id, section_id, current_process_day, height,
+                logger, process_name, build_kwargs['result_queue'], testing_wall_construction_config_mprcss
             )
 
-            # Log the section finalization
+            # Section finalization
             MultiprocessingWallBuilder.log_section_completion(
-                height, profile_id, section_id, current_process_day, total_ice_used,
-                total_cost, logger, process_name
+                height, profile_id, section_id, current_process_day, logger, process_name
             )
 
             # Synchronize with the other crews at the end of the day
             end_of_day_synchronization = MultiprocessingWallBuilder.get_end_of_day_synchronization_func(
                 CONCURRENT_SIMULATION_MODE
             )
-            end_of_day_synchronization(**build_kwargs)
+            end_of_day_synchronization(current_process_day, profile_id, **build_kwargs)
 
             if build_kwargs['celery_task_aborted_mprcss'].value:
                 return current_process_day
@@ -269,21 +307,23 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
     @staticmethod
     def log_daily_progress(
         profile_id: int, section_id: int, current_process_day: int, height: int,
-        daily_cost_section: int, logger: Logger, process_name: str, result_queue: Union[Queue, mprcss_Queue],
+        logger: Logger, process_name: str, result_queue: Union[Queue, mprcss_Queue],
         testing_wall_construction_config_mprcss: list[list[int]] | None
     ) -> None:
-        section_progress_msg = BaseWallBuilder.get_section_progress_msg(
-            profile_id, section_id, current_process_day, height, daily_cost_section
-        )
-        # Grace period to avoid the rare issue of the records not being received in the result
-        # queue in the right order, although their timestamps show,
-        # they're generated at the correct time
-        sleep(uniform(0.01, 0.02))
-        logger.debug(section_progress_msg, extra={'source_name': process_name})
+        if VERBOSE_MULTIPROCESSING_LOGGING:
+            section_progress_msg = BaseWallBuilder.get_section_progress_msg(
+                profile_id, section_id, current_process_day, height
+            )
+            # Grace period to avoid the rare issue of the records not being received in the result
+            # queue in the right order, although their timestamps show,
+            # they're generated at the correct time
+            sleep(uniform(0.01, 0.02))
+            logger.debug(section_progress_msg, extra={'source_name': process_name})
 
         if settings.ACTIVE_TESTING:
             if testing_wall_construction_config_mprcss is None:
                 result_queue.put_nowait({
+                    'type': 'daily_progress_test_data',
                     'profile_id': profile_id,
                     'section_id': section_id,
                     'height': height,
@@ -293,13 +333,14 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     @staticmethod
     def log_section_completion(
-        height: int, profile_id: int, section_id: int, current_process_day: int, total_ice_used: int,
-        total_cost: int, logger: Logger, process_name: str
+        height: int, profile_id: int, section_id: int, current_process_day: int,
+        logger: Logger, process_name: str
     ) -> None:
         if height == MAX_SECTION_HEIGHT:
-            sleep(0.05)     # Grace period to ensure finish section records are at the end of the day's records
+            if VERBOSE_MULTIPROCESSING_LOGGING:
+                sleep(0.05)     # Grace period to ensure finish section records are at the end of the day's records
             section_completion_msg = BaseWallBuilder.get_section_completion_msg(
-                profile_id, section_id, current_process_day, total_ice_used, total_cost
+                profile_id, section_id, current_process_day
             )
             logger.debug(section_completion_msg, extra={'source_name': process_name})
 
@@ -342,10 +383,13 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 # === v1, v2 Event sync. ===
     @staticmethod
     def manage_crew_release_v1_v2(
-        day_event_lock, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss,
-        day_event, **build_kwargs
+        current_process_day: int, logger, day_event_lock, finished_crews_for_the_day,
+        active_crews, celery_task_aborted_mprcss, day_event, **build_kwargs
     ) -> None:
         with day_event_lock:
+            relieved_crew_msg = BaseWallBuilder.get_relieved_crew_msg(current_process_day)
+            logger.debug(relieved_crew_msg, extra={'source_name': build_kwargs['process_name']})
+
             active_crews.value -= 1
             MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
                 finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_event=day_event
@@ -353,10 +397,24 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     @staticmethod
     def end_of_day_synchronization_v1_v2(
-        day_event_lock, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss,
-        day_event, **build_kwargs
+        current_process_day: int, profile_id: int, day_event_lock, finished_crews_for_the_day,
+        active_crews, celery_task_aborted_mprcss, day_event, **build_kwargs
     ) -> None:
         with day_event_lock:
+            # Put build progress data
+            if 'result_queue_with_manager' in build_kwargs:
+                # v2
+                wall_profile_data_queue = build_kwargs['result_queue_with_manager']
+            else:
+                # v1
+                wall_profile_data_queue = build_kwargs['result_queue']
+            wall_profile_data_queue.put_nowait({
+                'type': 'wall_profile_data',
+                'profile_id': profile_id,
+                'current_process_day': current_process_day
+            })
+
+            # Synchronize with the other crews
             finished_crews_for_the_day.value += 1
             other_crews_notified = MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
                 finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_event=day_event
@@ -370,9 +428,13 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 # === v3 Condition sync. ===
     @staticmethod
     def manage_crew_release_v3(
-        day_condition, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, **build_kwargs
+        current_process_day: int, logger, day_condition, finished_crews_for_the_day,
+        active_crews, celery_task_aborted_mprcss, **build_kwargs
     ) -> None:
         with day_condition:
+            relieved_crew_msg = BaseWallBuilder.get_relieved_crew_msg(current_process_day)
+            logger.debug(relieved_crew_msg, extra={'source_name': build_kwargs['process_name']})
+
             active_crews.value -= 1
             MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
                 finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_condition=day_condition
@@ -380,9 +442,16 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     @staticmethod
     def end_of_day_synchronization_v3(
-        day_condition, finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, **build_kwargs
+        current_process_day: int, profile_id: int, day_condition, finished_crews_for_the_day, active_crews,
+        celery_task_aborted_mprcss, result_queue_with_manager, **build_kwargs
     ) -> None:
         with day_condition:
+            result_queue_with_manager.put_nowait({
+                'type': 'wall_profile_data',
+                'profile_id': profile_id,
+                'current_process_day': current_process_day
+            })
+
             finished_crews_for_the_day.value += 1
             if MultiprocessingWallBuilder.check_notify_all_workers_to_resume_work(
                 finished_crews_for_the_day, active_crews, celery_task_aborted_mprcss, day_condition=day_condition

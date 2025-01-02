@@ -3,6 +3,7 @@
 # the construction process.
 
 from copy import deepcopy
+from io import StringIO
 import json
 from multiprocessing import Value, Manager
 from threading import Thread
@@ -45,6 +46,7 @@ class WallConstruction:
         self.num_crews = num_crews
         self.wall_config_hash = wall_config_hash
         self.simulation_type = simulation_type
+        self.log_stream = StringIO()
 
         # Celery task details
         self.celery_task = celery_task
@@ -55,7 +57,13 @@ class WallConstruction:
         self.start_abort_signal_listener_thread()
 
         # Initialize the wall profile data
-        self.wall_profile_data = {}
+        self.wall_profile_data: dict = {
+            'profiles_overview': {
+                'total_ice_amount': 0,
+                'construction_days': 0,
+                'daily_details': {}
+            }
+        }
         self.proxy_wall_creation_call = proxy_wall_creation_call    # Utilized in proxy_wall_creation
         self.calc_wall_profile_data()
         self.sim_calc_details = self._calc_sim_details()
@@ -154,6 +162,8 @@ class WallConstruction:
         }
 
         for profile_id, daily_data in self.wall_profile_data.items():
+            if profile_id == 'profiles_overview':
+                continue
             profile_total_cost = 0
             profile_daily_details = {}
 
@@ -318,3 +328,6 @@ def store_simulation_result(wall_data):
         profile_daily_progress_data = wall_data['sim_calc_details']['profile_daily_details'][request_profile_id]
         profile_day_data = profile_daily_progress_data.get(wall_data['request_day'], {})
         simulation_result['profile_daily_ice_used'] = profile_day_data.get('ice_used', 0)
+
+    simulation_result['total_ice_amount'] = wall_data['wall_construction'].wall_profile_data['profiles_overview']['total_ice_amount']
+    simulation_result['daily_details'] = wall_data['wall_construction'].wall_profile_data['profiles_overview']['daily_details']

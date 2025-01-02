@@ -356,6 +356,9 @@ LOGGING = {
     },
 }
 
+# Controls if daily logging is enabled
+VERBOSE_MULTIPROCESSING_LOGGING = os.getenv('VERBOSE_MULTIPROCESSING_LOGGING', 'False') == 'True'
+
 # == Loging end ==
 
 # === Filesystem configuration end ===
