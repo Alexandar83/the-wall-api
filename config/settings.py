@@ -365,12 +365,14 @@ VERBOSE_MULTIPROCESSING_LOGGING = os.getenv('VERBOSE_MULTIPROCESSING_LOGGING', '
 
 # Wall Configuration Settings
 MAX_SECTION_HEIGHT = int(os.getenv('MAX_SECTION_HEIGHT', 30))                           # Maximum height of a wall section
-MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 8))              # Maximum sections in a wall profile
-MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 250))                                # Maximum length of a wall
+MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 2000))           # Maximum sections in a wall profile
+MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 300))                                # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
-MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = int(                                       # Maximum allowed number of crews in the wall configuration task
-    os.getenv('MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS', 100)
+# If num_crews is above this limit in threading,
+# the build simulation is in sequential mode
+MAX_CONCURRENT_NUM_CREWS_THREADING = int(
+    os.getenv('MAX_CONCURRENT_NUM_CREWS_THREADING', 250)
 )
 CPU_THREADS = int(os.getenv('CPU_THREADS', 8))                                          # Number of CPU threads
 # Number of multiprocessing processes for concurrent build simulaion
