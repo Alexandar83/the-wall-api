@@ -1,6 +1,11 @@
-# Exposed endpoint configurations and schema helpers
+# Exposed endpoint configurations and
+# response helper functions
+
+from typing import Any
 
 from django.conf import settings
+from rest_framework.response import Response
+from rest_framework import status
 
 # API ENDPOINTS SECTION - only for exposed endpoints
 # Changes here are reflected automatically throughout the project:
@@ -79,3 +84,8 @@ def get_request_num_crews(request):
             return None
 
     return None
+
+
+def handle_being_processed(wall_data: dict[str, Any]) -> None:
+    info_message = 'Your request is being calculated. Check back later.'
+    wall_data['info_response'] = Response({'info': info_message}, status=status.HTTP_202_ACCEPTED)

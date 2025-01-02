@@ -30,6 +30,7 @@ def get_wall_construction_config(wall_data: Dict[str, Any], profile_id: int | No
         wall_construction_config = wall_config_reference.wall_config.wall_construction_config
         wall_data['wall_config_object_status'] = wall_config_reference.wall_config.status
         wall_data['wall_construction_config'] = wall_construction_config
+        wall_data['wall_config_reference'] = wall_config_reference
     except WallConfigReference.DoesNotExist:
         handle_not_existing_file_references(wall_data)
         return []

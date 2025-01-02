@@ -50,7 +50,9 @@ def archive_logs(input_params: dict | None = None, test_input_params: dict | Non
                 archive_file(logs_archive_dir, log_file, log_path)
 
 
-def get_archive_logs_details(input_params: dict | None = None, test_input_params: dict | None = None) -> tuple[datetime, str, str]:
+def get_archive_logs_details(
+    input_params: dict | None = None, test_input_params: dict | None = None
+) -> tuple[datetime, str, str]:
     now = datetime.now()
 
     if input_params and input_params['logs_type'] == 'build_sim':
@@ -103,7 +105,9 @@ def clean_old_archives(input_params: dict | None = None, test_input_params: dict
                 remove_file(archive_path)
 
 
-def get_clean_old_archives_details(input_params: dict | None = None, test_input_params: dict | None = None) -> tuple[datetime, str]:
+def get_clean_old_archives_details(
+    input_params: dict | None = None, test_input_params: dict | None = None
+) -> tuple[datetime, str]:
     now = datetime.now()
 
     if input_params and input_params['logs_type'] == 'build_sim':
@@ -135,7 +139,9 @@ def remove_file(file_path: str) -> None:
                 sleep(deletion_retry_delay)
 
 
-def log_error(error_type: str, error_message: str, error_traceback: str, request_info: dict = {}, error_id_prefix: str = '') -> str:
+def log_error(
+    error_type: str, error_message: str, error_traceback: str, request_info: dict = {}, error_id_prefix: str = ''
+) -> str:
     """Log unexpected app errors sequentially, avoiding race conditions during log files updates."""
     from redis import Redis
 
@@ -145,7 +151,9 @@ def log_error(error_type: str, error_message: str, error_traceback: str, request
     error_id_log = error_id_prefix + error_id
 
     logger = logging.getLogger(error_type)
-    logger.error(error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id_log})
+    logger.error(
+        error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id_log}
+    )
 
     return error_id
 
@@ -191,41 +199,56 @@ def import_wall_config_deletion_task(active_testing: bool = False):
 
 def orchestrate_wall_config_processing(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
-    num_crews_source: int | None = None, active_testing: bool = False
+    num_crews_range: int | str, username: str, config_id: str,
+    active_testing: bool = False
 ) -> tuple[str, list]:
     """Cache in the DB all possible build simulations for the passed wall configuration."""
     def core_processing() -> tuple[str, list]:
         wall_config_object, task_group_result = create_task_group(
             wall_config_hash, wall_construction_config, sections_count,
-            num_crews_source, active_testing
+            num_crews_range, username, config_id, active_testing
         )
-        return monitor_task_group(wall_config_object, task_group_result)
+        return monitor_task_group(
+            wall_config_object, task_group_result, num_crews_range, username, config_id
+        )
 
     return execute_core_task_logic_with_error_handling(core_processing)
 
 
 def create_task_group(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
-    num_crews_source: int | None, active_testing: bool
+    num_crews_range: int | str, username: str, reference_config_id: str,
+    active_testing: bool
 ):
     """Start a separate task for wall build simulation for each included number of crews."""
     from celery import group
     from django.conf import settings
     from django.db import transaction
 
-    from the_wall_api.models import WallConfig, WallConfigStatusEnum
+    from the_wall_api.models import (
+        WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum
+    )
     from the_wall_api.tasks import log_error_task
     create_wall_task = import_wall_task(active_testing)
 
     CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
-    MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS = settings.MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS
 
+    # Set CELERY_CALCULATION status to indicate the start of the calculation process
     with transaction.atomic():
         wall_config_object = execute_db_query_with_retries(
             lambda: WallConfig.objects.select_for_update().get(wall_config_hash=wall_config_hash)
         )
 
-        if wall_config_object.status != WallConfigStatusEnum.INITIALIZED:
+        wall_config_reference = execute_db_query_with_retries(
+            lambda: WallConfigReference.objects.select_for_update().get(
+                user__username=username, config_id=reference_config_id
+            )
+        )
+
+        if wall_config_object.status not in [
+            WallConfigStatusEnum.INITIALIZED,
+            WallConfigStatusEnum.PARTIALLY_CALCULATED
+        ]:
             error_message = f'Not processed, current status: {wall_config_object.status}.'
             log_error_task.delay('celery_tasks', error_message, error_traceback=[])  # type: ignore
             return error_message, []
@@ -236,11 +259,13 @@ def create_task_group(
         wall_config_object.status = WallConfigStatusEnum.CELERY_CALCULATION
         wall_config_object.save()
 
-    # Exclude the source num_crews, which comes from the process,
-    # initiating the orchestrate wall config processing task
-    # to avoid race conditions
-    max_allowed_num_crews_count = min(sections_count, MAX_ORCHESTRATE_WALL_CONFIG_TASK_NUM_CREWS + 1)
-    num_crews_list = [num_crews for num_crews in range(max_allowed_num_crews_count) if num_crews != num_crews_source]
+        wall_config_reference.status = WallConfigReferenceStatusEnum.CELERY_CALCULATION
+        wall_config_reference.save()
+
+    if num_crews_range == 'full-range':
+        num_crews_list = [num_crews for num_crews in range(sections_count)]
+    else:
+        num_crews_list = [num_crews_range]
     task_group = group(
         # num_crews = max sections count is effectively sequential mode (num_crews = 0)
         create_wall_task.s(
@@ -268,7 +293,9 @@ def execute_db_query_with_retries(query_callable: Callable):
                 sleep(0.5)
 
 
-def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list]:
+def monitor_task_group(
+    wall_config_object, task_group_result, num_crews_range: int | str, username: str, config_id: str
+) -> tuple[str, list]:
     """Monitor for task group completion or abort if deletion is initiated."""
     if not task_group_result:
         result = wall_config_object if isinstance(wall_config_object, str) else 'Task group initialization error.'
@@ -278,7 +305,9 @@ def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list
         if task_group_result.ready():
             # All tasks from the group have either finished successfully,
             # have failed or have been aborted
-            return finalize_wall_config(wall_config_object, task_group_result)
+            return finalize_wall_config(
+                wall_config_object, task_group_result, num_crews_range, username, config_id
+            )
 
         execute_db_query_with_retries(
             lambda: wall_config_object.refresh_from_db()
@@ -290,7 +319,9 @@ def monitor_task_group(wall_config_object, task_group_result) -> tuple[str, list
         sleep(1)
 
 
-def finalize_wall_config(wall_config_object, task_group_result) -> tuple[str, list]:
+def finalize_wall_config(
+    wall_config_object, task_group_result, num_crews_range: int | str, username: str, config_id: str
+) -> tuple[str, list]:
     """Evaluate and set the final status for the wall config object, based on the task group results."""
     from the_wall_api.models import WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async
@@ -302,7 +333,8 @@ def finalize_wall_config(wall_config_object, task_group_result) -> tuple[str, li
         )
 
         wall_config_object_status = process_wall_config_object_status(
-            wall_config_object, task_group_result, task_group_result_message_list
+            wall_config_object, task_group_result, task_group_result_message_list, num_crews_range,
+            username, config_id
         )
 
         if wall_config_object_status == WallConfigStatusEnum.ERROR:
@@ -330,9 +362,18 @@ def collect_task_group_results(task_group_result, task_group_result_value_list) 
     return task_group_result_message_list
 
 
-def process_wall_config_object_status(wall_config_object, task_group_result, task_group_result_message_list: list) -> str:
+def process_wall_config_object_status(
+    wall_config_object, task_group_result, task_group_result_message_list: list, num_crews_range: int | str,
+    username: str, config_id: str
+) -> str:
+    """
+    Set the final statuses for the wall config object and the source wall config reference,
+    based on the task group results.
+    """
     from django.db import transaction
-    from the_wall_api.models import WallConfig, WallConfigStatusEnum
+    from the_wall_api.models import (
+        WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum
+    )
 
     with transaction.atomic():
         # Lock the wall config object for a final status set
@@ -345,11 +386,22 @@ def process_wall_config_object_status(wall_config_object, task_group_result, tas
             if wall_config_object.status == WallConfigStatusEnum.CELERY_CALCULATION and task_group_result.successful():
                 # All wall creation task results are consistent
                 if all(result_message == 'OK' for result_message in task_group_result_message_list):
-                    final_status = WallConfigStatusEnum.COMPLETED
+                    if num_crews_range == 'full-range':
+                        final_status = WallConfigStatusEnum.CALCULATED
+                    else:
+                        final_status = WallConfigStatusEnum.PARTIALLY_CALCULATED
 
-            wall_config_object.status = final_status
+            if wall_config_object.status != final_status:
+                wall_config_object.status = final_status
 
         wall_config_object.save()
+
+        wall_config_reference = WallConfigReference.objects.select_for_update().get(
+            user__username=username, config_id=config_id
+        )
+
+        wall_config_reference.status = WallConfigReferenceStatusEnum.AVAILABLE
+        wall_config_reference.save()
 
     return wall_config_object.status
 
@@ -490,7 +542,8 @@ def wall_config_delete(wall_config_object) -> tuple[str, list]:
                 if wall_config_object.status in [
                     WallConfigStatusEnum.INITIALIZED,
                     WallConfigStatusEnum.READY_FOR_DELETION,
-                    WallConfigStatusEnum.COMPLETED
+                    WallConfigStatusEnum.PARTIALLY_CALCULATED,
+                    WallConfigStatusEnum.CALCULATED
                 ]:
                     wall_config_object.delete()
                     break

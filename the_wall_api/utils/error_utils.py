@@ -9,6 +9,8 @@ from django.contrib.auth.models import User
 from django.db.models import Q, QuerySet
 from rest_framework.response import Response
 from rest_framework import status
+
+from the_wall_api.utils.api_utils import handle_being_processed
 from the_wall_api.models import (
     Wall, WallConfig, WallProfileProgress, WallConfigReference, WallConfigStatusEnum
 )
@@ -270,6 +272,7 @@ def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
         handle_not_existing_file_references_delete(wall_data, references_queryset, user, config_id_list)
 
     else:
+        # Profiles endpoints
         config_id = wall_data['request_config_id']
         error_message = f"File with config ID '{config_id}' does not exist for user '{user.username}'."
         wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
@@ -305,21 +308,44 @@ def handle_not_existing_file_references_delete(
 
 
 def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
-    if wall_data['wall_config_object_status'] not in [WallConfigStatusEnum.INITIALIZED, WallConfigStatusEnum.CELERY_CALCULATION]:
-        status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
-        error_message = f"The resource is not found. Wall configuration status = '{status_label}'"
-        handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
+    if wall_data['wall_config_object_status'] in [
+        WallConfigStatusEnum.INITIALIZED,
+        WallConfigStatusEnum.PARTIALLY_CALCULATED
+    ]:
+        # Non-full-range case - proceed with single num_crews calculation
+        return
+
+    if wall_data['wall_config_object_status'] == WallConfigStatusEnum.CELERY_CALCULATION:
+        # The calculation is being processed
+        handle_being_processed(wall_data)
+        return
+
+    # Statuses: CALCULATED, ERROR, READY_FOR_DELETION
+    # Conflicting case
+    status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
+    error_message = f"The resource is not found. Wall configuration status = '{status_label}'"
+    handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
 
 
-def handle_reference_already_exists(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:
-    reference = WallConfigReference.objects.filter(
-        user=wall_data['request_user'], wall_config=wall_config_object
-    ).first()
-    if wall_data.get('request_type') == 'wallconfig-files/upload' and reference is not None:
-        error_message = f"This wall configuration is already uploaded with config_id = '{reference.config_id}'."
-        handle_known_error(
-            wall_data, 'caching', error_message, status.HTTP_400_BAD_REQUEST
-        )
+def handle_wall_config_object_already_exists(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:
+    """Return an error if already uploaded by the current user"""
+    if wall_data.get('request_type') == 'wallconfig-files/upload':
+
+        error_message_suffix = ''
+        if wall_config_object.status in [
+            WallConfigStatusEnum.ERROR, WallConfigStatusEnum.READY_FOR_DELETION
+        ]:
+            status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
+            error_message_suffix = f" Wall configuration status = '{status_label}'"
+
+        reference = WallConfigReference.objects.filter(
+            user=wall_data['request_user'], wall_config=wall_config_object
+        ).first()
+        if reference is not None:
+            error_message = f"This wall configuration is already uploaded with config_id = '{reference.config_id}'.{error_message_suffix}"
+            handle_known_error(
+                wall_data, 'caching', error_message, status.HTTP_400_BAD_REQUEST
+            )
 
 
 def handle_user_task_in_progress_exists(user_tasks_in_progress: list[str], wall_data: Dict[str, Any]) -> None:

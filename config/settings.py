@@ -369,15 +369,33 @@ MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 2000))   
 MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 300))                                # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
+
 # If num_crews is above this limit in threading,
 # the build simulation is in sequential mode
 MAX_CONCURRENT_NUM_CREWS_THREADING = int(
     os.getenv('MAX_CONCURRENT_NUM_CREWS_THREADING', 250)
 )
-CPU_THREADS = int(os.getenv('CPU_THREADS', 8))                                          # Number of CPU threads
+
+# Number of CPU threads
+CPU_THREADS = int(os.getenv('CPU_THREADS', 8))
 # Number of multiprocessing processes for concurrent build simulaion
 # 2 threads are reserved for the main process
 MAX_MULTIPROCESSING_NUM_CREWS = CPU_THREADS - 2
+
+# 1. Up to this limit the wall configurations are cached on upload with their full range:
+# for all num_crews in range(sections_count).
+# 2. If the sections count is above this limit, the simulations are requested with each API-request
+# for only the provided num_crews. The calculations are cached after the calculation is finished.
+MAX_SECTIONS_COUNT_FULL_RANGE_CACHING = int(
+    os.getenv('MAX_SECTIONS_COUNT_FULL_RANGE_CACHING', 100)
+)
+
+# 1. In case the build is not pre-cached, up to this limit the simulation is done synchronously.
+# 2. Above it, the simulation is sent to a celery task and the user must send an additional request
+# to fetch the results.
+MAX_SECTIONS_COUNT_SYNCHRONOUS_RESPONSE = int(
+    os.getenv('MAX_SECTIONS_COUNT_SYNCHRONOUS_RESPONSE', 10000)
+)
 MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))                      # Maximum number of wall configurations per user
 
 # Switching between different simulation implementations

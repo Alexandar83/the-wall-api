@@ -159,6 +159,8 @@ class ProfilesDaysView(APIView):
         fetch_wall_data(wall_data, num_crews, profile_id, request_type='profiles-days')
         if wall_data['error_response']:
             return wall_data['error_response']
+        if wall_data['info_response']:
+            return wall_data['info_response']
 
         return self.build_profiles_days_response(wall_data, profile_id, day)
 
@@ -210,6 +212,8 @@ class ProfilesOverviewView(APIView):
         fetch_wall_data(wall_data, profile_id=profile_id, request_type=request_type)
         if wall_data['error_response']:
             return wall_data['error_response']
+        if wall_data['info_response']:
+            return wall_data['info_response']
 
         return self.build_profiles_overview_response(wall_data, profile_id)
 
