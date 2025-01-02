@@ -12,7 +12,7 @@ from rest_framework import status
 
 from the_wall_api.utils.api_utils import handle_being_processed
 from the_wall_api.models import (
-    Wall, WallConfig, WallProfileProgress, WallConfigReference, WallConfigStatusEnum
+    Wall, WallConfig, WallProgress, WallConfigReference, WallConfigStatusEnum
 )
 from the_wall_api.tasks import log_error_task
 
@@ -197,7 +197,7 @@ def check_if_cached_on_another_day(wall_data: Dict[str, Any], profile_id: int) -
         wall_construction_days = wall.construction_days
         check_wall_construction_days(wall_construction_days, wall_data, profile_id)
     except Wall.DoesNotExist:
-        raise WallProfileProgress.DoesNotExist
+        raise WallProgress.DoesNotExist
 
 
 def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[str, Any], profile_id):

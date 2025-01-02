@@ -1,6 +1,6 @@
 from django.contrib import admin
 from the_wall_api.models import (
-    Wall, WallConfig, WallConfigReference, WallProfile, WallProfileProgress
+    Wall, WallConfig, WallConfigReference, WallProgress
 )
 
 
@@ -36,18 +36,12 @@ class WallAdmin(admin.ModelAdmin):
     search_fields = ['id', 'wall_config_hash', 'num_crews', 'total_cost', 'construction_days', 'date_created']
 
 
-class WallProfileAdmin(admin.ModelAdmin):
-    list_filter = ['wall']
-    search_fields = ['id', 'wall_profile_config_hash', 'profile_id', 'cost', 'date_created']
-
-
-class WallProfileProgressAdmin(admin.ModelAdmin):
+class WallProgressAdmin(admin.ModelAdmin):
     list_filter = [WallConfigFilter]
-    search_fields = ['id', 'day', 'ice_used', 'date_created']
+    search_fields = ['id', 'day', 'date_created']
 
 
 admin.site.register(WallConfigReference, WallConfigReferenceAdmin)
 admin.site.register(WallConfig, WallConfigAdmin)
 admin.site.register(Wall, WallAdmin)
-admin.site.register(WallProfile, WallProfileAdmin)
-admin.site.register(WallProfileProgress, WallProfileProgressAdmin)
+admin.site.register(WallProgress, WallProgressAdmin)
