@@ -312,7 +312,7 @@ def store_simulation_result(wall_data):
     if request_profile_id:
         simulation_result['wall_profile_cost'] = wall_data['sim_calc_details']['profile_costs'][request_profile_id]
 
-    # Used in the daily-ice-usage response
+    # Used in the profiles-days response
     request_day = wall_data['request_day']
     if request_day:
         profile_daily_progress_data = wall_data['sim_calc_details']['profile_daily_details'][request_profile_id]

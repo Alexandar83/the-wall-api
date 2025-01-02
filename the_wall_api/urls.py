@@ -2,16 +2,16 @@ from django.urls import path
 
 from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.views import (
-    CostOverviewView, CostOverviewProfileidView, DailyIceUsageView,
+    CostOverviewView, CostOverviewProfileidView, ProfilesDaysView,
     WallConfigFileDeleteView, WallConfigFileListView, WallConfigFileUploadView
 )
 
 # For control of existing and adding of new endpoints -> the_wall_api.utils.api_utils.exposed_endpoints
 urlpatterns = [
     path(
-        exposed_endpoints['daily-ice-usage']['path'],
-        DailyIceUsageView.as_view(),
-        name=exposed_endpoints['daily-ice-usage']['name']
+        exposed_endpoints['profiles-days']['path'],
+        ProfilesDaysView.as_view(),
+        name=exposed_endpoints['profiles-days']['name']
     ),
     path(
         exposed_endpoints['cost-overview']['path'],

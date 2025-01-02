@@ -165,7 +165,7 @@ class CostAndUsageCacheTestBase(CacheTest):
 
     def setUp(self):
         super().setUp()
-        self.request_type = 'daily-ice-usage'
+        self.request_type = 'profiles-days'
         self.profile_id = 1
         self.day = 2
 
@@ -205,7 +205,7 @@ class CostAndUsageCacheTestBase(CacheTest):
             self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
 
 
-class DailyIceUsageCacheTest(CostAndUsageCacheTestBase):
+class ProfilesDaysCacheTest(CostAndUsageCacheTestBase):
     description = 'Test daily ice usage cache'
 
     def test_fetch_db_data_evicted_from_cache(self):

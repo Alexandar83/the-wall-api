@@ -257,7 +257,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         return redis_daily_ice_usage_cache, daily_ice_usage_cache_key
 
     def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
-        url_name = exposed_endpoints['daily-ice-usage']['name']
+        url_name = exposed_endpoints['profiles-days']['name']
         url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
         request_params = {
             'query_params': {'num_crews': normal_request_num_crews, 'config_id': self.valid_config_id},

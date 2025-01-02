@@ -10,7 +10,7 @@ from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer,
+    CostOverviewSerializer, ProfilesDaysSerializer,
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
@@ -35,7 +35,7 @@ class WallConfigFileUploadView(APIView):
         description=(
             'Allows users to upload wall configuration files, which are '
             'parsed and stored as structured data in the database. \n\nThe processed data can be '
-            'accessed through the `daily-ice-usage`, `cost-overview`, and `cost-overview-profile` endpoints.'
+            'accessed through the `profiles-days`, `cost-overview`, and `cost-overview-profile` endpoints.'
             '<br><br>'
             '*<b><i>Swagger UI-only:</i></b> \n\n'
             '<i>If a file upload fails due to validation errors,</i> \n\n'
@@ -126,22 +126,22 @@ class WallConfigFileDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class DailyIceUsageView(APIView):
+class ProfilesDaysView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         tags=['Costs and Daily Ice Usage '],
         summary='Get Daily Ice Usage',
         description='Retrieve the amount of ice used on a specific day for a given wall profile.',
-        parameters=open_api_parameters.daily_ice_usage_parameters +
+        parameters=open_api_parameters.profiles_days_parameters +
         [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_responses.daily_ice_usage_responses
+        responses=open_api_responses.profiles_days_responses
     )
     def get(self, request: Request, profile_id: int, day: int) -> Response:
         request_num_crews = api_utils.get_request_num_crews(request)
         config_id = request.query_params.get('config_id')
         num_crews = request.query_params.get('num_crews', 0)
-        serializer = DailyIceUsageSerializer(
+        serializer = ProfilesDaysSerializer(
             data={'config_id': config_id, 'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
         )
         if not serializer.is_valid():
@@ -156,13 +156,13 @@ class DailyIceUsageView(APIView):
             config_id=config_id, user=request.user, profile_id=profile_id,
             day=day, request_num_crews=request_num_crews, input_data=request.query_params
         )
-        fetch_wall_data(wall_data, num_crews, profile_id, request_type='daily-ice-usage')
+        fetch_wall_data(wall_data, num_crews, profile_id, request_type='profiles-days')
         if wall_data['error_response']:
             return wall_data['error_response']
 
-        return self.build_daily_usage_response(wall_data, profile_id, day)
+        return self.build_profiles_days_response(wall_data, profile_id, day)
 
-    def build_daily_usage_response(self, wall_data: Dict[str, Any], profile_id: int, day: int) -> Response:
+    def build_profiles_days_response(self, wall_data: Dict[str, Any], profile_id: int, day: int) -> Response:
         result_data = wall_data['cached_result']
         if not result_data:
             result_data = wall_data['simulation_result']

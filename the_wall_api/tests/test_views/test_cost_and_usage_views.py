@@ -132,12 +132,12 @@ class CostAndUsageViewTestBase(BaseViewTest):
         return reverse(self.url_name)
 
 
-class DailyIceUsageViewTest(CostAndUsageViewTestBase):
-    description = 'Daily Ice Usage View Tests'
+class ProfilesDaysViewTest(CostAndUsageViewTestBase):
+    description = 'Profiles Days View Tests'
 
-    url_name = exposed_endpoints['daily-ice-usage']['name']
+    url_name = exposed_endpoints['profiles-days']['name']
 
-    def test_daily_ice_usage_valid(self, test_case_source=None, consistency_test=False):
+    def test_profiles_days_valid(self, test_case_source=None, consistency_test=False):
         if test_case_source is None:
             test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         valid_profile_ids = self.get_valid_profile_ids()
@@ -156,11 +156,11 @@ class DailyIceUsageViewTest(CostAndUsageViewTestBase):
                             profile_id, day, num_crews,
                         )
 
-    def test_daily_ice_usage_results_consistency(self):
+    def test_profiles_days_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        self.test_daily_ice_usage_valid(test_case_source=test_case_source, consistency_test=True)
+        self.test_profiles_days_valid(test_case_source=test_case_source, consistency_test=True)
 
-    def test_daily_ice_usage_invalid_profile_id(self):
+    def test_profiles_days_invalid_profile_id(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         invalid_profile_ids = self.get_invalid_profile_ids()
         day = generate_valid_values()[0]
@@ -173,7 +173,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTestBase):
                     profile_id=invalid_profile_id, day=day, num_crews=num_crews
                 )
 
-    def test_daily_ice_usage_invalid_day_sequential(self):
+    def test_profiles_days_invalid_day_sequential(self):
         """Test with days after the construction's completion day."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
@@ -187,7 +187,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTestBase):
                     profile_id=profile_id, day=invalid_day, num_crews=num_crews
                 )
 
-    def test_daily_ice_usage_invalid_day_concurrent(self):
+    def test_profiles_days_invalid_day_concurrent(self):
         """Test with days on which the profile was not worked on."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = 2
@@ -201,7 +201,7 @@ class DailyIceUsageViewTest(CostAndUsageViewTestBase):
                     profile_id=profile_id, day=invalid_day, num_crews=num_crews
                 )
 
-    def test_daily_ice_usage_invalid_num_crews(self):
+    def test_profiles_days_invalid_num_crews(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         profile_id = self.get_valid_profile_ids()[0]
         day = self.get_valid_days_for_profile_sequential(profile_id)[0]
@@ -270,10 +270,10 @@ class CostOverviewProfileidViewTest(CostAndUsageViewTestBase):
                 )
 
 
-class AbnormalCasesDailyIceUsageViewTest(CostAndUsageViewTestBase):
+class AbnormalCasesProfilesDaysViewTest(CostAndUsageViewTestBase):
     description = 'Abnormal Daily Ice Usage View Tests'
 
-    url_name = exposed_endpoints['daily-ice-usage']['name']
+    url_name = exposed_endpoints['profiles-days']['name']
 
     @classmethod
     def setUpClass(cls, *args, **kwargs):
@@ -318,7 +318,7 @@ class AbnormalCasesDailyIceUsageViewTest(CostAndUsageViewTestBase):
         )
 
 
-class AbnormalCostOverviewProfileidViewTest(AbnormalCasesDailyIceUsageViewTest):
+class AbnormalCostOverviewProfileidViewTest(AbnormalCasesProfilesDaysViewTest):
     description = 'Abnormal Cost Overview Profileid View Tests'
 
     url_name = exposed_endpoints['cost-overview-profile']['name']
@@ -330,7 +330,7 @@ class AbnormalCostOverviewProfileidViewTest(AbnormalCasesDailyIceUsageViewTest):
         self.num_crews = None
 
 
-class AbnormalCostOverviewViewTest(AbnormalCasesDailyIceUsageViewTest):
+class AbnormalCostOverviewViewTest(AbnormalCasesProfilesDaysViewTest):
     description = 'Abnormal Cost Overview View Tests'
 
     url_name = exposed_endpoints['cost-overview']['name']

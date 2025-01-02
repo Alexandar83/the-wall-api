@@ -6,9 +6,9 @@ from django.conf import settings
 # Changes here are reflected automatically throughout the project:
 endpoint_prefix = f'api/{settings.API_VERSION}'
 exposed_endpoints = {
-    'daily-ice-usage': {
-        'path': f'{endpoint_prefix}/daily-ice-usage/<profile_id>/<day>/',
-        'name': f'daily-ice-usage-{settings.API_VERSION}',
+    'profiles-days': {
+        'path': f'{endpoint_prefix}/profiles/<int:profile_id>/days/<int:day>/',
+        'name': f'profiles-days-{settings.API_VERSION}',
     },
     'cost-overview': {
         'path': f'{endpoint_prefix}/cost-overview/',

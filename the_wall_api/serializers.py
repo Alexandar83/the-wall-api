@@ -6,7 +6,7 @@ from rest_framework import serializers
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallConfigReference
 
 
-class DailyIceUsageSerializer(serializers.Serializer):
+class ProfilesDaysSerializer(serializers.Serializer):
     profile_id = serializers.IntegerField(allow_null=False, validators=[MinValueValidator(1)])
     day = serializers.IntegerField(validators=[MinValueValidator(1)])
     num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])

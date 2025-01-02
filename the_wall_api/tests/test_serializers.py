@@ -9,7 +9,7 @@ from rest_framework.test import APIRequestFactory
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.serializers import (
-    CostOverviewSerializer, DailyIceUsageSerializer,
+    CostOverviewSerializer, ProfilesDaysSerializer,
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
@@ -124,9 +124,9 @@ class CostOverviewSerializerTest(SerializerTest):
         for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
             for profile_id in invalid_profile_ids:
                 # CostOverview: profile_id is optional and None is a properly handled value
-                # DailyIceUsage: profile_id is required, but:
-                #   -api/v1/daily-ice-usage/null/5/ -> is parsed as a 'null' in the GET method
-                #   -api/v1/daily-ice-usage/?day=5&profile_id=None -> leads to Page not found (404)
+                # ProfilesDays: profile_id is required, but:
+                #   -api/v1/profiles-days/null/5/ -> is parsed as a 'null' in the GET method
+                #   -api/v1/profiles-days/?day=5&profile_id=None -> leads to Page not found (404)
                 if profile_id is None:
                     continue
                 input_data = {'profile_id': profile_id, 'config_id': self.valid_config_id}
@@ -145,8 +145,8 @@ class CostOverviewSerializerTest(SerializerTest):
         self.process_config_id_invalid(valid_data, test_case_source)
 
 
-class DailyIceUsageSerializerTest(SerializerTest):
-    description = 'Daily ice usage serializer tests'
+class ProfilesDaysSerializerTest(SerializerTest):
+    description = 'Profiles days serializer tests'
 
     def both_fields_invalid_inner(
         self, invalid_profile_ids, invalid_days, profile_error_message, day_error_message, test_case_source
@@ -161,7 +161,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 }
                 with self.subTest(profile_id=profile_id, day=day):
                     self.validate_and_log(
-                        DailyIceUsageSerializer, input_data, expected_errors,
+                        ProfilesDaysSerializer, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -175,7 +175,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                     self.validate_and_log(
-                        DailyIceUsageSerializer, input_data, expected_errors,
+                        ProfilesDaysSerializer, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -189,7 +189,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                 expected_errors = {}
                 with self.subTest(profile_id=profile_id, day=day):
                     self.validate_and_log(
-                        DailyIceUsageSerializer, input_data, expected_errors,
+                        ProfilesDaysSerializer, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -204,7 +204,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     expected_errors = {'profile_id': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
-                            DailyIceUsageSerializer, input_data, expected_errors,
+                            ProfilesDaysSerializer, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 
@@ -219,7 +219,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     expected_errors = {'day': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
-                            DailyIceUsageSerializer, input_data, expected_errors,
+                            ProfilesDaysSerializer, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 
@@ -249,7 +249,7 @@ class DailyIceUsageSerializerTest(SerializerTest):
                     expected_errors = {}
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                         self.validate_and_log(
-                            DailyIceUsageSerializer, input_data, expected_errors,
+                            ProfilesDaysSerializer, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 

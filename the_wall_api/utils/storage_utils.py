@@ -100,7 +100,7 @@ def collect_cached_data(wall_data: Dict[str, Any], request_type: str) -> None:
             fetch_wall_cost(wall_data, cached_result)
         elif request_type == 'costoverview/profile_id':
             fetch_wall_profile_cost(wall_data, cached_result)
-        elif request_type == 'daily-ice-usage':
+        elif request_type == 'profiles-days':
             fetch_daily_ice_usage(wall_data, cached_result)
     except (Wall.DoesNotExist, WallProfile.DoesNotExist, WallProfileProgress.DoesNotExist):
         return
@@ -265,7 +265,7 @@ def get_daily_ice_usage_cache_key(
     wall_data: Dict[str, Any], wall_profile_config_hash: str | None, day: int, profile_id: int | None
 ) -> str:
     key_data = (
-        f'dly_ice_usg_'
+        f'dly_ice_amt_'
         f'{wall_data["wall_config_hash"]}_'
         f'{wall_data["num_crews"]}_'
         f'{wall_profile_config_hash}_'

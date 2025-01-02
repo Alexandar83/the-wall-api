@@ -182,7 +182,7 @@ def send_log_error_async(
 
 def check_if_cached_on_another_day(wall_data: Dict[str, Any], profile_id: int) -> None:
     """
-    In CONCURRENT mode there are days without profile daily ice usage,
+    In CONCURRENT mode there are days without wall progress,
     because there was no crew assigned on the profile.
     Check for other cached daily progress to avoid processing of
     an already cached simulation.

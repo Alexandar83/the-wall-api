@@ -112,12 +112,12 @@ class CostAndUsageThrottlingTestBase(CostAndUsageViewTestBase):
         super().setUp()
 
 
-class DailyIceUsageThrottlingTest(CostAndUsageThrottlingTestBase):
-    description = 'Daily Ice Usage Throttling Tests'
-    url_name = exposed_endpoints['daily-ice-usage']['name']
+class ProfilesDaysThrottlingTest(CostAndUsageThrottlingTestBase):
+    description = 'Profiles Days Throttling Tests'
+    url_name = exposed_endpoints['profiles-days']['name']
     throttle_scope = 'user'
 
-    def test_daily_ice_usage_throttling(self):
+    def test_profiles_days_throttling(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
 
         valid_profile_id = self.get_valid_profile_ids()[0]

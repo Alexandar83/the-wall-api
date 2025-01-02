@@ -46,9 +46,9 @@ file_delete_config_id_list_parameter = OpenApiParameter(
 )
 # == WallConfigFileDeleteView (end) ==
 
-# == DailyIceUsageView ==
+# == ProfilesDaysView ==
 # PATH parameters
-daily_ice_usage_parameters = [
+profiles_days_parameters = [
     OpenApiParameter(
         name='profile_id',
         type=int,
@@ -64,7 +64,7 @@ daily_ice_usage_parameters = [
         location=OpenApiParameter.PATH
     ),
 ]
-# == DailyIceUsageView (end) ==
+# == ProfilesDaysView (end) ==
 
 # *CostOverviewView and CostOverviewProfileidView*
 # PATH parameters

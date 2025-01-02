@@ -1082,19 +1082,19 @@ The Wall is a massive fortification being built along the northern border of the
 
 ### Endpoints
 
-| Endpoint              | URL                                           | Requires token authentication |            Rate limit scopes            |
-| --------------------- | --------------------------------------------- | :---------------------------: | :-------------------------------------: |
-| Create User           | `/api/v1/auth/users/`                         |              No               |             Unauthenticated             |
-| Set Password          | `/api/v1/auth/users/set_password/`            |              Yes              |             User management             |
-| Login (authenticate)  | `/api/v1/auth/token/login/`                   |              No               |   Authenticated + <br>Unauthenticated 🗒️|
-| Logout (revoke token) | `/api/v1/auth/token/logout/`                  |              Yes              |             User management             |
-| Delete User           | `/api/v1/auth/users/me/{username}/`           |              Yes              | User management + <br>Unauthenticated 🗒️|
-| Upload File           | `/api/v1/wallconfig-files/upload/`            |              Yes              |             File management             |
-| List Files            | `/api/v1/wallconfig-files/list/`              |              Yes              |              Authenticated              |
-| Delete File           | `/api/v1/wallconfig-files/delete/`            |              Yes              |             File management             |
-| Cost Overview         | `/api/v1/cost-overview/`                      |              Yes              |              Authenticated              |
-| Cost Overview Profile | `/api/v1/cost-overview/{profile_id}/`         |              Yes              |              Authenticated              |
-| Daily Ice Usage       | `/api/v1/daily-ice-usage/{profile_id}/{day}/` |              Yes              |              Authenticated              |
+| Endpoint              | URL                                         | Requires token authentication |            Rate limit scopes            |
+| --------------------- | ------------------------------------------- | :---------------------------: | :-------------------------------------: |
+| Create User           | `/api/v1/auth/users/`                       |              No               |             Unauthenticated             |
+| Set Password          | `/api/v1/auth/users/set_password/`          |              Yes              |             User management             |
+| Login (authenticate)  | `/api/v1/auth/token/login/`                 |              No               |  Authenticated + <br>Unauthenticated 🗒️ |
+| Logout (revoke token) | `/api/v1/auth/token/logout/`                |              Yes              |             User management             |
+| Delete User           | `/api/v1/auth/users/me/{username}/`         |              Yes              | User management + <br>Unauthenticated 🗒️|
+| Upload File           | `/api/v1/wallconfig-files/upload/`          |              Yes              |             File management             |
+| List Files            | `/api/v1/wallconfig-files/list/`            |              Yes              |              Authenticated              |
+| Delete File           | `/api/v1/wallconfig-files/delete/`          |              Yes              |             File management             |
+| Cost Overview         | `/api/v1/cost-overview/`                    |              Yes              |              Authenticated              |
+| Cost Overview Profile | `/api/v1/cost-overview/{profile_id}/`       |              Yes              |              Authenticated              |
+| Daily Ice Usage       | `/api/v1/profiles/{profile_id}/days/{day}/` |              Yes              |              Authenticated              |
 
 <br>
 
@@ -1215,7 +1215,7 @@ graph TD
 <details>
 <summary></summary>
 
-  - **a.** The **`num_crews`** parameter is optional and impacts only the behavior of the **`daily-ice-usage`** endpoint.
+  - **a.** The **`num_crews`** parameter is optional and impacts only the behavior of the **`profiles-days`** endpoint.
 
   - **b.** Default behavior - **`num_crews`** is not provided in the request:
     - Each wall section has its own designated construction crew  
@@ -1268,7 +1268,7 @@ graph TD
         - Total cost = **12**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = ***4 446 000 Gold Dragon coins***
       - **`cost-overview/2`** calculates the cost for profile **`2`**:
         - **6**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = **2 223 000 Gold Dragon coins**
-      - **`daily-ice-usage/2/2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
+      - **`profiles/2/days/2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
         - **2**(total feet raised on profile **`2`** on the **`2nd`** day) \* **195**(cubic yards of ice) = **390 cubic yards of ice**
     - **`num_crews`** = **`2`**:
       - Construction process:
@@ -1287,9 +1287,9 @@ graph TD
             - **Crew `II`** is relieved.
           - Wall total progress = 3 + 3 + 3 + 2 + 1 = **12 feet** constructed.
       
-      ℹ️ Only the **`daily-ice-usage`** endpoint supports the `num_crews` parameter.
+      ℹ️ Only the **`profiles-days`** endpoint supports the `num_crews` parameter.
 
-      - **`daily-ice-usage/2/2?num_crews=2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
+      - **`profiles/2/days/2?num_crews=2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
         - **1**(total feet raised on profile **`2`** on the **`2nd`** day) \* **195**(cubic yards of ice) = **195 cubic yards of ice**.
     </i>
 

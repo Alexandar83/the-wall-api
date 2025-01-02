@@ -93,9 +93,9 @@ wall_config_delete_404_response_serializer = inline_serializer(
     }
 )
 
-# *DailyIceUsageView*
-daily_ice_usage_response_serializer = inline_serializer(
-    name='DailyIceUsageResponse',
+# *ProfilesDaysView*
+profiles_days_response_serializer = inline_serializer(
+    name='ProfilesDaysResponse',
     fields={
         'profile_id': serializers.IntegerField(),
         'day': serializers.IntegerField(),

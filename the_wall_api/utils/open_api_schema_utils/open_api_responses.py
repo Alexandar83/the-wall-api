@@ -348,10 +348,10 @@ wallconfig_file_list_responses = {
 
 # == WallConfigFileListView (end) ==
 
-# == DailyIceUsageView ==
-daily_ice_usage_responses = {
+# == ProfilesDaysView ==
+profiles_days_responses = {
     200: OpenApiResponse(
-        response=response_serializers.daily_ice_usage_response_serializer,
+        response=response_serializers.profiles_days_response_serializer,
         examples=[
             OpenApiExample(
                 name='Valid response',
@@ -441,7 +441,7 @@ daily_ice_usage_responses = {
         ]
     ),
 }
-# == DailyIceUsageView (end) ==
+# == ProfilesDaysView (end) ==
 
 # == CostOverviewView and CostOverviewProfileidView ==
 cost_overview_responses = {
