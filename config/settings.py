@@ -363,25 +363,39 @@ VERBOSE_MULTIPROCESSING_LOGGING = os.getenv('VERBOSE_MULTIPROCESSING_LOGGING', '
 
 # === Filesystem configuration end ===
 
-# Wall Configuration Settings
+# === Wall Configuration Settings ===
 MAX_SECTION_HEIGHT = int(os.getenv('MAX_SECTION_HEIGHT', 30))                           # Maximum height of a wall section
 MAX_WALL_PROFILE_SECTIONS = int(os.getenv('MAX_WALL_PROFILE_SECTIONS', 2000))           # Maximum sections in a wall profile
 MAX_WALL_LENGTH = int(os.getenv('MAX_WALL_LENGTH', 300))                                # Maximum length of a wall
 ICE_PER_FOOT = int(os.getenv('ICE_PER_FOOT', 195))                                      # Cubic yards of ice used per 1 foot height increase
 ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))               # Gold Dragon coins cost per cubic yard
 
+# === Concurrency Settings ===
+
+# Switching between different simulation implementations
+# threading_v1 - condition sync.
+# threading_v2 - event sync.
+# multiprocessing_v1 - multiprocessing Process + Event sync.
+# multiprocessing_v2 - multiprocessing ProcessPoolExecutor + Manager().Event sync.
+# multiprocessing_v3 - multiprocessing ProcessPoolExecutor + Manager().Condition sync.
+CONCURRENT_SIMULATION_MODE = os.getenv(
+    'CONCURRENT_SIMULATION_MODE', 'threading_v1'
+)
+
+
+# == Threading ==
 # If num_crews is above this limit in threading,
 # the build simulation is in sequential mode
 MAX_CONCURRENT_NUM_CREWS_THREADING = int(
     os.getenv('MAX_CONCURRENT_NUM_CREWS_THREADING', 250)
 )
-
 # If the sections count is above this limit in threading,
 # the build simulation is in sequential mode
 MAX_SECTIONS_COUNT_CONCURRENT_THREADING = int(
     os.getenv('MAX_SECTIONS_COUNT_CONCURRENT_THREADING', 4000)
 )
 
+# == Multiprocessing ==
 # Number of CPU threads
 CPU_THREADS = int(os.getenv('CPU_THREADS', 8))
 
@@ -395,7 +409,6 @@ MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = CPU_THREADS - 2
 MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING = int(
     os.getenv('MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING', 2000)
 )
-
 # 1. Up to this limit the wall configurations are cached on upload with their full range:
 # for all num_crews in range(sections_count).
 # 2. If the sections count is above this limit, the simulations are requested with each API-request
@@ -403,24 +416,19 @@ MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING = int(
 MAX_SECTIONS_COUNT_FULL_RANGE_CACHING = int(
     os.getenv('MAX_SECTIONS_COUNT_FULL_RANGE_CACHING', 100)
 )
-
 # 1. In case the build is not pre-cached, up to this limit the simulation is done synchronously.
 # 2. Above it, the simulation is sent to a celery task and the user must send an additional request
 # to fetch the results.
 MAX_SECTIONS_COUNT_SYNCHRONOUS_RESPONSE = int(
     os.getenv('MAX_SECTIONS_COUNT_SYNCHRONOUS_RESPONSE', 10000)
 )
-MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))                      # Maximum number of wall configurations per user
-
-# Switching between different simulation implementations
-# threading_v1 - condition sync.
-# threading_v2 - event sync.
-# multiprocessing_v1 - multiprocessing Process + Event sync.
-# multiprocessing_v2 - multiprocessing ProcessPoolExecutor + Manager().Event sync.
-# multiprocessing_v3 - multiprocessing ProcessPoolExecutor + Manager().Condition sync.
-CONCURRENT_SIMULATION_MODE = os.getenv(
-    'CONCURRENT_SIMULATION_MODE', 'threading_v1'
+# Grace periods to ensure finish section records are at the end of the day's records
+SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING = float(
+    os.getenv('SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING', 0.05)
 )
+# === Concurrency Settings end ===
+
+MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))                      # Maximum number of wall configurations per user
 
 # Common settings
 API_VERSION = os.getenv('API_VERSION', 'v1')

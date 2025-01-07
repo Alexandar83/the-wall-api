@@ -16,6 +16,7 @@ ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = settings.MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 VERBOSE_MULTIPROCESSING_LOGGING = settings.VERBOSE_MULTIPROCESSING_LOGGING
+SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING = settings.SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING
 
 
 class MultiprocessingWallBuilder(BaseWallBuilder):
@@ -82,7 +83,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'finished_crews_for_the_day': Value('i', 0),
             'active_crews': Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
-            'daily_cost_section': self.daily_cost_section,
         }
 
     def init_multiprocessing_with_manager(self) -> None:
@@ -95,7 +95,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'finished_crews_for_the_day': self.manager.Value('i', 0),
             'active_crews': self.manager.Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
-            'daily_cost_section': self.daily_cost_section,
             'result_queue_with_manager': self.result_queue_with_manager,
         }
 
@@ -178,14 +177,15 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
                 self.testing_wall_construction_config.extend(
                     self.convert_list(testing_wall_construction_config)
                 )
-        self.result_queue.put(None)
-        self.result_handler_thread.join()
-
-        self.extract_log_data()
 
         # Raise any exceptions from the ProcessPoolExecutor
         for future in futures:
             future.result()
+
+        self.result_queue.put(None)
+        self.result_handler_thread.join()
+
+        self.extract_log_data()
 
     def manage_processes(self) -> list:
         futures = []
@@ -246,7 +246,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         while not sections_queue.empty():
             try:
                 # Get the next section from the queue
-                profile_id, section_id, height = sections_queue.get_nowait()
+                profile_id, section_id, height = sections_queue.get(timeout=0.1)
             except Empty:
                 # No more sections to process
                 break
@@ -267,20 +267,14 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
     @staticmethod
     def process_section(
-        profile_id: int, section_id: int, height: int, current_process_day: int, daily_cost_section: int,
+        profile_id: int, section_id: int, height: int, current_process_day: int,
         logger: Logger, process_name: str, CONCURRENT_SIMULATION_MODE: str,
-        testing_wall_construction_config_mprcss: list | None = None,
-        **build_kwargs
+        testing_wall_construction_config_mprcss: list | None = None, **build_kwargs
     ) -> int:
-        # Initialize section construction variables
-        total_ice_used = 0
-        total_cost = 0
-
+        cncrrncy_test_sleep_period = build_kwargs['cncrrncy_test_sleep_period']
         while height < MAX_SECTION_HEIGHT:
             height += 1
             current_process_day += 1
-            total_ice_used += ICE_PER_FOOT
-            total_cost += daily_cost_section
 
             # Daily progress
             MultiprocessingWallBuilder.log_daily_progress(
@@ -337,8 +331,8 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         logger: Logger, process_name: str
     ) -> None:
         if height == MAX_SECTION_HEIGHT:
-            if VERBOSE_MULTIPROCESSING_LOGGING:
-                sleep(0.05)     # Grace period to ensure finish section records are at the end of the day's records
+            # Grace period to ensure finish section records are at the end of the day's records
+            sleep(SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING)
             section_completion_msg = BaseWallBuilder.get_section_completion_msg(
                 profile_id, section_id, current_process_day
             )

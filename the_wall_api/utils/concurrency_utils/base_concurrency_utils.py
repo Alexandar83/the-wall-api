@@ -47,14 +47,14 @@ class BaseWallBuilder(ABC):
         return queue
 
     def extract_log_data(self) -> None:
-        # Write the log stream to the log file
-        with open(self.filename, 'w') as log_file:
-            log_file.write(self.log_stream.getvalue())
+        # Write the log stream to the log file without any formatting
 
         if self.celery_task_aborted:
             message = 'Work interrupted by a celery task abort signal.'
-            self.logger.debug(message, extra={'source_name': 'MainThread'})
-            return
+            self.log_stream.write(message)
+
+        with open(self.filename, 'w') as log_file:
+            log_file.write(self.log_stream.getvalue())
 
         if self.proxy_wall_creation_call:
             print('Done!')
