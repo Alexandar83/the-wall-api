@@ -36,7 +36,7 @@ class WallConstruction:
     def __init__(
         self, wall_construction_config: list, sections_count: int, num_crews: int,
         wall_config_hash: str, simulation_type: str = SEQUENTIAL, celery_task: AbortableTask | None = None,
-        proxy_wall_creation_call: bool = False
+        proxy_wall_creation_call: bool = False, cncrrncy_test_sleep_period: float | None = 0
     ):
         self.CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
         self.wall_construction_config = wall_construction_config
@@ -46,6 +46,7 @@ class WallConstruction:
         self.wall_config_hash = wall_config_hash
         self.simulation_type = simulation_type
         self.log_stream = StringIO()
+        self.cncrrncy_test_sleep_period = cncrrncy_test_sleep_period
 
         # Celery task details
         self.celery_task = celery_task
@@ -141,6 +142,10 @@ class WallConstruction:
                         if num_crews_worked_today == num_available_crews:
                             all_crews_finished_work_for_the_day = True
                             break
+
+                    # Ensure proper conditions for abort signal during tests
+                    if self.cncrrncy_test_sleep_period:
+                        sleep(self.cncrrncy_test_sleep_period)
 
                 # All crews are finished - proceed to the next day
                 if all_crews_finished_work_for_the_day:
@@ -268,6 +273,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
             wall_config_hash=wall_data['wall_config_hash'],
             simulation_type=wall_data['simulation_type'],
             celery_task=wall_data.get('celery_task'),
+            cncrrncy_test_sleep_period=wall_data.get('cncrrncy_test_sleep_period')
         )
     except Exception as tech_error:
         error_utils.handle_unknown_error(wall_data, tech_error, 'wall_creation')

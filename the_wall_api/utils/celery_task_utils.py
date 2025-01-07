@@ -10,9 +10,6 @@ from typing import Callable
 
 ABORT_WAIT_PERIOD = int(os.getenv('ABORT_WAIT_PERIOD', 60))
 CONCURRENT_SIMULATION_MODE = os.getenv('CONCURRENT_SIMULATION_MODE', 'threading_v1')
-if 'multiprocessing' in CONCURRENT_SIMULATION_MODE:
-    # Longer finishing times for multiprocessing
-    ABORT_WAIT_PERIOD *= 3
 DELETION_RETRIES = 5
 LIGHT_CELERY_CONFIG = os.getenv('LIGHT_CELERY_CONFIG', False) == 'True'
 
@@ -200,13 +197,13 @@ def import_wall_config_deletion_task(active_testing: bool = False):
 def orchestrate_wall_config_processing(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
     num_crews_range: int | str, username: str, config_id: str,
-    active_testing: bool = False
+    active_testing: bool = False, cncrrncy_test_sleep_period: float = 0
 ) -> tuple[str, list]:
     """Cache in the DB all possible build simulations for the passed wall configuration."""
     def core_processing() -> tuple[str, list]:
         wall_config_object, task_group_result = create_task_group(
             wall_config_hash, wall_construction_config, sections_count,
-            num_crews_range, username, config_id, active_testing
+            num_crews_range, username, config_id, active_testing, cncrrncy_test_sleep_period
         )
         return monitor_task_group(
             wall_config_object, task_group_result, num_crews_range, username, config_id
@@ -218,7 +215,7 @@ def orchestrate_wall_config_processing(
 def create_task_group(
     wall_config_hash: str, wall_construction_config: list, sections_count: int,
     num_crews_range: int | str, username: str, reference_config_id: str,
-    active_testing: bool
+    active_testing: bool, cncrrncy_test_sleep_period: float
 ):
     """Start a separate task for wall build simulation for each included number of crews."""
     from celery import group
@@ -269,7 +266,8 @@ def create_task_group(
     task_group = group(
         # num_crews = max sections count is effectively sequential mode (num_crews = 0)
         create_wall_task.s(
-            num_crews, wall_config_hash, wall_construction_config, sections_count, active_testing
+            num_crews, wall_config_hash, wall_construction_config, sections_count,
+            active_testing, cncrrncy_test_sleep_period
         ) for num_crews in num_crews_list    # type: ignore
     )
     task_group_result = task_group.apply_async(priority=CELERY_TASK_PRIORITY['LOW'])
@@ -453,7 +451,7 @@ def execute_core_task_logic_with_error_handling(func: Callable, *args, **kwargs)
 
 def create_wall(
     celery_task, num_crews: int, wall_config_hash: str, wall_construction_config: list,
-    sections_count: int, active_testing: bool = False
+    sections_count: int, active_testing: bool = False, cncrrncy_test_sleep_period: float = 0
 ) -> tuple[str, dict]:
     from the_wall_api.utils.error_utils import send_log_error_async
     from the_wall_api.utils.storage_utils import fetch_wall_data
@@ -466,6 +464,7 @@ def create_wall(
     wall_data['wall_config_hash'] = wall_config_hash
     wall_data['wall_construction_config'] = wall_construction_config
     wall_data['sections_count'] = sections_count
+    wall_data['cncrrncy_test_sleep_period'] = cncrrncy_test_sleep_period
 
     result_wall_data = {}
     try:

@@ -83,6 +83,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'finished_crews_for_the_day': Value('i', 0),
             'active_crews': Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
+            'cncrrncy_test_sleep_period': self.cncrrncy_test_sleep_period,
         }
 
     def init_multiprocessing_with_manager(self) -> None:
@@ -96,6 +97,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             'active_crews': self.manager.Value('i', self.num_crews),
             'celery_task_aborted_mprcss': self.celery_task_aborted_mprcss,
             'result_queue_with_manager': self.result_queue_with_manager,
+            'cncrrncy_test_sleep_period': self.cncrrncy_test_sleep_period,
         }
 
         if self.CONCURRENT_SIMULATION_MODE == 'multiprocessing_v3':
@@ -292,6 +294,10 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
                 CONCURRENT_SIMULATION_MODE
             )
             end_of_day_synchronization(current_process_day, profile_id, **build_kwargs)
+
+            # Ensure proper conditions for abort signal during tests
+            if cncrrncy_test_sleep_period:
+                sleep(cncrrncy_test_sleep_period)
 
             if build_kwargs['celery_task_aborted_mprcss'].value:
                 return current_process_day

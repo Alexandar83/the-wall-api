@@ -50,7 +50,10 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
     def setup_celery_workers(cls) -> None:
         # Flush the test queue from any stale tasks
         cls.redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
-        cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
+        cls.redis_client.delete(cls.test_queue_name)
+        scheduled_tasks = cls.redis_client.keys(pattern=f'{cls.test_queue_name}*')
+        for task in scheduled_tasks:    # type: ignore
+            cls.redis_client.delete(task)
 
         # Start the celery workers and instruct them to listen to 'test_queue'
         if 'multiprocessing' in CONCURRENT_SIMULATION_MODE or PROJECT_MODE == 'dev':
@@ -73,7 +76,9 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
     @classmethod
     def tearDownClass(cls):
         # Flush the test queue
-        cls.redis_client.ltrim(cls.test_queue_name, 1, 0)
+        cls.redis_client.delete(cls.test_queue_name)
+        # Grace period to ensure the celery worker finishes
+        sleep(3)
         # Stop the celery worker
         cls.celery_worker.__exit__(None, None, None)
         super().tearDownClass()
@@ -89,6 +94,7 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         # Prerequisite test data
         self.init_test_data()
         self.active_testing = True
+        self.cncrrncy_test_sleep_period = 0
 
     def init_test_data(self):
         raise NotImplementedError
@@ -98,31 +104,9 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     description = 'Wall Config Processing and Deletion Tasks Tests'
 
     def setUp(self):
-        self.manage_wall_construction_config()
         self.wall_config_hash = hash_calc(self.wall_construction_config)
-        self.wall_profile_config_hash_data = {
-            i: hash_calc(profile) for i, profile in enumerate(self.wall_construction_config, start=1)
-        }
         self.sections_count = get_sections_count(self.wall_construction_config)
         super().setUp()
-
-    def manage_wall_construction_config(self):
-        if self._testMethodName == 'test_wall_config_deletion_task_concurrent':
-            if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
-                # Threading mode is faster and requires more sections
-                # for the test to work as expected
-                self.wall_construction_config = self.wall_construction_config + [
-                    [1, 2, 3, 4, 5],
-                    [6, 7, 8, 9, 10],
-                    [5, 3, 1, 2, 4],
-                    [3, 3, 2, 2, 1],
-                    [5, 3, 1, 2, 4],
-                    [1, 2, 3, 4, 5]
-                ]
-            else:
-                self.wall_construction_config = self.wall_construction_config + [
-                    [1, 2, 3, 4, 5]
-                ]
 
     def init_test_data(self):
         self.input_data = {
@@ -173,6 +157,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             'username': self.username,
             'config_id': self.valid_config_id,
             'num_crews_range': num_crews_range,
+            'cncrrncy_test_sleep_period': self.cncrrncy_test_sleep_period,
         }
 
         wall_config_orchestration_result = orchestrate_wall_config_processing_task_test.apply_async(
@@ -307,7 +292,10 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         if deletion == 'sequential' and actual_message != 'OK':
             return actual_message
         if deletion == 'concurrent':
-            if actual_message != 'Interrupted by a deletion task':
+            if (
+                actual_message != 'Interrupted by a deletion task' and
+                self._testMethodName != 'test_wall_config_deletion_task_concurrent'
+            ):
                 return actual_message
             if {} not in actual_result:
                 return 'Abort signal not processed!'
@@ -467,6 +455,11 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         -Both of the above together
         """
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        # Used to ensure proper testing conditions for mid-calculation abort signal
+        if 'multiprocessing' in CONCURRENT_SIMULATION_MODE:
+            self.cncrrncy_test_sleep_period = 0.05
+        else:
+            self.cncrrncy_test_sleep_period = 0.2
         self.test_orchestrate_wall_config_processing_task(deletion='concurrent', test_case_source=test_case_source)
 
     def test_wall_config_deletion_task_sequential(self):

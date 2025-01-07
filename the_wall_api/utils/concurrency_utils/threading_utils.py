@@ -135,6 +135,10 @@ class ThreadingWallBuilder(BaseWallBuilder):
             end_of_day_synchronization = self.get_end_of_day_synchronization_func()
             end_of_day_synchronization(self.thread_days[thread.name], profile_id, thread)
 
+            # Ensure proper conditions for abort signal during tests
+            if self.cncrrncy_test_sleep_period:
+                sleep(self.cncrrncy_test_sleep_period)
+
             if self.celery_task_aborted:
                 return
 
