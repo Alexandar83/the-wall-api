@@ -18,7 +18,7 @@ from the_wall_api.utils import error_utils
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 from the_wall_api.utils.concurrency_utils.multiprocessing_utils import MultiprocessingWallBuilder
 from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
-from the_wall_api.utils.wall_config_utils import generate_config_hash_details, CONCURRENT, SEQUENTIAL
+from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, SEQUENTIAL
 
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 ICE_PER_FOOT = settings.ICE_PER_FOOT
@@ -32,8 +32,6 @@ class WallConstruction:
     The concurrent implementation is done explicitly with a file (and not in the memory)
     to follow the task requirements
     """
-
-    daily_cost_section = ICE_PER_FOOT * ICE_COST_PER_CUBIC_YARD
 
     def __init__(
         self, wall_construction_config: list, sections_count: int, num_crews: int,
@@ -67,7 +65,6 @@ class WallConstruction:
         }
         self.proxy_wall_creation_call = proxy_wall_creation_call    # Utilized in proxy_wall_creation
         self.calc_wall_profile_data()
-        self.sim_calc_details = self._calc_sim_details()
 
     def manage_celery_task_aborted_mprcss(self):
         # Threading
@@ -124,20 +121,20 @@ class WallConstruction:
 
             # Increment each profile's unfinished sections
             for profile_index, profile in enumerate(self.wall_construction_config, start=1):
-                # Initialize wall profile data if not already done
-                self.wall_profile_data.setdefault(profile_index, {})
-
-                ice_used = 0
                 for i, height in enumerate(profile):
                     if height >= MAX_SECTION_HEIGHT:
                         continue
 
-                    profile[i] += 1  # Increment the height of the section
-                    ice_used += ICE_PER_FOOT
-                    self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
+                    # Perform daily increment
+                    profile[i] += 1
 
+                    # Daily progress
                     BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, day, profile_index)
 
+                    # Test data
+                    self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
+
+                    # Manage number of crews, if provided
                     work_done_today = True
                     if num_crews_worked_today is not None:
                         num_crews_worked_today += 1
@@ -145,17 +142,9 @@ class WallConstruction:
                             all_crews_finished_work_for_the_day = True
                             break
 
-                    # Logging to stdout is muted in the workers
-                    if self.celery_task_aborted:
-                        print('Sequential simulation interrupted by a celery task abort signal!')
-                        return
-
                 # All crews are finished - proceed to the next day
                 if all_crews_finished_work_for_the_day:
                     break
-
-                # Keep track of the daily ice usage
-                self.wall_profile_data[profile_index][day] = {'ice_used': ice_used}
 
             if not work_done_today:
                 break
@@ -163,44 +152,6 @@ class WallConstruction:
             day += 1
 
         self.wall_profile_data['profiles_overview']['construction_days'] = day - 1
-
-    def _calc_sim_details(self) -> Dict[str, Any]:
-        """
-        Calculate and return a detailed cost overview including:
-        - Total cost for the whole wall.
-        - Cost per profile.
-        - Ice usage per profile per day.
-        - Detailed breakdown of cost and ice usage per profile per day.
-        - Maximum day across all profiles.
-        """
-        overview = {
-            'total_cost': 0,
-            'profile_costs': {},
-            'profile_daily_details': {},
-            'construction_days': 0
-        }
-
-        for profile_id, daily_data in self.wall_profile_data.items():
-            if profile_id == 'profiles_overview':
-                continue
-            profile_total_cost = 0
-            profile_daily_details = {}
-
-            for day, day_data in daily_data.items():
-                cost = day_data['ice_used'] * ICE_COST_PER_CUBIC_YARD
-                profile_total_cost += cost
-                profile_daily_details[day] = {
-                    'ice_used': day_data['ice_used'],
-                    'cost': cost
-                }
-                overview['construction_days'] = max(overview['construction_days'], day)
-
-            # Update the overview dictionary
-            overview['total_cost'] += profile_total_cost
-            overview['profile_costs'][profile_id] = profile_total_cost
-            overview['profile_daily_details'][profile_id] = profile_daily_details
-
-        return overview
 
 
 def initialize_wall_data(
@@ -253,34 +204,19 @@ def set_simulation_params(
         sections_count = get_sections_count(wall_construction_config)
         wall_data['sections_count'] = sections_count
 
-    simulation_type, wall_config_hash_details, num_crews_final = evaluate_simulation_params(
-        num_crews, sections_count, wall_construction_config, wall_data
-    )
+    simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count)
     wall_data['num_crews'] = num_crews_final
     wall_data['wall_construction_config'] = deepcopy(wall_construction_config)
     wall_data['initial_wall_construction_config'] = deepcopy(wall_construction_config)
     wall_data['simulation_type'] = simulation_type
     wall_config_hash = wall_data.get('wall_config_hash')
     if not wall_config_hash:
-        wall_data['wall_config_hash'] = wall_config_hash_details['wall_config_hash']
-    wall_data['profile_config_hash_data'] = wall_config_hash_details['profile_config_hash_data']
+        wall_data['wall_config_hash'] = hash_calc(wall_construction_config)
     wall_data['request_type'] = request_type
 
 
 def get_sections_count(wall_construction_config: list) -> int:
     return sum(len(profile) for profile in wall_construction_config)
-
-
-def evaluate_simulation_params(
-    num_crews: int, sections_count: int, wall_construction_config: list, wall_data: Dict[str, Any]
-) -> tuple[str, dict, int]:
-    # num_crews
-    simulation_type, num_crews_final = manage_num_crews(num_crews, sections_count)
-
-    # configuration hashes
-    wall_config_hash_details = generate_config_hash_details(wall_construction_config)
-
-    return simulation_type, wall_config_hash_details, num_crews_final
 
 
 def manage_num_crews(num_crews: int, sections_count: int) -> tuple[str, int]:
@@ -337,7 +273,6 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
         error_utils.handle_unknown_error(wall_data, tech_error, 'wall_creation')
         return
     wall_data['wall_construction'] = wall_construction
-    wall_data['sim_calc_details'] = wall_construction.sim_calc_details
     store_simulation_result(wall_data)
     if wall_construction.celery_task_aborted:
         wall_data['celery_task_aborted'] = True
@@ -348,21 +283,23 @@ def store_simulation_result(wall_data):
     Store the simulation results to be used in the responses.
     """
     simulation_result = wall_data['simulation_result'] = {}
+    profile_overview = wall_data['wall_construction'].wall_profile_data['profiles_overview']
+    daily_details = profile_overview['daily_details']
+    request_day = wall_data['request_day']
+    request_profile_id = wall_data['request_profile_id']
 
     # Used in the profiles-overview response
-    simulation_result['wall_total_cost'] = wall_data['sim_calc_details']['total_cost']
+    total_ice_amount = profile_overview['total_ice_amount']
+    simulation_result['wall_total_cost'] = total_ice_amount * settings.ICE_COST_PER_CUBIC_YARD
 
-    # Used in the profiles-overview/profile_id response
-    request_profile_id = wall_data['request_profile_id']
-    if request_profile_id:
-        simulation_result['wall_profile_cost'] = wall_data['sim_calc_details']['profile_costs'][request_profile_id]
-
-    # Used in the profiles-days response
-    request_day = wall_data['request_day']
     if request_day:
-        profile_daily_progress_data = wall_data['sim_calc_details']['profile_daily_details'][request_profile_id]
-        profile_day_data = profile_daily_progress_data.get(wall_data['request_day'], {})
-        simulation_result['profile_daily_ice_used'] = profile_day_data.get('ice_used', 0)
+        # Used in the profiles-overview-day response
+        daily_total_amount = daily_details[request_day]['dly_ttl']
+        simulation_result['profiles_overview_day_cost'] = daily_total_amount * settings.ICE_COST_PER_CUBIC_YARD
 
-    simulation_result['total_ice_amount'] = wall_data['wall_construction'].wall_profile_data['profiles_overview']['total_ice_amount']
-    simulation_result['daily_details'] = wall_data['wall_construction'].wall_profile_data['profiles_overview']['daily_details']
+        if request_profile_id:
+            # Used in the profiles-days response
+            profile_day_ice_amount = daily_details[request_day][request_profile_id]
+            simulation_result['profile_day_ice_amount'] = profile_day_ice_amount
+            # Used in single-profile-overview-day
+            simulation_result['profile_day_cost'] = profile_day_ice_amount * settings.ICE_COST_PER_CUBIC_YARD

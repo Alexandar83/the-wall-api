@@ -30,7 +30,7 @@ class DjoserIntegrationTestBase(BaseTestcase):
     ) -> None:
         error_occurred = False
         passed = True
-        actual_message = ''
+        actual_message = expected_message
 
         for assertion in assertions:
             try:

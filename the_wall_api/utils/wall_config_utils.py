@@ -90,23 +90,6 @@ def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config
                 )
 
 
-def generate_config_hash_details(wall_construction_config: list) -> dict:
-    """
-    Generates a unique hash for the entire wall configuration,
-    taking into account the number of crews.
-    """
-    result: Dict[str, Any] = {'profile_config_hash_data': {}}
-
-    # Hash of the whole config
-    result['wall_config_hash'] = hash_calc(wall_construction_config)
-
-    for profile_id, profile_config in enumerate(wall_construction_config, start=1):
-        # Hash each profile config
-        result['profile_config_hash_data'][profile_id] = hash_calc(profile_config)
-
-    return result
-
-
 def hash_calc(data_to_hash: Any) -> str:
     config_str = json.dumps(data_to_hash)
     return hashlib.sha256(config_str.encode('utf-8')).hexdigest()

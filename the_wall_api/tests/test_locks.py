@@ -7,9 +7,7 @@ from django.db import connection
 from django_redis import get_redis_connection
 
 from the_wall_api.tests.test_utils import BaseTestcase
-from the_wall_api.utils.wall_config_utils import (
-    generate_config_hash_details, hash_calc, CONCURRENT
-)
+from the_wall_api.utils.wall_config_utils import hash_calc, CONCURRENT
 from the_wall_api.utils.storage_utils import (
     acquire_db_lock, generate_db_lock_key, get_wall_cache_key, release_db_lock
 )
@@ -18,14 +16,11 @@ from the_wall_api.utils.storage_utils import (
 class LockTestBase(BaseTestcase):
     def setUp(self, *args, **kwargs):
         wall_config_hash = hash_calc(self.wall_construction_config)
-        wall_config_hash_details = generate_config_hash_details(self.wall_construction_config)
         self.wall_data = {
             'wall_config_hash': wall_config_hash,
             'num_crews': 2,
-            'profile_config_hash_data': wall_config_hash_details.get('profile_config_hash_data', ''),
             'profile_id': 1,
             'day': 2,
-            'sim_calc_details': {'total_cost': 10000, 'construction_days': 10},
             'simulation_type': CONCURRENT,
             'request_type': 'test_locks',
         }
