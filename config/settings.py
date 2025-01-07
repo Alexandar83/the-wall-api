@@ -223,9 +223,9 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'OAS_VERSION': '3.1.0',
     'TAGS': [
-        {'name': 'User Management', 'description': 'Manage users, authentication, and passwords.'},
-        {'name': 'File Management', 'description': 'Upload, list, and delete wall configuration files.'},
-        {'name': 'Costs and Daily Ice Usage ', 'description': 'Analyze construction costs and daily ice usage.'},
+        {'name': 'User Management', 'description': 'Manage users, authentication, and passwords'},
+        {'name': 'File Management', 'description': 'Upload, list, and delete wall configuration files'},
+        {'name': 'Costs and Daily Ice Usage', 'description': 'Analyze construction costs and daily ice usage'},
     ]
 }
 

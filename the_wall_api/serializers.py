@@ -6,16 +6,17 @@ from rest_framework import serializers
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallConfigReference
 
 
-class ProfilesDaysSerializer(serializers.Serializer):
-    profile_id = serializers.IntegerField(allow_null=False, validators=[MinValueValidator(1)])
-    day = serializers.IntegerField(validators=[MinValueValidator(1)])
+class ProfilesOverviewSerializer(serializers.Serializer):
     num_crews = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(0)])
     config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
 
 
-class ProfilesOverviewSerializer(serializers.Serializer):
-    profile_id = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1)])
-    config_id = serializers.CharField(required=True, allow_blank=False, max_length=CONFIG_ID_MAX_LENGTH)
+class ProfilesOverviewDaySerializer(ProfilesOverviewSerializer):
+    day = serializers.IntegerField(required=True, validators=[MinValueValidator(1)])
+
+
+class ProfilesDaysSerializer(ProfilesOverviewDaySerializer):
+    profile_id = serializers.IntegerField(required=True, validators=[MinValueValidator(1)])
 
 
 class WallConfigFileUploadSerializer(serializers.Serializer):

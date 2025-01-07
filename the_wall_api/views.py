@@ -3,6 +3,7 @@ from typing import Any, Dict
 from django.http import JsonResponse
 from django.views.defaults import page_not_found
 from drf_spectacular.utils import extend_schema
+from rest_framework.serializers import Serializer
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from the_wall_api.serializers import (
-    ProfilesOverviewSerializer, ProfilesDaysSerializer,
+    ProfilesDaysSerializer, ProfilesOverviewDaySerializer, ProfilesOverviewSerializer,
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
@@ -126,41 +127,98 @@ class WallConfigFileDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ProfilesDaysView(APIView):
+class ProfilesBaseView(APIView):
     throttle_classes = [UserRateThrottle]
 
-    @extend_schema(
-        tags=['Costs and Daily Ice Usage '],
-        summary='Get Daily Ice Usage',
-        description='Retrieve the amount of ice used on a specific day for a given wall profile.',
-        parameters=open_api_parameters.profiles_days_parameters +
-        [open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_responses.profiles_days_responses
-    )
-    def get(self, request: Request, profile_id: int, day: int) -> Response:
+    def process_profiles_request(
+        self, request: Request, serializer_class: type[Serializer], profile_id=None, day=None,
+        request_type: str | None = None
+    ) -> tuple[Response | None, dict[str, Any]]:
         request_num_crews = api_utils.get_request_num_crews(request)
         config_id = request.query_params.get('config_id')
         num_crews = request.query_params.get('num_crews', 0)
-        serializer = ProfilesDaysSerializer(
-            data={'config_id': config_id, 'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
-        )
+        request_data = {'config_id': config_id, 'profile_id': profile_id, 'day': day, 'num_crews': num_crews}
+        serializer = serializer_class(data=request_data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST), {}
 
-        config_id = serializer.validated_data['config_id']      # type: ignore
-        profile_id = serializer.validated_data['profile_id']    # type: ignore
-        day = serializer.validated_data['day']                  # type: ignore
-        num_crews = serializer.validated_data['num_crews']      # type: ignore
+        config_id = serializer.validated_data['config_id']          # type: ignore
+        profile_id = serializer.validated_data.get('profile_id')    # type: ignore
+        day = serializer.validated_data.get('day')                  # type: ignore
+        num_crews = serializer.validated_data.get('num_crews', 0)   # type: ignore
 
         wall_data = initialize_wall_data(
             config_id=config_id, user=request.user, profile_id=profile_id,
             day=day, request_num_crews=request_num_crews, input_data=request.query_params
         )
-        fetch_wall_data(wall_data, num_crews, profile_id, request_type='profiles-days')
+
+        request_type = self.get_request_type(request_type, profile_id, day)
+        fetch_wall_data(wall_data, num_crews, profile_id, request_type=request_type)
+
         if wall_data['error_response']:
-            return wall_data['error_response']
+            return wall_data['error_response'], {}
         if wall_data['info_response']:
-            return wall_data['info_response']
+            return wall_data['info_response'], {}
+
+        return None, wall_data
+
+    def get_request_type(
+        self, request_type: str | None, profile_id: int | None, day: int | None
+    ) -> str:
+        if request_type:
+            # profiles-days
+            return request_type
+
+        if profile_id and day:
+            return 'single-profile-overview-day'
+        elif day:
+            return 'profiles-overview-day'
+
+        return 'profiles-overview'
+
+    def build_profiles_overview_response(
+        self, wall_data: Dict[str, Any], profile_id: int | None, day: int | None
+    ) -> Response:
+        result_data = wall_data['cached_result']
+        if not result_data:
+            result_data = wall_data['simulation_result']
+
+        if profile_id and day:
+            cost = result_data['profile_day_cost']
+            response_message = f'Construction cost for profile {profile_id} on day {day}'
+        elif day:
+            cost = result_data['profiles_overview_day_cost']
+            response_message = f'Construction cost for day {day}'
+        else:
+            cost = result_data['wall_total_cost']
+            response_message = 'Total wall construction cost'
+
+        response_data = {
+            'day': day,
+            'cost': f'{cost:,}',
+            'profile_id': profile_id,
+            'details': f'{response_message}: {cost:,} Gold Dragon coins',
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ProfilesDaysView(ProfilesBaseView):
+
+    @extend_schema(
+        tags=['Costs and Daily Ice Usage'],
+        operation_id='get_profiles_days',
+        summary='Daily Profile Construction Ice Amount',
+        description='Retrieve the amount of ice used on a specific day for a given wall profile.',
+        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
+        responses=open_api_responses.profiles_days_responses
+    )
+    def get(self, request: Request, profile_id: int, day: int) -> Response:
+        response, wall_data = self.process_profiles_request(
+            request, ProfilesDaysSerializer, profile_id, day, request_type='profiles-days'
+        )
+        if response:
+            return response
 
         return self.build_profiles_days_response(wall_data, profile_id, day)
 
@@ -168,73 +226,82 @@ class ProfilesDaysView(APIView):
         result_data = wall_data['cached_result']
         if not result_data:
             result_data = wall_data['simulation_result']
-        profile_daily_ice_used = result_data['profile_daily_ice_used']
+        profile_day_ice_amount = result_data['profile_day_ice_amount']
         response_data: Dict[str, Any] = {
             'profile_id': profile_id,
             'day': day,
         }
-        if profile_daily_ice_used and isinstance(profile_daily_ice_used, int) and profile_daily_ice_used > 0:
-            response_data['ice_used'] = profile_daily_ice_used
-            response_data['details'] = f'Volume of ice used for profile {profile_id} on day {day}: {profile_daily_ice_used} cubic yards.'
+
+        if profile_day_ice_amount and isinstance(profile_day_ice_amount, int) and profile_day_ice_amount > 0:
+            response_data['ice_amount'] = profile_day_ice_amount
+            response_data['details'] = f'Volume of ice used for profile {profile_id} on day {day}: {profile_day_ice_amount} cubic yards.'
             return Response(response_data, status=status.HTTP_200_OK)
 
         response_data['details'] = f'No crew has worked on profile {profile_id} on day {day}.'
         return Response(response_data, status=status.HTTP_404_NOT_FOUND)
 
 
-class ProfilesOverviewView(APIView):
-    throttle_classes = [UserRateThrottle]
+class ProfilesOverviewView(ProfilesBaseView):
 
     @extend_schema(
-        tags=['Costs and Daily Ice Usage '],
+        tags=['Costs and Daily Ice Amounts'],
         operation_id='get_profiles_overview',
-        summary='Get Cost Overview',
+        summary='Total Wall Construction Cost',
         description='Retrieve the total wall construction cost.',
-        parameters=[open_api_parameters.config_id_parameter],
+        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_responses.profiles_overview_responses
     )
-    def get(self, request: Request, profile_id: int | None = None) -> Response:
-        config_id = request.query_params.get('config_id')
-        request_data = {'config_id': config_id, 'profile_id': profile_id}
-        profiles_overview_serializer = ProfilesOverviewSerializer(data=request_data)
-        if not profiles_overview_serializer.is_valid():
-            return Response(profiles_overview_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        config_id = profiles_overview_serializer.validated_data['config_id']     # type: ignore
-        profile_id = profiles_overview_serializer.validated_data['profile_id']   # type: ignore
-
-        request_type = 'profiles-overview' if not profile_id else 'profiles-overview/profile_id'
-
-        wall_data = initialize_wall_data(
-            config_id=config_id, user=request.user,
-            profile_id=profile_id, day=None, input_data=request.query_params
+    def get(self, request: Request) -> Response:
+        profile_id = None
+        day = None
+        response, wall_data = self.process_profiles_request(
+            request, ProfilesOverviewSerializer, profile_id=profile_id, day=day
         )
-        fetch_wall_data(wall_data, profile_id=profile_id, request_type=request_type)
-        if wall_data['error_response']:
-            return wall_data['error_response']
-        if wall_data['info_response']:
-            return wall_data['info_response']
+        if response:
+            return response
 
-        return self.build_profiles_overview_response(wall_data, profile_id)
+        return self.build_profiles_overview_response(wall_data, profile_id=profile_id, day=day)
 
-    def build_profiles_overview_response(self, wall_data: Dict[str, Any], profile_id: int | None) -> Response:
-        result_data = wall_data['cached_result']
-        if not result_data:
-            result_data = wall_data['simulation_result']
-        if profile_id is None:
-            wall_total_cost = result_data['wall_total_cost']
-            response_data = {
-                'total_cost': f'{wall_total_cost:.0f}',
-                'details': f'Total construction cost: {wall_total_cost:.0f} Gold Dragon coins',
-            }
-        else:
-            wall_profile_cost = result_data['wall_profile_cost']
-            response_data = {
-                'profile_id': profile_id,
-                'profile_cost': f'{wall_profile_cost:.0f}',
-                'details': f'Profile {profile_id} construction cost: {wall_profile_cost:.0f} Gold Dragon coins',
-            }
-        return Response(response_data, status=status.HTTP_200_OK)
+
+class ProfilesOverviewDayView(ProfilesBaseView):
+
+    @extend_schema(
+        tags=['Costs and Daily Ice Usage'],
+        operation_id='get_profiles_overview_day',
+        summary='Daily Wall Construction Cost',
+        description='Retrieve the total construction cost for a specific day.',
+        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
+        responses=open_api_responses.profiles_overview_responses
+    )
+    def get(self, request: Request, day: int) -> Response:
+        profile_id = None
+        response, wall_data = self.process_profiles_request(
+            request, ProfilesOverviewDaySerializer, profile_id=profile_id, day=day
+        )
+        if response:
+            return response
+
+        return self.build_profiles_overview_response(wall_data, profile_id, day)
+
+
+class SingleProfileOverviewDayView(ProfilesBaseView):
+
+    @extend_schema(
+        tags=['Costs and Daily Ice Usage'],
+        operation_id='get_single_profile_overview_day',
+        summary='Daily Profile Construction Cost',
+        description='Retrieve the cost on a specific day for a given wall profile.',
+        parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
+        responses=open_api_responses.profiles_overview_responses
+    )
+    def get(self, request: Request, profile_id: int, day: int) -> Response:
+        response, wall_data = self.process_profiles_request(
+            request, ProfilesDaysSerializer, profile_id=profile_id, day=day
+        )
+        if response:
+            return response
+
+        return self.build_profiles_overview_response(wall_data, profile_id, day)
 
 
 def custom_404_view(request, exception=None):

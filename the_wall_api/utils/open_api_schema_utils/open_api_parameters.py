@@ -45,37 +45,3 @@ file_delete_config_id_list_parameter = OpenApiParameter(
     location=OpenApiParameter.QUERY
 )
 # == WallConfigFileDeleteView (end) ==
-
-# == ProfilesDaysView ==
-# PATH parameters
-profiles_days_parameters = [
-    OpenApiParameter(
-        name='profile_id',
-        type=int,
-        # required=True,    # Omitted for PATH parameters -> always required
-        description='Wall profile number.',
-        location=OpenApiParameter.PATH
-    ),
-    OpenApiParameter(
-        name='day',
-        type=int,
-        # required=True,    # Omitted for PATH parameters -> always required
-        description='Construction day number.',
-        location=OpenApiParameter.PATH
-    ),
-]
-# == ProfilesDaysView (end) ==
-
-# *ProfilesOverviewView*
-# PATH parameters
-profiles_overview_parameters = [
-    OpenApiParameter(
-        name='profile_id',
-        type=int,
-        # required=True,    # Omitted for PATH parameters -> always required
-        description='Wall profile number.',
-        location=OpenApiParameter.PATH
-    ),
-]
-
-# === Wall app parameters (end) ===
