@@ -2,6 +2,7 @@ from copy import copy
 from inspect import currentframe
 from typing import Callable
 
+from django.conf import settings
 from django.core.cache import cache
 
 from the_wall_api.models import WallConfig
@@ -87,12 +88,13 @@ class CacheTest(BaseTransactionTestcase):
                 error_occurred=True
             )
 
-    def _assert_wall_cache_consistency(self) -> None:
+    def assert_wall_cache_consistency(self) -> None:
         """
         Check the consistency of the total wall cost between simulation, Redis, and DB.
         """
         # Wall
-        total_cost_sim = self.wall_data['sim_calc_details']['total_cost']
+        total_ice_amount_sim = self.wall_data['wall_construction'].wall_profile_data['profiles_overview']['total_ice_amount']
+        total_cost_sim = total_ice_amount_sim * settings.ICE_COST_PER_CUBIC_YARD
 
         # Redis cache value
         wall_cost_redis_cache, wall_redis_key = storage_utils.fetch_wall_cost_from_redis_cache(self.wall_data)
@@ -106,62 +108,72 @@ class CacheTest(BaseTransactionTestcase):
             self.assertEqual(total_cost_sim, wall_cost_db['wall_total_cost'])
 
         # Profiles
-        self._assert_profile_cache_consistency()
+        if not self.concurrency_switched:
+            self.assert_wall_progress_cache_consistency()
 
-    def _assert_profile_cache_consistency(self) -> None:
+    def assert_wall_progress_cache_consistency(self) -> None:
         """
-        Check the consistency of profile costs between simulation, Redis, and DB.
+        Check the consistency of profiles costs between simulation, Redis, and DB.
         """
-        # Profiles
-        for profile_id in range(1, len(self.wall_construction_config) + 1):
-            profile_cost_sim = self.wall_data['sim_calc_details']['profile_costs'][profile_id]
-            wall_profile_config_hash = self.wall_data['profile_config_hash_data'][profile_id]
+        daily_details = self.wall_data['wall_construction'].wall_profile_data['profiles_overview']['daily_details']
 
-            # Redis cache value
-            cached_wall_profile_cost, wall_profile_redis_cache_key = (
-                storage_utils.fetch_wall_profile_cost_from_redis_cache(wall_profile_config_hash)
+        for day, ice_amount_data in daily_details.items():
+            for profile_key, ice_amount in ice_amount_data.items():
+                calculated_cost = ice_amount * settings.ICE_COST_PER_CUBIC_YARD
+                redis_cache_key = self.check_redis_cache(day, profile_key, calculated_cost)
+
+                if self.redis_cache_status != 'restored':
+                    self.check_db_cache(day, profile_key, calculated_cost, redis_cache_key)
+
+    def check_redis_cache(self, day: int, profile_key: str | int, calculated_cost: int) -> str:
+        wall_data_copy = copy(self.wall_data)
+        wall_data_copy['request_day'] = day
+
+        if isinstance(profile_key, int):
+            # Cache for 'profiles-days'
+            cached_ice_amount, redis_cache_key = storage_utils.fetch_profile_day_ice_amount_from_redis_cache(
+                wall_data_copy, profile_key
             )
-            if self.redis_cache_status != 'evicted':
-                self.assertEqual(profile_cost_sim, cached_wall_profile_cost)
-
-            # DB value
-            if self.redis_cache_status != 'restored':
-                profile_cost_db = {}
-                storage_utils.fetch_wall_profile_cost_from_db(wall_profile_config_hash, profile_cost_db, wall_profile_redis_cache_key)
-                self.assertEqual(profile_cost_sim, profile_cost_db['wall_profile_cost'])
-
-            # Daily ice usage
-            if not self.concurrency_switched:
-                self._assert_daily_ice_usage_cache(profile_id, wall_profile_config_hash)
-
-    def _assert_daily_ice_usage_cache(self, profile_id: int, wall_profile_config_hash: str) -> None:
-        """
-        Check the consistency of daily ice usage between simulation, Redis, and DB.
-        """
-        # Daily ice usage
-        for day_index, data in self.wall_data['wall_construction'].wall_profile_data[profile_id].items():
-            ice_used_sim = data['ice_used']
-
-            # Redis cache value
-            wall_data_progress_day = copy(self.wall_data)
-            wall_data_progress_day['request_day'] = day_index
-            cached_profile_ice_usage, profile_ice_usage_redis_cache_key = (
-                storage_utils.fetch_daily_ice_usage_from_redis_cache(wall_data_progress_day, wall_profile_config_hash, profile_id)
+            # Transform into cache for 'single-profile-overview-day'
+            if cached_ice_amount is not None:
+                cached_cost = cached_ice_amount * settings.ICE_COST_PER_CUBIC_YARD
+            else:
+                cached_cost = None
+        else:
+            # Cache for 'profiles-overview-day'
+            cached_cost, redis_cache_key = storage_utils.fetch_profiles_overview_day_cost_from_redis_cache(
+                wall_data_copy
             )
-            if self.redis_cache_status != 'evicted':
-                self.assertEqual(ice_used_sim, cached_profile_ice_usage)
 
-            # DB value
-            if self.redis_cache_status != 'restored':
-                profile_ice_usage_db = {}
-                storage_utils.fetch_daily_ice_usage_from_db(
-                    wall_data_progress_day, wall_profile_config_hash, profile_id, profile_ice_usage_db, profile_ice_usage_redis_cache_key
-                )
-                self.assertEqual(ice_used_sim, profile_ice_usage_db['profile_daily_ice_used'])
+        if self.redis_cache_status != 'evicted':
+            self.assertEqual(calculated_cost, cached_cost)
+
+        return redis_cache_key
+
+    def check_db_cache(self, day: int, profile_key: str | int, calculated_cost: int, redis_cache_key: str) -> None:
+        ice_amount_db_dict = {}
+
+        wall_data_copy = copy(self.wall_data)
+        wall_data_copy['request_day'] = day
+        if isinstance(profile_key, int):
+            # DB value for 'profiles-days'
+            storage_utils.fetch_profile_day_ice_amount_from_db(
+                wall_data_copy, profile_key, ice_amount_db_dict, redis_cache_key
+            )
+            ice_amount_db = ice_amount_db_dict.get('profile_day_ice_amount')
+            cost_db = ice_amount_db * settings.ICE_COST_PER_CUBIC_YARD if ice_amount_db is not None else None
+        else:
+            # DB value for 'profiles-overview-day'
+            storage_utils.fetch_profiles_overview_day_cost_from_db(
+                wall_data_copy, ice_amount_db_dict, redis_cache_key
+            )
+            cost_db = ice_amount_db_dict.get('profiles_overview_day_cost')
+
+        self.assertEqual(calculated_cost, cost_db)
 
 
 class ProfilesCacheTestBase(CacheTest):
-    cache_types_msg = 'wall cost and profile cost'
+    cache_types_msg = 'profiles overview'
 
     def setUp(self):
         super().setUp()
@@ -174,7 +186,7 @@ class ProfilesCacheTestBase(CacheTest):
             if not add_daily_ice_usage:
                 msg_out = self.cache_types_msg
             else:
-                msg_out = self.cache_types_msg.replace(' and', ', ') + ', and daily ice usage'
+                msg_out = self.cache_types_msg.replace(' and', ', ') + ' and profiles days'
             return f'Simulation results for {msg_out} match the cached and DB data'
         elif msg_type == 'cache_eviction_1':
             return 'All data is cached in the DB'
@@ -195,18 +207,18 @@ class ProfilesCacheTestBase(CacheTest):
         # Fetch the data from the DB to restore it in Redis
         with self.subTest(redis_cache_status='evicted'):
             expected_message = self.get_expected_message('cache_eviction_1')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
             # The Redis cache is restored from the DB
             self.redis_cache_status = 'restored'
 
         # Check the data is restored in Redis
         with self.subTest(redis_cache_status='restored'):
             expected_message = self.get_expected_message('cache_eviction_2')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
 
 
 class ProfilesDaysCacheTest(ProfilesCacheTestBase):
-    description = 'Test daily ice usage cache'
+    description = 'Test Profiles Days Cache'
 
     def test_fetch_db_data_evicted_from_cache(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
@@ -228,7 +240,7 @@ class ProfilesDaysCacheTest(ProfilesCacheTestBase):
         with self.subTest(num_crews=num_crews):
             self.initialize_test_data(num_crews=num_crews)
             expected_message = self.get_expected_message('missing_data', add_daily_ice_usage=True)
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
 
         # Concurrent second request
         self.setUp()
@@ -236,7 +248,7 @@ class ProfilesDaysCacheTest(ProfilesCacheTestBase):
         with self.subTest(num_crews=3):
             self.initialize_test_data(num_crews=3, skip_cache_wall=True)
             expected_message = self.get_expected_message('missing_data')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
 
     @BaseTransactionTestcase.cache_clear
     def test_fetch_missing_data_concurrent(self):
@@ -254,7 +266,7 @@ class ProfilesDaysCacheTest(ProfilesCacheTestBase):
         with self.subTest(num_crews=num_crews):
             self.initialize_test_data(num_crews=num_crews)
             expected_message = self.get_expected_message('missing_data', add_daily_ice_usage=True)
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
 
         # Sequential second request
         self.setUp()
@@ -262,7 +274,7 @@ class ProfilesDaysCacheTest(ProfilesCacheTestBase):
         with self.subTest(num_crews=0):
             self.initialize_test_data(num_crews=0, skip_cache_wall=True)
             expected_message = self.get_expected_message('missing_data')
-            self.execute_test_case(self._assert_wall_cache_consistency, test_case_source, expected_message)
+            self.execute_test_case(self.assert_wall_cache_consistency, test_case_source, expected_message)
 
 
 class ProfilesOverviewCacheTest(ProfilesCacheTestBase):
@@ -276,4 +288,18 @@ class ProfilesOverviewCacheTest(ProfilesCacheTestBase):
 
     def test_fetch_db_data_evicted_from_cache(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.process_fetch_db_data_evicted_from_cache(test_case_source)
+
+    def test_fetch_db_data_evicted_from_cache_day(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.request_type = 'profiles-overview-day'
+        self.day = 1
+
+        self.process_fetch_db_data_evicted_from_cache(test_case_source)
+
+    def test_fetch_db_data_evicted_from_cache_single_profile_day(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        self.request_type = 'single-profile-overview-day'
+        self.day = 1
+
         self.process_fetch_db_data_evicted_from_cache(test_case_source)
