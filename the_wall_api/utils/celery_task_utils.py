@@ -373,7 +373,7 @@ def process_wall_config_object_status(
     """
     from django.db import transaction
     from the_wall_api.models import (
-        WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum
+        WallConfig, WallConfigStatusEnum
     )
 
     with transaction.atomic():
@@ -397,14 +397,22 @@ def process_wall_config_object_status(
 
         wall_config_object.save()
 
+    process_reference_object_status(username, config_id)
+
+    return wall_config_object.status
+
+
+def process_reference_object_status(username: str, config_id: str) -> None:
+    from django.db import transaction
+    from the_wall_api.models import WallConfigReference, WallConfigReferenceStatusEnum
+
+    with transaction.atomic():
         wall_config_reference = WallConfigReference.objects.select_for_update().get(
             user__username=username, config_id=config_id
         )
 
         wall_config_reference.status = WallConfigReferenceStatusEnum.AVAILABLE
         wall_config_reference.save()
-
-    return wall_config_object.status
 
 
 def abort_task_group(task_group_result) -> None:

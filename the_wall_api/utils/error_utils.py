@@ -12,7 +12,7 @@ from rest_framework import status
 
 from the_wall_api.utils.api_utils import handle_being_processed
 from the_wall_api.models import (
-    Wall, WallConfig, WallProgress, WallConfigReference, WallConfigStatusEnum
+    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum
 )
 from the_wall_api.tasks import log_error_task
 
@@ -182,27 +182,12 @@ def send_log_error_async(
     return error_message_out
 
 
-def check_if_cached_on_another_day(wall_data: Dict[str, Any], profile_id: int) -> None:
+def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
     """
     In CONCURRENT mode there are days without wall progress,
     because there was no crew assigned on the profile.
     Check for other cached daily progress to avoid processing of
     an already cached simulation.
-    """
-    try:
-        wall = Wall.objects.get(
-            wall_config_hash=wall_data['wall_config_hash'],
-            num_crews=wall_data['num_crews'],
-        )
-        wall_construction_days = wall.construction_days
-        check_wall_construction_days(wall_construction_days, wall_data, profile_id)
-    except Wall.DoesNotExist:
-        raise WallProgress.DoesNotExist
-
-
-def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
-    """
-    Handle erroneous construction days related responses.
     """
     request_params = get_request_params(wall_data)
     if wall_data['request_day'] <= wall_construction_days:
@@ -213,22 +198,31 @@ def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[st
             }
         }
         wall_data['error_response'] = Response(response_details, status=status.HTTP_404_NOT_FOUND)
-    else:
-        wall_data['error_response'] = create_out_of_range_response(
-            'day', wall_construction_days, request_params, status.HTTP_400_BAD_REQUEST
-        )
 
 
-def validate_day_within_range(wall_data: Dict[str, Any]) -> None:
+def validate_day_within_range(
+    wall_data: Dict[str, Any], wall: Wall | None = None, post_syncronous_simulation: bool = False
+) -> None:
     """
     Compare the day from the request (if provided and the max day in the simulation).
     """
     request_params = get_request_params(wall_data)
-    construction_days = wall_data['sim_calc_details']['construction_days']
-    if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
-        wall_data['error_response'] = create_out_of_range_response(
-            'day', construction_days, request_params, status.HTTP_400_BAD_REQUEST
-        )
+
+    if not post_syncronous_simulation:
+        if (
+            wall_data['request_day'] is not None and
+            wall is not None and
+            wall_data['request_day'] > wall.construction_days
+        ):
+            wall_data['error_response'] = create_out_of_range_response(
+                'day', wall.construction_days, request_params, status.HTTP_400_BAD_REQUEST
+            )
+    else:
+        construction_days = wall_data['wall_construction'].wall_profile_data['profiles_overview']['construction_days']
+        if wall_data['request_day'] is not None and wall_data['request_day'] > construction_days:
+            wall_data['error_response'] = create_out_of_range_response(
+                'day', construction_days, request_params, status.HTTP_400_BAD_REQUEST
+            )
 
 
 def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:

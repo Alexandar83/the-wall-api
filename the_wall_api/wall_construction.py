@@ -182,6 +182,7 @@ def initialize_wall_data(
             'request_config_id': config_id,
             'request_config_id_list': request_config_id_list,
             'error_response': None,
+            'info_response': None,
             'test_data': test_data
         }
 
@@ -190,6 +191,7 @@ def initialize_wall_data(
         'request_day': day,
         'request_num_crews': request_num_crews,
         'error_response': None,
+        'info_response': None,
         'concurrent_not_needed': None,
         'wall_construction': None,
         'request_config_id': config_id,

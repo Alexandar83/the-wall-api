@@ -117,7 +117,7 @@ def get_or_create_cache(wall_data, request_type) -> None:
     run_synchronous_simulation(wall_data, wall_config_object)
 
     # Validate if the day is correct with data from the simulation
-    error_utils.validate_day_within_range(wall_data)
+    error_utils.validate_day_within_range(wall_data, post_syncronous_simulation=True)
 
 
 def run_synchronous_simulation(wall_data: Dict[str, Any], wall_config_object: WallConfig) -> None:

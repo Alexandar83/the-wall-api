@@ -30,11 +30,18 @@ class CacheTest(BaseTransactionTestcase):
         self.wall_data = initialize_wall_data(profile_id=self.profile_id, day=self.day, request_num_crews=self.num_crews)
         set_simulation_params(self.wall_data, self.num_crews, self.wall_construction_config, self.request_type)
 
-        # Construction simulation
-        run_simulation(self.wall_data)
-
         # Attempt to get/create the wall config object
         wall_config_object = storage_utils.manage_wall_config_object(self.wall_data)
+
+        if (
+            # sections_count > MAX_SECTIONS_COUNT_SYNCHRONOUS_RESPONSE
+            # -sent for async processing
+            self.wall_data.get('info_response') or
+            # Obsolete?
+            self.wall_data['error_response']
+        ):
+            return
+
         if isinstance(wall_config_object, WallConfig):
             # Successful creation/fetch of the wall config object
             self.wall_data['wall_config_object'] = wall_config_object
@@ -42,6 +49,9 @@ class CacheTest(BaseTransactionTestcase):
             # Either being initialized by another process
             # or an error occurred during the creation
             return
+
+        # Construction simulation
+        run_simulation(self.wall_data)
 
         if not skip_cache_wall:
             # Commit test data

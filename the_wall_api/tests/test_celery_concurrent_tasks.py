@@ -188,38 +188,55 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         day = 1
         profile_id = 1
 
+        if normal_request_num_crews != 1:
+            return self.check_being_processed(profile_id, day, normal_request_num_crews)
+
         wall_exists = self.check_wall_exists(normal_request_num_crews)
 
         if normal_request_num_crews == 1 and not wall_exists:
             return 'The wall is not created from the orchestration task yet!'
 
-        if normal_request_num_crews > 1 and wall_exists:
-            return 'The wall should not be created from the orchestration task before the normal GET request!'
-
-        redis_daily_ice_usage_cache, daily_ice_usage_cache_key = self.get_redis_cache_details(normal_request_num_crews, profile_id, day)
-        if redis_daily_ice_usage_cache:
+        redis_profiles_days_cache, redis_cache_key = self.get_redis_cache_details(normal_request_num_crews, profile_id, day)
+        if redis_profiles_days_cache:
             return 'The wall Redis cache should not exist before the normal GET request!'
 
         response = self.fetch_response(profile_id, day, normal_request_num_crews)
         if response.status_code != status.HTTP_200_OK:
             return f'Unexpected normal GET request response code: {response.status_code}!'
 
-        redis_daily_ice_usage_cache = cache.get(daily_ice_usage_cache_key)
-        if redis_daily_ice_usage_cache is None:
+        redis_profiles_days_cache = cache.get(redis_cache_key)
+        if redis_profiles_days_cache is None:
             return 'Wall Redis cache should exist after the normal GET request!'
 
         return 'OK'
 
+    def check_being_processed(self, profile_id: int, day: int, normal_request_num_crews: int):
+        max_attempts = 10
+        attempts = 0
+        while not WallConfig.objects.filter(
+            wall_config_hash=self.wall_config_hash,
+            status=WallConfigStatusEnum.CELERY_CALCULATION
+        ).exists():
+            attempts += 1
+            if attempts == max_attempts:
+                return 'The wall config is not being processed!'
+            sleep(0.05)
+
+        response = self.fetch_response(profile_id, day, normal_request_num_crews)
+        if response.status_code == status.HTTP_202_ACCEPTED:
+            return 'OK'
+
+        return f'Unexpected normal GET request response code: {response.status_code}!'
+
     def check_wall_exists(self, normal_request_num_crews: int) -> bool:
         retries, wait_time = 0, 0
-        if normal_request_num_crews == 1:
-            if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
-                # Grace period for the normal request to finish its calculations
-                sleep(5)
-            else:
-                # Late normal request - the orchestration task finishes slower in multiprocessing mode
-                retries, wait_time = 10, 10
-                sleep(60)
+        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+            # Grace period for the normal request to finish its calculations
+            sleep(5)
+        else:
+            # Late normal request - the orchestration task finishes slower in multiprocessing mode
+            retries, wait_time = 10, 10
+            sleep(30)
 
         wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
 
@@ -245,7 +262,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         return redis_profiles_days_cache, redis_cache_key
 
     def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
-        url_name = exposed_endpoints['daily-ice-usage']['name']
+        url_name = exposed_endpoints['profiles-days']['name']
         url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
         request_params = {
             'query_params': {'num_crews': normal_request_num_crews, 'config_id': self.valid_config_id},
