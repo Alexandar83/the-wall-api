@@ -54,14 +54,22 @@ class ProfilesViewTestBase(BaseViewTest):
         }
 
     def get_valid_profile_ids(self) -> List[int]:
-        return [int(pid) for pid in generate_valid_values() if int(pid) <= self.max_profile_id]
+        return [int(pid) for pid in generate_valid_values() if isinstance(pid, int) and int(pid) <= self.max_profile_id]
 
     def get_invalid_profile_ids(self) -> List[int]:
-        return [int(pid) for pid in generate_valid_values() if int(pid) > self.max_profile_id]
+        return [int(pid) for pid in generate_valid_values() if isinstance(pid, int) and int(pid) > self.max_profile_id]
+
+    def get_valid_days_for_wall(self) -> List[int]:
+        max_wall_day = max(self.max_days_per_profile.values())
+        return [int(day) for day in generate_valid_values() if isinstance(day, int) and 1 <= int(day) <= max_wall_day]
+
+    def get_invalid_days_for_wall(self) -> List[int]:
+        max_wall_day = max(self.max_days_per_profile.values())
+        return [int(day) for day in generate_valid_values() if isinstance(day, int) and int(day) > max_wall_day]
 
     def get_valid_days_for_profile_sequential(self, profile_id: int) -> List[int]:
         max_day = self.max_days_per_profile.get(profile_id, 0)
-        return [int(day) for day in generate_valid_values() if 1 <= int(day) <= max_day]
+        return [int(day) for day in generate_valid_values() if isinstance(day, int) and 1 <= int(day) <= max_day]
 
     def get_valid_days_for_profile_concurrent(self, valid_profile_id: int, valid_num_crews: int) -> List[int]:
         wall_construction = WallConstruction(
@@ -71,7 +79,8 @@ class ProfilesViewTestBase(BaseViewTest):
             wall_config_hash=self.wall_config_hash,
             simulation_type=CONCURRENT
         )
-        profile_days = wall_construction.sim_calc_details['profile_daily_details'][valid_profile_id]
+        daily_details = wall_construction.wall_profile_data['profiles_overview']['daily_details']
+        profile_days = [day for day in daily_details if valid_profile_id in daily_details[day]]
         max_day = self.max_days_per_profile.get(valid_profile_id, 0)
         return [day for day in generate_valid_values() if isinstance(day, int) and min(profile_days) <= int(day) <= max_day]
 
@@ -87,13 +96,14 @@ class ProfilesViewTestBase(BaseViewTest):
             wall_config_hash=self.wall_config_hash,
             simulation_type=CONCURRENT
         )
-        profile_days = wall_construction.sim_calc_details['profile_daily_details'][valid_profile_id]
+        daily_details = wall_construction.wall_profile_data['profiles_overview']['daily_details']
+        profile_days = [day for day in daily_details if valid_profile_id in daily_details[day]]
         return [day for day in generate_valid_values() if isinstance(day, int) and day < min(profile_days)]
 
     @staticmethod
     def get_valid_num_crews() -> range:
         # Add 0 to test sequential mode
-        valid_num_crews = range(0, 10, 2)
+        valid_num_crews = range(0, 7, 2)
         return valid_num_crews
 
     def prepare_final_test_data(
@@ -127,8 +137,8 @@ class ProfilesViewTestBase(BaseViewTest):
     def prepare_url(self, profile_id: int | None, day: int | None) -> str:
         if profile_id is not None and day is not None:
             return reverse(self.url_name, kwargs={'profile_id': profile_id, 'day': day})
-        elif profile_id is not None:
-            return reverse(self.url_name, kwargs={'profile_id': profile_id})
+        elif day is not None:
+            return reverse(self.url_name, kwargs={'day': day})
         return reverse(self.url_name)
 
 
@@ -218,40 +228,118 @@ class ProfilesDaysViewTest(ProfilesViewTestBase):
 class ProfilesOverviewViewTest(ProfilesViewTestBase):
     description = 'Profiles Overview View Tests'
 
-    url_name = exposed_endpoints['profiles-overview']['name']
+    def setUp(self) -> None:
+        super().setUp()
+        self.url_name = None
 
+    # profiles-overview
     def test_profiles_overview_valid(self, test_case_source=None, consistency_test=False):
+        self.url_name = exposed_endpoints['profiles-overview']['name']
+
         if test_case_source is None:
             test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        valid_profile_ids = self.get_valid_profile_ids()
         num_crews = 0
 
-        for profile_id in valid_profile_ids:
-            with self.subTest(profile_id=profile_id, num_crews=num_crews):
-                self.execute_test_case(
-                    self.client_get_method, status.HTTP_200_OK, test_case_source, profile_id=profile_id,
-                    num_crews=num_crews, consistency_test=consistency_test
-                )
+        self.execute_test_case(
+            self.client_get_method, status.HTTP_200_OK, test_case_source,
+            num_crews=num_crews, consistency_test=consistency_test
+        )
 
     def test_profiles_overview_results_consistency(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
         self.test_profiles_overview_valid(test_case_source=test_case_source, consistency_test=True)
 
-    def test_profiles_overview_profileid_invalid_profile_id(self):
+    # profiles-overview-day
+    def test_profiles_overview_day_valid(self):
+        self.url_name = exposed_endpoints['profiles-overview-day']['name']
+
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        invalid_profile_ids = self.get_invalid_profile_ids()
+        valid_num_crews = self.get_valid_num_crews()
+
+        for num_crews in valid_num_crews:
+            valid_days = self.get_valid_days_for_wall()
+            for day in valid_days:
+                with self.subTest(day=day, num_crews=num_crews):
+                    self.execute_test_case(
+                        self.client_get_method, status.HTTP_200_OK, test_case_source,
+                        day=day, num_crews=num_crews,
+                    )
+
+    def test_profiles_overview_day_invalid(self):
+        """Test with days after the construction's completion day."""
+        self.url_name = exposed_endpoints['profiles-overview-day']['name']
+
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        invalid_days = self.get_invalid_days_for_wall()
         num_crews = 0
 
-        for invalid_profile_id in invalid_profile_ids:
-            with self.subTest(invalid_profile_id=invalid_profile_id, num_crews=num_crews):
+        for invalid_day in invalid_days:
+            with self.subTest(invalid_day=invalid_day):
                 self.execute_test_case(
                     self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
-                    profile_id=invalid_profile_id, num_crews=num_crews
+                    day=invalid_day, num_crews=num_crews
+                )
+
+    # single-profile-overview-day
+    def test_single_profile_overview_day_valid(self):
+        self.url_name = exposed_endpoints['single-profile-overview-day']['name']
+
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        valid_profile_ids = self.get_valid_profile_ids()
+        valid_num_crews = self.get_valid_num_crews()
+
+        for profile_id in valid_profile_ids:
+            for num_crews in valid_num_crews:
+                if num_crews == 0:
+                    valid_days = self.get_valid_days_for_profile_sequential(profile_id)
+                else:
+                    valid_days = self.get_valid_days_for_profile_concurrent(profile_id, num_crews)
+                for day in valid_days:
+                    with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
+                        self.execute_test_case(
+                            self.client_get_method, status.HTTP_200_OK, test_case_source,
+                            profile_id=profile_id, day=day, num_crews=num_crews
+                        )
+
+    def test_single_profile_overview_day_invalid_profile(self):
+        self.url_name = exposed_endpoints['single-profile-overview-day']['name']
+
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        invalid_profile_ids = self.get_invalid_profile_ids()
+        day = generate_valid_values()[0]
+        num_crews = self.get_valid_num_crews()[0]
+
+        for invalid_profile_id in invalid_profile_ids:
+            with self.subTest(invalid_profile_id=invalid_profile_id):
+                self.execute_test_case(
+                    self.client_get_method, status.HTTP_400_BAD_REQUEST, test_case_source,
+                    profile_id=invalid_profile_id, day=day, num_crews=num_crews
+                )
+
+    def test_single_profile_overview_day_invalid_day(self):
+        """Test with days after the construction's completion day."""
+        self.url_name = exposed_endpoints['single-profile-overview-day']['name']
+
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
+        profile_id = 2
+        valid_num_crews = self.get_valid_num_crews()[:2]
+
+        for num_crews in valid_num_crews:
+            if num_crews == 0:
+                invalid_day = self.get_invalid_days_for_profile_sequential(profile_id)[0]
+                expected_status = status.HTTP_400_BAD_REQUEST
+            else:
+                invalid_day = self.get_invalid_days_for_profile_concurrent(profile_id, num_crews)[0]
+                expected_status = status.HTTP_404_NOT_FOUND
+            with self.subTest(profile_id=profile_id, invalid_day=invalid_day):
+                self.execute_test_case(
+                    self.client_get_method, expected_status, test_case_source,
+                    profile_id=profile_id, day=invalid_day, num_crews=num_crews
                 )
 
 
 class AbnormalCasesProfilesDaysViewTest(ProfilesViewTestBase):
-    description = 'Abnormal Daily Ice Usage View Tests'
+    description = 'Abnormal Profiles Days View Tests'
 
     url_name = exposed_endpoints['profiles-days']['name']
 
@@ -307,4 +395,28 @@ class AbnormalProfilesOverviewViewTest(AbnormalCasesProfilesDaysViewTest):
         super().setUp()
         self.profile_id = None
         self.day = None
+        self.num_crews = None
+
+
+class AbnormalProfilesOverviewDayViewTest(AbnormalCasesProfilesDaysViewTest):
+    description = 'Abnormal Profiles Overview Day View Tests'
+
+    url_name = exposed_endpoints['profiles-overview-day']['name']
+
+    def setUp(self):
+        super().setUp()
+        self.profile_id = None
+        self.day = 1
+        self.num_crews = None
+
+
+class AbnormalSingleProfileOverviewDayViewViewTest(AbnormalCasesProfilesDaysViewTest):
+    description = 'Abnormal Single Profile Overview Day View Tests'
+
+    url_name = exposed_endpoints['single-profile-overview-day']['name']
+
+    def setUp(self):
+        super().setUp()
+        self.profile_id = 1
+        self.day = 1
         self.num_crews = None
