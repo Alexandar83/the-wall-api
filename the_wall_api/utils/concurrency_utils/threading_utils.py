@@ -12,6 +12,7 @@ from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWall
 MAX_CONCURRENT_NUM_CREWS_THREADING = settings.MAX_CONCURRENT_NUM_CREWS_THREADING
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 VERBOSE_MULTIPROCESSING_LOGGING = settings.VERBOSE_MULTIPROCESSING_LOGGING
+SECTION_COMPLETION_GRACE_PERIOD_THREADING = settings.SECTION_COMPLETION_GRACE_PERIOD_THREADING
 
 
 class ThreadingWallBuilder(BaseWallBuilder):
@@ -114,13 +115,10 @@ class ThreadingWallBuilder(BaseWallBuilder):
         """
         Processes a single section until the required height is reached.
         """
-        total_cost = 0
-
         while height < MAX_SECTION_HEIGHT:
             # Perform daily increment
             height += 1
             self.thread_days[thread.name] += 1
-            total_cost += self.daily_cost_section
 
             # Daily progress
             self.log_daily_progress(profile_id, section_id, thread, height)
@@ -151,8 +149,8 @@ class ThreadingWallBuilder(BaseWallBuilder):
         self, height: int, log_message_prefx: str, profile_id: int, section_id: int, thread: Thread
     ) -> None:
         if height == MAX_SECTION_HEIGHT:
-            if VERBOSE_MULTIPROCESSING_LOGGING:
-                sleep(0.02)     # Grace period to ensure finish section records are at the end of the day's records
+            # Grace period to ensure finish section records are at the end of the day's records
+            sleep(SECTION_COMPLETION_GRACE_PERIOD_THREADING)
             section_completion_msg = log_message_prefx + BaseWallBuilder.get_section_completion_msg(
                 profile_id, section_id, self.thread_days[thread.name]
             )
@@ -181,6 +179,7 @@ class ThreadingWallBuilder(BaseWallBuilder):
             if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
                 # Event
                 self.day_event.set()        # Wake up all waiting threads
+                sleep(0.05)                 # Grace period to ensure the other threads register the event set
                 self.day_event.clear()      # Reset the event for the next day
             else:
                 # default - Condition
@@ -229,6 +228,9 @@ class ThreadingWallBuilder(BaseWallBuilder):
             other_crews_notified = self.check_notify_all_workers_to_resume_work()
 
         if not other_crews_notified:
-            self.day_event.wait()
+            # In rare occasions the waiting crews may not be notified
+            # for the set event in threading_v2
+            wait_period = None if self.CONCURRENT_SIMULATION_MODE == 'threading_v1' else 1.0
+            self.day_event.wait(wait_period)
 
 # === v2 Event sync. (end) ===

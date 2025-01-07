@@ -394,6 +394,10 @@ MAX_CONCURRENT_NUM_CREWS_THREADING = int(
 MAX_SECTIONS_COUNT_CONCURRENT_THREADING = int(
     os.getenv('MAX_SECTIONS_COUNT_CONCURRENT_THREADING', 4000)
 )
+# Grace periods to ensure finish section records are at the end of the day's records
+SECTION_COMPLETION_GRACE_PERIOD_THREADING = float(
+    os.getenv('SECTION_COMPLETION_GRACE_PERIOD_THREADING', 0.04)
+)
 
 # == Multiprocessing ==
 # Number of CPU threads
