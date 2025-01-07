@@ -58,7 +58,7 @@ class Wall(models.Model):
     wall_config = models.ForeignKey(WallConfig, on_delete=models.CASCADE)
     wall_config_hash = models.CharField(max_length=64)
     num_crews = models.IntegerField(validators=[MinValueValidator(0)])
-    total_ice_amount = models.IntegerField(validators=[MinValueValidator(0)])
+    total_ice_amount = models.BigIntegerField(validators=[MinValueValidator(0)])
     construction_days = models.IntegerField()
     date_created = models.DateTimeField(auto_now_add=True)
 
