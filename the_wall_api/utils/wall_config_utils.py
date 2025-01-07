@@ -71,6 +71,17 @@ def validate_wall_config_format(wall_config_file_data: list, invalid_wall_config
             f'({MAX_WALL_PROFILE_SECTIONS * MAX_WALL_LENGTH}) has been exceeded.'
         )
 
+    if len(wall_config_file_data) > MAX_WALL_LENGTH:
+        raise WallConstructionError(
+            f'{invalid_wall_config_msg} The maximum wall length ({MAX_WALL_LENGTH}) has been exceeded.'
+        )
+
+    if any(len(profile) > MAX_WALL_PROFILE_SECTIONS for profile in wall_config_file_data):
+        raise WallConstructionError(
+            f'{invalid_wall_config_msg} Each profile must have a maximum of '
+            f'{MAX_WALL_PROFILE_SECTIONS} sections.'
+        )
+
     for profile_id, profile in enumerate(wall_config_file_data, start=1):
         for section_number, section_height in enumerate(profile, start=1):
             error_message_suffix = None

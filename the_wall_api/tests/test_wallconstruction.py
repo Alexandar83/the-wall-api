@@ -14,6 +14,10 @@ CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
 MAX_WALL_PROFILE_SECTIONS = settings.MAX_WALL_PROFILE_SECTIONS
 MAX_WALL_LENGTH = settings.MAX_WALL_LENGTH
+MAX_SECTIONS_COUNT_CONCURRENT_THREADING = settings.MAX_SECTIONS_COUNT_CONCURRENT_THREADING
+MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING = settings.MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING
+MAX_CONCURRENT_NUM_CREWS_THREADING = settings.MAX_CONCURRENT_NUM_CREWS_THREADING
+MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = settings.MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING
 
 
 class WallConfigFormatTest(BaseTestcase):
@@ -33,6 +37,13 @@ class WallConfigFormatTest(BaseTestcase):
             actual_result = f'Expected Error \"{expected_error}\" was not raised!'
 
         passed = expected_error in actual_result and 'not raised!' not in actual_result
+
+        if self._testMethodName == 'test_invalid_wall_section_count':
+            test_data = '[[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH + [[0]]'
+        if self._testMethodName == 'test_invalid_profile_section_count':
+            test_data = '[[0] * (MAX_WALL_PROFILE_SECTIONS + 1)]'
+        if self._testMethodName == 'test_invalid_wall_length':
+            test_data = '[[0]] * (MAX_WALL_LENGTH + 1)'
 
         self.log_test_result(
             passed=passed,
@@ -54,10 +65,20 @@ class WallConfigFormatTest(BaseTestcase):
         expected_error = 'Each profile must be a list of integers.'
         self.evaluate_wall_config_test_result(test_data, expected_error, test_case_source)
 
-    def test_invalid_section_count(self):
+    def test_invalid_wall_section_count(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH + [[0]]
         self.evaluate_wall_config_test_result(test_data, 'The maximum number of sections', test_case_source)
+
+    def test_invalid_profile_section_count(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
+        test_data = [[0] * (MAX_WALL_PROFILE_SECTIONS + 1)]
+        self.evaluate_wall_config_test_result(test_data, 'Each profile must have a maximum of', test_case_source)
+
+    def test_invalid_wall_length(self):
+        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
+        test_data = [[0]] * (MAX_WALL_LENGTH + 1)
+        self.evaluate_wall_config_test_result(test_data, 'The maximum wall length', test_case_source)
 
     def test_invalid_section_height_format_not_int(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
@@ -79,11 +100,11 @@ class WallConstructionCreationTest(BaseTestcase):
     description = 'Wall construction creation tests'
 
     def run_wall_construction_test(
-            self, config: list, num_crews: int, simulation_type: str, expected_message: str, test_case_source: str
+        self, config: list, num_crews: int, simulation_type: str, expected_message: str, test_case_source: str
     ) -> None:
         """Helper method to run wall construction tests and log results."""
         # Avoid printing of big volumes of data
-        if 'test_maximum_length_profile' not in test_case_source:
+        if 'test_maximum_sections_profile' not in test_case_source:
             config_output = config
         else:
             config_output = '[[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH'
@@ -96,8 +117,10 @@ class WallConstructionCreationTest(BaseTestcase):
 
             if config:
                 # Verify that all sections have been incremented correctly if the config is not empty
-                for day_data in profile_data[1].values():
-                    self.assertGreater(day_data['ice_used'], 0)
+                daily_details = profile_data['profiles_overview']['daily_details']
+                for day_data in daily_details.values():
+                    for ice_amounts in day_data.values():
+                        self.assertGreater(ice_amounts, 0)
                 # iterate over wall_construction.testing_wall_construction_config
                 for profile in wall_construction.testing_wall_construction_config:
                     for section in profile:
@@ -188,6 +211,10 @@ class WallConstructionCreationTest(BaseTestcase):
 class SequentialVsConcurrentTest(BaseTestcase):
     description = 'Sequential and Concurrent simulation results comparison'
 
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
+        self.expected_message = 'Sequential and concurrent simulation results match.'
+
     def compare_sequential_and_concurrent_results(self, config: list, config_case: str) -> None:
         """Compare a sequential with multiple concurrent simulations."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
@@ -201,19 +228,36 @@ class SequentialVsConcurrentTest(BaseTestcase):
         # Avoid printing of big volumes of data
         if 'Long wall' not in config_case:
             config_output = config
-            range_args = (1, 10)
-        elif 'max length' not in config_case:
-            range_args = (1, 10, 3)
-            config_output = (
-                '[[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +'
-                '[[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]'
-            )
+            range_args = (1, MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING + 1)
         else:
-            config_output = '[[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]'
-            range_args = (9, 10)
+            if 'threading' in CONCURRENT_SIMULATION_MODE:
+                range_args = (
+                    MAX_CONCURRENT_NUM_CREWS_THREADING,
+                    MAX_CONCURRENT_NUM_CREWS_THREADING + 1
+                )
+                config_output_msg = 'THREADING'
+            else:
+                range_args = (
+                    MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING,
+                    MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING + 1
+                )
+                config_output_msg = 'MULTIPROCESSING'
+            config_output = (
+                f'[[0] * 100 for _ in range(int(MAX_SECTIONS_COUNT_CONCURRENT_{config_output_msg} / 200))] +'
+                f'[[MAX_SECTION_HEIGHT - 1] * 100 for _ in range(int(MAX_SECTIONS_COUNT_CONCURRENT_{config_output_msg} / 200))]'
+            )
 
         wall_config_hash = hash_calc(config)
 
+        self.run_comparison_and_handle_result(
+            sequential_config, sections_count, wall_config_hash,
+            concurrent_config, config_output, range_args, test_case_source
+        )
+
+    def run_comparison_and_handle_result(
+        self, sequential_config: list, sections_count: int, wall_config_hash: str,
+        concurrent_config: list, config_output: list | str, range_args: tuple, test_case_source: str
+    ):
         try:
             wall_sequential = WallConstruction(
                 wall_construction_config=sequential_config,
@@ -233,86 +277,122 @@ class SequentialVsConcurrentTest(BaseTestcase):
             )
 
     def log_wall_construction_error(
-            self, wall_cnstrctn_err: Exception, num_crews: int, config_output: list | str, test_case_source: str
+        self, wall_cnstrctn_err: Exception, num_crews: int, config_output: list | str, test_case_source: str
     ) -> None:
         self.log_test_result(
             passed=False,
             input_data={'config': config_output, 'num_crews': num_crews},
-            expected_message='',
+            expected_message=self.expected_message,
             actual_message=f'{wall_cnstrctn_err.__class__.__name__}: {str(wall_cnstrctn_err)}',
             test_case_source=test_case_source,
             error_occurred=True
         )
 
     def run_comparison_tests(
-            self, wall_sequential: WallConstruction, concurrent_config: list,
-            sections_count: int, num_crews: int, config_output: list | str, test_case_source: str
+        self, wall_sequential: WallConstruction, concurrent_config: list,
+        sections_count: int, num_crews: int, config_output: list | str, test_case_source: str
     ) -> None:
         """Run sequential vs concurrent comparison for a given number of crews."""
         input_data = {'config': config_output, 'num_crews': num_crews}
         wall_config_hash = hash_calc(concurrent_config)
         try:
-            wall_concurrent = WallConstruction(
-                wall_construction_config=concurrent_config,
+            self.inner_func(
+                concurrent_config=concurrent_config,
                 sections_count=sections_count,
                 num_crews=num_crews,
                 wall_config_hash=wall_config_hash,
-                simulation_type='concurrent'
+                wall_sequential=wall_sequential,
+                input_data=input_data,
+                test_case_source=test_case_source
             )
-            self.compare_total_wall_costs(wall_sequential, wall_concurrent, input_data, test_case_source)
-            self.compare_profile_costs(wall_sequential, wall_concurrent, input_data, test_case_source)
         except AssertionError as assert_err:
             self.log_test_result(
                 passed=False,
                 input_data=input_data,
-                expected_message='',
+                expected_message=self.expected_message,
                 actual_message=str(assert_err),
                 test_case_source=test_case_source
             )
         except Exception as wall_cnstrctn_err:
             self.log_wall_construction_error(wall_cnstrctn_err, num_crews, config_output, test_case_source)
 
-    def compare_total_wall_costs(
-            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction, input_data: dict, test_case_source: str
+    def inner_func(
+        self, concurrent_config: list, sections_count: int, num_crews: int, wall_config_hash: str,
+        wall_sequential: WallConstruction, input_data: dict, test_case_source: str
     ) -> None:
-        """Compare the total costs of sequential and concurrent simulations."""
-        sequential_cost = wall_sequential.sim_calc_details['total_cost']
-        concurrent_cost = wall_concurrent.sim_calc_details['total_cost']
-        self.assertEqual(
-            sequential_cost, concurrent_cost,
-            msg=f'Difference in total costs: Sequential: {sequential_cost}, Concurrent: {concurrent_cost}'
+        wall_concurrent = WallConstruction(
+            wall_construction_config=concurrent_config,
+            sections_count=sections_count,
+            num_crews=num_crews,
+            wall_config_hash=wall_config_hash,
+            simulation_type='concurrent'
         )
+        # Compare no num_crews sequential vs concurrent total wall costs
+        self.compare_wall_data(wall_sequential, wall_concurrent, input_data, test_case_source)
+
+        wall_sequential_num_crews = WallConstruction(
+            wall_construction_config=deepcopy(concurrent_config),
+            sections_count=sections_count,
+            num_crews=num_crews,
+            wall_config_hash=wall_config_hash,
+            simulation_type='sequential'
+        )
+        # Compare num_crews sequential vs concurrent total wall costs
+        self.compare_wall_data(wall_sequential_num_crews, wall_concurrent, input_data, test_case_source)
+
+        # Compare num_crews sequential vs concurrent wall progress
+        self.compare_wall_progress_data(wall_sequential_num_crews, wall_concurrent)
+
         self.log_test_result(
             passed=True,
             input_data=input_data,
-            expected_message=sequential_cost,
-            actual_message=concurrent_cost,
+            expected_message=self.expected_message,
+            actual_message=self.expected_message,
             test_case_source=test_case_source
         )
 
-    def compare_profile_costs(
-            self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction,
-            input_data: dict, test_case_source: str
+    def compare_wall_data(
+        self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction, input_data: dict, test_case_source: str
     ) -> None:
-        """Compare the profile costs of sequential and concurrent simulations."""
-        for profile_id, sequential_profile_cost in wall_sequential.sim_calc_details['profile_costs'].items():
-            concurrent_profile_cost = wall_concurrent.sim_calc_details['profile_costs'].get(profile_id, 0)
-            input_data['profile_id'] = profile_id
+        """Compare the total costs and construction days of sequential and concurrent simulations."""
+        # Costs
+        sequential_ice_amount = wall_sequential.wall_profile_data['profiles_overview']['total_ice_amount']
+        concurrent_ice_amount = wall_concurrent.wall_profile_data['profiles_overview']['total_ice_amount']
+        self.assertEqual(
+            sequential_ice_amount, concurrent_ice_amount,
+            msg=f'Difference in total costs: Sequential: {sequential_ice_amount}, Concurrent: {concurrent_ice_amount}'
+        )
+
+        if wall_sequential.num_crews == wall_concurrent.num_crews:
+            # Construction days
+            sequential_construction_days = wall_sequential.wall_profile_data['profiles_overview']['construction_days']
+            concurrent_construction_days = wall_concurrent.wall_profile_data['profiles_overview']['construction_days']
             self.assertEqual(
-                sequential_profile_cost, concurrent_profile_cost,
+                sequential_construction_days, concurrent_construction_days,
                 msg=(
-                    f'Difference in profile costs: Profile {profile_id}: Sequential: '
-                    f'{sequential_profile_cost}, Concurrent: {concurrent_profile_cost}'
+                    f'Difference in construction days: Sequential: {sequential_construction_days} '
+                    f', Concurrent: {concurrent_construction_days}'
                 )
             )
-        expected_message = 'Sequential profile costs match the concurrent values'
-        self.log_test_result(
-            passed=True,
-            input_data=input_data,
-            expected_message=expected_message,
-            actual_message=expected_message,
-            test_case_source=test_case_source
-        )
+
+    def compare_wall_progress_data(
+        self, wall_sequential: WallConstruction, wall_concurrent: WallConstruction
+    ) -> None:
+        """Compare the profiles-days costs of sequential and concurrent simulations."""
+        daily_details_sequential = wall_sequential.wall_profile_data['profiles_overview']['daily_details']
+        daily_details_concurrent = wall_concurrent.wall_profile_data['profiles_overview']['daily_details']
+
+        for day, day_data in daily_details_sequential.items():
+            for profile_key in day_data:
+                sequential_ice_amount = day_data[profile_key]
+                concurrent_ice_amount = daily_details_concurrent[day][profile_key]
+                self.assertEqual(
+                    sequential_ice_amount, concurrent_ice_amount,
+                    msg=(
+                        f'Difference in profile ice amount: Profile {profile_key}: Sequential: '
+                        f'{sequential_ice_amount}, Concurrent: {concurrent_ice_amount}'
+                    )
+                )
 
     def test_compare_sequential_and_concurrent(self):
         test_cases = [
@@ -328,6 +408,7 @@ class SequentialVsConcurrentTest(BaseTestcase):
                 'config_case': 'Profiles with all zero sections',
                 'config': [
                     [0, 0, 0],
+                    [0, 0, 0],
                     [0, 0, 0]
                 ]
             },
@@ -340,20 +421,21 @@ class SequentialVsConcurrentTest(BaseTestcase):
                 ]
             }
         ]
-        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
+        # Limit test cases for maximum sections count in concurrent mode
+        if 'threading' in CONCURRENT_SIMULATION_MODE:
+            sections_range = int(MAX_SECTIONS_COUNT_CONCURRENT_THREADING / 200)
+        else:
+            sections_range = int(MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING / 200)
+
             test_cases += [
                 {
                     'config_case': 'Long wall with many profiles',
                     'config': (
-                        [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))] +
-                        [[MAX_SECTION_HEIGHT - 1] * MAX_WALL_PROFILE_SECTIONS for _ in range(int(MAX_WALL_LENGTH / 10))]
+                        [[0] * 100 for _ in range(sections_range)] +                        # Profile 1
+                        [[MAX_SECTION_HEIGHT - 1] * 100 for _ in range(sections_range)]     # Profile 2
                     )
-                },
-                {
-                    'config_case': 'Long wall with max length',
-                    'config': [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]
                 }
             ]
 
-        for case in test_cases:
-            self.compare_sequential_and_concurrent_results(case['config'], case['config_case'])
+            for case in test_cases:
+                self.compare_sequential_and_concurrent_results(case['config'], case['config_case'])
