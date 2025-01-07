@@ -101,7 +101,11 @@ def get_or_create_cache(wall_data, request_type) -> None:
     ):
         return
 
-    if isinstance(wall_config_object, WallConfig) and not wall_config_object.deletion_initiated:
+    if isinstance(wall_config_object, WallConfig):
+        if wall_config_object.deletion_initiated:
+            # Celery task is aborted before the simulation is started
+            wall_data['celery_task_aborted'] = 'OK_1'
+            return
         # Successful creation/fetch of the wall config object
         wall_data['wall_config_object'] = wall_config_object
         handle_wall_config_status(wall_config_object, wall_data)

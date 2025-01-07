@@ -326,7 +326,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             return 'Wall config processing failed.'
 
         for task_result in task_results:
-            if task_result['sim_calc_details'] == 'cached_result':
+            if task_result['celery_sim_calc_details'] == 'cached_result':
                 # A simultaneous normal API request has created the cache
                 continue
             # Check if the wall is in the DB
@@ -352,8 +352,8 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
                 wall_config=self.wall_config_object,
                 wall_config_hash=self.wall_config_hash,
                 num_crews=task_result['num_crews'],
-                total_cost=task_result['sim_calc_details']['total_cost'],
-                construction_days=task_result['sim_calc_details']['construction_days'],
+                total_ice_amount=task_result['celery_sim_calc_details']['total_ice_amount'],
+                construction_days=task_result['celery_sim_calc_details']['construction_days'],
             )
             return wall
         except Wall.DoesNotExist:

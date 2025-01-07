@@ -356,8 +356,11 @@ def finalize_wall_config(
 def collect_task_group_results(task_group_result, task_group_result_value_list) -> list:
     task_group_result_message_list = []
     for task_result in task_group_result.results:
-        task_group_result_message_list.append(task_result.result[0])
-        task_group_result_value_list.append(task_result.result[1])
+        if task_result.result is not None:
+            task_group_result_message_list.append(task_result.result[0])
+            task_group_result_value_list.append(task_result.result[1])
+        else:
+            task_group_result_message_list.append('TASK_ABORTED_BEFORE_START')
 
     return task_group_result_message_list
 
@@ -472,20 +475,20 @@ def create_wall(
     except Exception as cmpttn_err:
         return send_log_error_async('celery_tasks', cmpttn_err), result_wall_data
     else:
-        if wall_data.get('celery_task_aborted'):
-            return 'ABORTED', result_wall_data
+        celery_task_aborted = wall_data.get('celery_task_aborted')
+        if celery_task_aborted is not None:
+            return celery_task_aborted, result_wall_data
 
         if active_testing:
-            if wall_data.get('sim_calc_details'):
-                sim_calc_details = wall_data['sim_calc_details']
+            if wall_data.get('wall_construction'):
+                celery_sim_calc_details = wall_data['wall_construction'].wall_profile_data['profiles_overview']
             elif wall_data.get('cached_result'):
-                sim_calc_details = 'cached_result'
+                celery_sim_calc_details = 'cached_result'
             else:
-                sim_calc_details = None
+                celery_sim_calc_details = None
             result_wall_data = {
                 'num_crews': num_crews,
-                'sim_calc_details': sim_calc_details,
-                'profile_config_hash_data': wall_data['profile_config_hash_data'],
+                'celery_sim_calc_details': celery_sim_calc_details,
             }
 
     return 'OK', result_wall_data

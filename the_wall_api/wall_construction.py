@@ -275,7 +275,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
     wall_data['wall_construction'] = wall_construction
     store_simulation_result(wall_data)
     if wall_construction.celery_task_aborted:
-        wall_data['celery_task_aborted'] = True
+        wall_data['celery_task_aborted'] = 'OK_2'   # Aborted during the simulation
 
 
 def store_simulation_result(wall_data):

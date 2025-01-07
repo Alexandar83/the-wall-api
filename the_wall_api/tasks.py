@@ -1,6 +1,6 @@
 from typing import Callable
 
-from celery import shared_task, Task
+from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 
 from the_wall_api.utils.celery_task_utils import (
@@ -60,11 +60,13 @@ def orchestrate_wall_config_processing_task(*args, **kwargs) -> tuple[str, list]
 
 
 @shared_task(bind=True, base=AbortableTask, queue='concurrent_tasks')
-def create_wall_task(self, *args, test_task: Task | None = None, **kwargs) -> tuple[str, list]:
+def create_wall_task(self, *args, test_task: AbortableTask | None = None, **kwargs) -> tuple[str, list]:
     if not test_task:
         task = self
     else:
         task = test_task
+    if task.is_aborted(task_id=task.request.id):
+        return 'OK_0', []       # Aborted before task start
     return execute_task_with_error_handling(create_wall, task, *args, **kwargs)
 
 
