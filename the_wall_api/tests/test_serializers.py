@@ -9,8 +9,7 @@ from rest_framework.test import APIRequestFactory
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.serializers import (
-    ProfilesOverviewSerializer, ProfilesDaysSerializer,
-    WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
+    ProfilesDaysSerializer, WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.tests.test_utils import BaseTestcase, generate_valid_values, invalid_input_groups
 
@@ -27,6 +26,8 @@ def extract_error_detail(actual_errors: Any, field_name: str) -> Any:
 
 
 class SerializerTest(BaseTestcase):
+
+    serializer_class = Serializer
 
     @classmethod
     def setUpClass(cls):
@@ -97,57 +98,23 @@ class SerializerTest(BaseTestcase):
             expected_errors = {'config_id': error_message}
             with self.subTest(config_id=invalid_config_id):
                 self.validate_and_log(
-                    ProfilesOverviewSerializer, input_data, expected_errors,
+                    self.serializer_class, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data}
                 )
-
-
-class ProfilesOverviewSerializerTest(SerializerTest):
-    description = 'Profiles overview serializer tests'
-
-    def test_profile_id_config_id_valid(self):
-        valid_values = generate_valid_values()
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-
-        for profile_id in valid_values:
-            input_data = {'profile_id': profile_id, 'config_id': self.valid_config_id}
-            expected_errors = {}
-            with self.subTest(profile_id=profile_id):
-                self.validate_and_log(
-                    ProfilesOverviewSerializer, input_data, expected_errors,
-                    test_case_source, serializer_params={'data': input_data}
-                )
-
-    def test_profile_id_invalid(self):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-
-        for error_message, invalid_profile_ids in invalid_input_groups['profile_id'].items():
-            for profile_id in invalid_profile_ids:
-                #TODO: rework comment
-                # ProfilesOverviewSerializer: profile_id is optional and None is a properly handled value
-                # ProfilesDays: profile_id is required, but:
-                #   -api/v1/profiles-days/null/5/ -> is parsed as a 'null' in the GET method
-                #   -api/v1/profiles-days/?day=5&profile_id=None -> leads to Page not found (404)
-                if profile_id is None:
-                    continue
-                input_data = {'profile_id': profile_id, 'config_id': self.valid_config_id}
-                expected_errors = {'profile_id': error_message}
-                with self.subTest(profile_id=profile_id):
-                    self.validate_and_log(
-                        ProfilesOverviewSerializer, input_data, expected_errors,
-                        test_case_source, serializer_params={'data': input_data}
-                    )
-
-    def test_config_id_invalid(self, *args, **kwargs):
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
-
-        valid_profile = generate_valid_values()[0]
-        valid_data = {'profile_id': valid_profile}
-        self.process_config_id_invalid(valid_data, test_case_source)
 
 
 class ProfilesDaysSerializerTest(SerializerTest):
+    """
+    The tests in this class cover all 'profiles' serializers:
+    - ProfilesDaysSerializer
+    - ProfilesOverviewDaySerializer
+    - ProfilesOverviewSerializer
+    , because ProfilesDaysSerializer inherits both the other two serializers.
+    """
+
     description = 'Profiles days serializer tests'
+
+    serializer_class = ProfilesDaysSerializer
 
     def both_fields_invalid_inner(
         self, invalid_profile_ids, invalid_days, profile_error_message, day_error_message, test_case_source
@@ -162,7 +129,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                 }
                 with self.subTest(profile_id=profile_id, day=day):
                     self.validate_and_log(
-                        ProfilesDaysSerializer, input_data, expected_errors,
+                        self.serializer_class, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -176,7 +143,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                 expected_errors = {'num_crews': error_message}
                 with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                     self.validate_and_log(
-                        ProfilesDaysSerializer, input_data, expected_errors,
+                        self.serializer_class, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -190,7 +157,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                 expected_errors = {}
                 with self.subTest(profile_id=profile_id, day=day):
                     self.validate_and_log(
-                        ProfilesDaysSerializer, input_data, expected_errors,
+                        self.serializer_class, input_data, expected_errors,
                         test_case_source, serializer_params={'data': input_data}
                     )
 
@@ -205,7 +172,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                     expected_errors = {'profile_id': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
-                            ProfilesDaysSerializer, input_data, expected_errors,
+                            self.serializer_class, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 
@@ -220,7 +187,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                     expected_errors = {'day': error_message}
                     with self.subTest(profile_id=profile_id, day=day):
                         self.validate_and_log(
-                            ProfilesDaysSerializer, input_data, expected_errors,
+                            self.serializer_class, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 
@@ -250,7 +217,7 @@ class ProfilesDaysSerializerTest(SerializerTest):
                     expected_errors = {}
                     with self.subTest(profile_id=profile_id, day=day, num_crews=num_crews):
                         self.validate_and_log(
-                            ProfilesDaysSerializer, input_data, expected_errors,
+                            self.serializer_class, input_data, expected_errors,
                             test_case_source, serializer_params={'data': input_data}
                         )
 
@@ -271,6 +238,8 @@ class ProfilesDaysSerializerTest(SerializerTest):
 
 
 class WallConfigFileSerializerTestBase(SerializerTest):
+
+    serializer_class = WallConfigFileUploadSerializer
 
     @classmethod
     def setUpClass(cls):
@@ -307,7 +276,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         expected_errors = {}
 
         self.validate_and_log(
-            WallConfigFileUploadSerializer, input_data, expected_errors,
+            self.serializer_class, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -318,7 +287,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         input_data = {'config_id': self.valid_config_id}
 
         self.validate_and_log(
-            WallConfigFileUploadSerializer, input_data, expected_errors,
+            self.serializer_class, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -334,7 +303,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
             input_data = {'config_id': self.valid_config_id, 'wall_config_file': invalid_wall_config_file}
             with self.subTest(wall_config_file=invalid_wall_config_file):
                 self.validate_and_log(
-                    WallConfigFileUploadSerializer, input_data, expected_errors,
+                    self.serializer_class, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
                 )
 
@@ -345,7 +314,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         expected_errors = {'config_id': 'This field is required.'}
 
         self.validate_and_log(
-            WallConfigFileUploadSerializer, input_data, expected_errors,
+            self.serializer_class, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -358,6 +327,8 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
 
 class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
     description = 'Wall config file delete serializer tests'
+
+    serializer_class = WallConfigFileDeleteSerializer
 
     def init_test_request(self) -> WSGIRequest:
         factory = APIRequestFactory()
@@ -382,7 +353,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
         expected_errors = {}
 
         self.validate_and_log(
-            WallConfigFileDeleteSerializer, input_data, expected_errors,
+            self.serializer_class, input_data, expected_errors,
             test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
         )
 
@@ -395,7 +366,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
 
             with self.subTest(config_id=invalid_config_id_list):
                 self.validate_and_log(
-                    WallConfigFileDeleteSerializer, input_data, expected_errors,
+                    self.serializer_class, input_data, expected_errors,
                     test_case_source, serializer_params={'data': input_data, 'context': self.test_context}
                 )
 
@@ -411,6 +382,6 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
         invalid_input_data = {'config_id_list': invalid_config_id_list}
         expected_errors = {'config_id_list': f'Config IDs with invalid length: {str(config_id_list)}.'}
         self.validate_and_log(
-            WallConfigFileDeleteSerializer, invalid_input_data, expected_errors,
+            self.serializer_class, invalid_input_data, expected_errors,
             test_case_source, serializer_params={'data': invalid_input_data, 'context': self.test_context}
         )
