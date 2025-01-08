@@ -427,15 +427,15 @@ class SequentialVsConcurrentTest(BaseTestcase):
         else:
             sections_range = int(MAX_SECTIONS_COUNT_CONCURRENT_MULTIPROCESSING / 200)
 
-            test_cases += [
-                {
-                    'config_case': 'Long wall with many profiles',
-                    'config': (
-                        [[0] * 100 for _ in range(sections_range)] +                        # Profile 1
-                        [[MAX_SECTION_HEIGHT - 1] * 100 for _ in range(sections_range)]     # Profile 2
-                    )
-                }
-            ]
+        test_cases += [
+            {
+                'config_case': 'Long wall with many profiles',
+                'config': (
+                    [[0] * 100 for _ in range(sections_range)] +                        # Profile 1
+                    [[MAX_SECTION_HEIGHT - 1] * 100 for _ in range(sections_range)]     # Profile 2
+                )
+            }
+        ]
 
-            for case in test_cases:
-                self.compare_sequential_and_concurrent_results(case['config'], case['config_case'])
+        for case in test_cases:
+            self.compare_sequential_and_concurrent_results(case['config'], case['config_case'])
