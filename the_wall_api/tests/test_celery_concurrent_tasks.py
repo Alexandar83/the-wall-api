@@ -229,14 +229,14 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         return f'Unexpected normal GET request response code: {response.status_code}!'
 
     def check_wall_exists(self, normal_request_num_crews: int) -> bool:
-        retries, wait_time = 0, 0
         if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
             # Grace period for the normal request to finish its calculations
             sleep(5)
+            retries, wait_time = 5, 3
         else:
             # Late normal request - the orchestration task finishes slower in multiprocessing mode
-            retries, wait_time = 10, 10
-            sleep(30)
+            retries, wait_time = 10, 5
+            sleep(10)
 
         wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
 
