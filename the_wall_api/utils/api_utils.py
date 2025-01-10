@@ -87,5 +87,5 @@ def get_request_num_crews(request):
 
 
 def handle_being_processed(wall_data: dict[str, Any]) -> None:
-    info_message = 'Your request is being calculated. Check back later.'
+    info_message = 'Your request is being processed. Check back later.'
     wall_data['info_response'] = Response({'info': info_message}, status=status.HTTP_202_ACCEPTED)

@@ -50,26 +50,11 @@ def fetch_wall_data(
     set_simulation_params(wall_data, num_crews, wall_construction_config, request_type)
 
     # Check for other user tasks in progress
-    verify_no_other_user_tasks_in_progress(wall_data)
+    error_utils.verify_no_other_user_tasks_in_progress(wall_data)
     if wall_data['error_response']:
         return
 
     get_or_create_cache(wall_data, request_type)
-
-
-def verify_no_other_user_tasks_in_progress(wall_data) -> None:
-    """Ensure a single calculation is in progress per user"""
-    if wall_data['request_type'] != 'create_wall_task':
-        user_tasks_in_progress = WallConfigReference.objects.filter(
-            user=wall_data['request_user'],
-            status__in=[
-                WallConfigReferenceStatusEnum.CELERY_CALCULATION,
-                WallConfigReferenceStatusEnum.SYNC_CALCULATION
-            ]
-        ).exclude(config_id=wall_data['request_config_id']).values_list('config_id', flat=True)
-
-        if user_tasks_in_progress:
-            error_utils.handle_user_task_in_progress_exists(list(user_tasks_in_progress), wall_data)
 
 
 def get_or_create_cache(wall_data, request_type) -> None:
@@ -109,6 +94,9 @@ def get_or_create_cache(wall_data, request_type) -> None:
         # Successful creation/fetch of the wall config object
         wall_data['wall_config_object'] = wall_config_object
         handle_wall_config_status(wall_config_object, wall_data)
+        if wall_data.get('info_response'):
+            # Sent for async processing
+            return
     else:
         # Either being initialized by another process
         # or an error occurred during the creation
@@ -387,7 +375,7 @@ def fetch_profile_day_ice_amount_from_db(
 
 def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
     # Check for other user tasks in progress
-    verify_no_other_user_tasks_in_progress(wall_data)
+    error_utils.verify_no_other_user_tasks_in_progress(wall_data)
 
     # Uploaded config data validation
     wall_config_utils.validate_wall_config_file_data(wall_data)
@@ -579,7 +567,7 @@ def handle_async_single_num_crews_request(task_kwargs: Dict[str, Any], wall_data
     orchestrate_wall_config_processing_task.apply_async(
         kwargs=task_kwargs, priority=CELERY_TASK_PRIORITY['MEDIUM']
     )  # type: ignore
-    handle_being_processed(wall_data)
+    handle_being_processed(wall_data)   # Return 202
 
 
 def get_wall_config_cache_key(wall_config_hash: str) -> str:

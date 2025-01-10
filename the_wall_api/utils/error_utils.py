@@ -10,11 +10,11 @@ from django.db.models import Q, QuerySet
 from rest_framework.response import Response
 from rest_framework import status
 
-from the_wall_api.utils.api_utils import handle_being_processed
 from the_wall_api.models import (
-    Wall, WallConfig, WallConfigReference, WallConfigStatusEnum
+    Wall, WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum
 )
 from the_wall_api.tasks import log_error_task
+from the_wall_api.utils.api_utils import handle_being_processed
 
 TASK_RESULT_RETRIES = 3
 TASK_RESULT_RETRY_DELAY = 1
@@ -310,9 +310,8 @@ def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
         return
 
     if wall_data['wall_config_object_status'] == WallConfigStatusEnum.CELERY_CALCULATION:
-        # The calculation is being processed
-        handle_being_processed(wall_data)
-        return
+        # Must not be entered
+        raise Exception('Must be handled in error_utils.verify_no_other_user_tasks_in_progress()!')
 
     # Statuses: CALCULATED, ERROR, READY_FOR_DELETION
     # Conflicting case
@@ -342,9 +341,30 @@ def handle_wall_config_object_already_exists(wall_data: Dict[str, Any], wall_con
             )
 
 
+def verify_no_other_user_tasks_in_progress(wall_data) -> None:
+    """Ensure a single calculation is in progress"""
+    if wall_data['request_type'] != 'create_wall_task':
+        user_tasks_in_progress = WallConfigReference.objects.filter(
+            user=wall_data['request_user'],
+            status__in=[
+                WallConfigReferenceStatusEnum.CELERY_CALCULATION,
+                WallConfigReferenceStatusEnum.SYNC_CALCULATION
+            ]
+        ).values_list('config_id', flat=True)
+
+        if user_tasks_in_progress:
+            handle_user_task_in_progress_exists(list(user_tasks_in_progress), wall_data)
+
+
 def handle_user_task_in_progress_exists(user_tasks_in_progress: list[str], wall_data: Dict[str, Any]) -> None:
-    error_message = (
-        'The following config IDs have calculations in progress for this user: '
-        f'{user_tasks_in_progress}. Please wait until they are completed.'
-    )
-    handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
+    if wall_data['request_config_id'] in user_tasks_in_progress:
+        # User task for the current config_id
+        handle_being_processed(wall_data)   # Return 202
+
+    else:
+        # User task for another config_id
+        error_message = (
+            'The following config IDs have calculations in progress for this user: '
+            f'{user_tasks_in_progress}. Please wait until they are completed.'
+        )
+        handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
