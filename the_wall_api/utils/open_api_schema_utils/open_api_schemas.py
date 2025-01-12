@@ -1,4 +1,5 @@
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
+from the_wall_api.utils.message_themes import openapi as openapi_messages
 
 wallconfig_file_upload_schema = {
     'multipart/form-data': {
@@ -7,17 +8,12 @@ wallconfig_file_upload_schema = {
             'wall_config_file': {
                 'type': 'string',
                 'format': 'binary',
-                'description': (
-                    'A JSON file containing Wall configuration data.\n\n'
-                    'Should contain a nested list of lists of integers.\n\n'
-                    '**Example**:\n'
-                    '[[1, 5, 10], [5, 7, 16, 23]]'
-                )
+                'description': openapi_messages.WALLCONFIG_FILE_PARAMETER_DESCRIPTION
             },
             'config_id': {
                 'type': 'string',
                 'maxLength': CONFIG_ID_MAX_LENGTH,
-                'description': 'A unique identifier for the Wall configuration.',
+                'description': openapi_messages.CONFIG_ID_PARAMETER_DESCRIPTION,
                 'example': 'test_config_1'
             }
         },

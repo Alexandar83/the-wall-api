@@ -1,5 +1,7 @@
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
+from the_wall_api.utils.message_themes import openapi as openapi_messages
+
 
 class TokenAuthScheme(OpenApiAuthenticationExtension):
     """
@@ -15,11 +17,5 @@ class TokenAuthScheme(OpenApiAuthenticationExtension):
             'type': 'apiKey',
             'in': 'header',
             'name': 'Authorization',
-            'description': (
-                # Use &lt; to represent a literal < and &gt; to represent a literal >
-                # in the description, ensuring proper rendering in Markdown viewers like Redoc.
-                'Enter your token in the format: <b>Token &lt;your_token&gt;</b>\n\n'
-                'Example header:\n'
-                '{"Authorization": "Token abcdef1234567890"}'
-            )
+            'description': openapi_messages.TOKEN_AUTH_SCHEME_DESCRIPTION
         }

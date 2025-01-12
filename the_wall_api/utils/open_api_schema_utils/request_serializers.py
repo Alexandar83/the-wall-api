@@ -3,6 +3,7 @@
 from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers
 
+from the_wall_api.utils.message_themes import openapi as openapi_messages
 
 # = Create user =
 create_user_request_serializer = inline_serializer(
@@ -12,7 +13,7 @@ create_user_request_serializer = inline_serializer(
             regex=r'^[\w.@+-]+$',
             max_length=150,
             required=True,
-            help_text="150 characters or fewer. Letters, digits and @/./+/-/_ only."
+            help_text=openapi_messages.USERNAME_PARAMETER_HELP_TEXT
         ),
         'password': serializers.CharField(min_length=8, write_only=True, required=True),
         'email': serializers.EmailField(max_length=254, required=False),

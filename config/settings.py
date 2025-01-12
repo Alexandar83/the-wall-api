@@ -16,6 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from the_wall_api.utils.env_utils import ACTIVE_TESTING, configure_connections_settings, PROJECT_MODE  # noqa: F401
+from the_wall_api.utils.message_themes import openapi as openapi_messages
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -223,9 +224,18 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'OAS_VERSION': '3.1.0',
     'TAGS': [
-        {'name': 'User Management', 'description': 'Manage users, authentication, and passwords'},
-        {'name': 'File Management', 'description': 'Upload, list, and delete wall configuration files'},
-        {'name': 'Costs and Daily Ice Usage', 'description': 'Analyze construction costs and daily ice usage'},
+        {
+            'name': openapi_messages.USER_MANAGEMENT_TAG,
+            'description': openapi_messages.USER_MANAGEMENT_TAG_DESCRIPTION
+        },
+        {
+            'name': openapi_messages.FILE_MANAGEMENT_TAG,
+            'description': openapi_messages.FILE_MANAGEMENT_TAG_DESCRIPTION
+        },
+        {
+            'name': openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG,
+            'description': openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG_DESCRIPTION
+        },
     ]
 }
 
@@ -381,7 +391,6 @@ ICE_COST_PER_CUBIC_YARD = int(os.getenv('ICE_COST_PER_CUBIC_YARD', 1900))       
 CONCURRENT_SIMULATION_MODE = os.getenv(
     'CONCURRENT_SIMULATION_MODE', 'threading_v1'
 )
-
 
 # == Threading ==
 # If num_crews is above this limit in threading,

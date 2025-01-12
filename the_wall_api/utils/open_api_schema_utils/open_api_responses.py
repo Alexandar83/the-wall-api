@@ -3,6 +3,9 @@
 from django.conf import settings
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse
 
+from the_wall_api.utils.message_themes import (
+    errors as error_messages, openapi as openapi_messages, success as success_messages
+)
 from the_wall_api.utils.open_api_schema_utils import open_api_examples, response_serializers
 from the_wall_api.serializers import CONFIG_ID_MAX_LENGTH
 
@@ -47,11 +50,11 @@ wallconfig_file_upload_responses = {
         response=response_serializers.wall_config_file_upload_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Upload success',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.VALID_RESPONSE_SUMMARY,
                 value={
                     'config_id': 'test_config_1',
-                    'details': 'Wall config <test_config_1> uploaded successfully.',
+                    'details': success_messages.file_upload_details('test_config_1'),
                 },
                 response_only=True,
             ),
@@ -61,132 +64,63 @@ wallconfig_file_upload_responses = {
         response=response_serializers.wall_config_file_upload_400_response_serializer,
         examples=[
             OpenApiExample(
-                name='config_id already exists',
+                name=openapi_messages.CONFIG_ID_ALREADY_EXISTS,
                 value={
-                    'non_field_errors': ["Wall config 'test_config_1' already exists for user 'testuser'."],
+                    'non_field_errors': [error_messages.wall_config_exists('test_config_1', 'testuser')],
                 },
             ),
             OpenApiExample(
-                name='config_id blank string',
+                name=openapi_messages.CONFIG_ID_BLANK_STRING,
                 value={
-                    'config_id': ['This field may not be blank.'],
+                    'config_id': [error_messages.THIS_FIELD_MAY_NOT_BE_BLANK],
                 },
             ),
             OpenApiExample(
-                name='config_id Null object',
+                name=openapi_messages.CONFIG_ID_NULL_OBJECT,
                 value={
-                    'config_id': ['This field may not be null.'],
+                    'config_id': [error_messages.THIS_FIELD_MAY_NOT_BE_NULL],
                 },
             ),
             OpenApiExample(
-                name='Empty file',
+                name=openapi_messages.EMPTY_FILE,
                 value={
-                    'wall_config_file': ['The submitted file is empty.'],
+                    'wall_config_file': [error_messages.THE_FILE_IS_EMPTY],
                 },
             ),
             OpenApiExample(
-                name='File limit reached',
+                name=openapi_messages.FILE_LIMIT_REACHED,
                 value={
-                    'non_field_errors': [f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'],
+                    'non_field_errors': [error_messages.file_limit_per_user_reached(MAX_USER_WALL_CONFIGS)],
                 },
             ),
             OpenApiExample(
-                name='File Null object',
+                name=openapi_messages.FILE_NULL_OBJECT,
                 value={
-                    'wall_config_file': ['This field may not be null.'],
+                    'wall_config_file': [error_messages.THIS_FIELD_MAY_NOT_BE_NULL],
                 },
             ),
             OpenApiExample(
-                name='Invalid config_id length',
+                name=openapi_messages.INVALID_CONFIG_ID_LENGTH,
                 value={
-                    'config_id': [f'Ensure this field has no more than {CONFIG_ID_MAX_LENGTH} characters.'],
+                    'config_id': [error_messages.ensure_config_id_valid_length(CONFIG_ID_MAX_LENGTH)],
                 },
             ),
             OpenApiExample(
-                name='Invalid file extension',
+                name=openapi_messages.INVALID_FILE_EXTENSION,
                 value={
-                    'wall_config_file': ['File extension “txt” is not allowed. Allowed extensions are: json.'],
+                    'wall_config_file': [error_messages.file_extension_not_allowed('txt', 'json')],
                 },
             ),
             OpenApiExample(
-                name='Invalid file format',
+                name=openapi_messages.INVALID_FILE_FORMAT,
                 value={
-                    'non_field_errors': ['Invalid JSON file format.'],
+                    'non_field_errors': [error_messages.INVALID_JSON_FILE_FORMAT],
                 },
             ),
             OpenApiExample(
-                name='Invalid sections count',
+                name=openapi_messages.INVALID_PROFILE_SECTIONS_COUNT,
                 value={
-                    'error': (
-                        'Invalid wall configuration! The maximum number of sections '
-                        f'({MAX_WALL_LENGTH * MAX_WALL_PROFILE_SECTIONS}) has been exceeded.'
-                    ),
-                    'error_details': {
-                        'request_params': {
-                            'config_id': 'test_config_1'
-                        },
-                        'error_id': '21'
-                    }
-                },
-            ),
-            OpenApiExample(
-                name='Invalid section height 1',
-                value={
-                    'error': f"Invalid wall configuration! The section height '31' of profile 1 - section 1 must be <= {MAX_SECTION_HEIGHT}.",
-                    'error_details': {
-                        'request_params': {
-                            'config_id': 'test_config_1'
-                        },
-                        'error_id': '23'
-                    }
-                },
-            ),
-            OpenApiExample(
-                name='Invalid section height 2',
-                value={
-                    'error': "Invalid wall configuration! The section height '-1' of profile 1 - section 1 must be >= 0.",
-                    'error_details': {
-                        'request_params': {
-                            'config_id': 'test_config_1'
-                        },
-                        'error_id': '11'
-                    }
-                },
-            ),
-            OpenApiExample(
-                name='Invalid section type',
-                value={
-                    'error': "Invalid wall configuration! The section height 'text' of profile 1 - section 1 must be an integer.",
-                    'error_details': {
-                        'request_params': {
-                            'config_id': 'test_config_1'
-                        },
-                        'error_id': '22'
-                    }
-                },
-            ),
-            OpenApiExample(
-                name='Missing config_id',
-                value={
-                    'config_id': ['This field is required.'],
-                },
-            ),
-            OpenApiExample(
-                name='Missing file',
-                value={
-                    'wall_config_file': ['No file was submitted.'],
-                },
-            ),
-            OpenApiExample(
-                name='Not a file',
-                value={
-                    'wall_config_file': ['The submitted data was not a file. Check the encoding type on the form.'],
-                },
-            ),
-            OpenApiExample(
-                name='Profile not a list',
-                value={
-                    'error': 'Invalid wall configuration! Each profile must be a list of integers.',
+                    'error': (error_messages.maximum_profile_sections_exceeded(MAX_WALL_PROFILE_SECTIONS)),
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1'
@@ -196,9 +130,108 @@ wallconfig_file_upload_responses = {
                 },
             ),
             OpenApiExample(
-                name='Wall config already exists',
+                name=openapi_messages.INVALID_SECTIONS_COUNT,
                 value={
-                    'error': "This wall configuration is already uploaded with config_id = 'test_config_1'.",
+                    'error': (error_messages.maximum_number_of_sections_exceeded(MAX_WALL_LENGTH * MAX_WALL_PROFILE_SECTIONS)),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '21'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.invalid_section_height_label(counter=1),
+                value={
+                    'error': error_messages.invalid_section_height(
+                        section_height=31, profile_id=1, section_number=1,
+                        error_message_suffix=error_messages.section_height_must_be_less_than_limit(MAX_SECTION_HEIGHT)
+                    ),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '23'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.invalid_section_height_label(counter=2),
+                value={
+                    'error': error_messages.invalid_section_height(
+                        section_height=-1, profile_id=1, section_number=1,
+                        error_message_suffix=error_messages.SECTION_HEIGHT_MUST_BE_GREATER_THAN_ZERO
+                    ),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '11'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.INVALID_SECTION_TYPE,
+                value={
+                    'error': error_messages.invalid_section_height(
+                        section_height='text', profile_id=1, section_number=1,
+                        error_message_suffix=error_messages.SECTION_HEIGHT_MUST_BE_INTEGER
+                    ),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '22'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.INVALID_WALL_LENGTH,
+                value={
+                    'error': error_messages.maximum_wall_length_exceeded(MAX_WALL_LENGTH),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '19'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.MISSING_CONFIG_ID,
+                value={
+                    'config_id': [error_messages.THIS_FIELD_IS_REQUIRED],
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.MISSING_FILE,
+                value={
+                    'wall_config_file': [error_messages.NO_FILE_SUBMITTED],
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.NOT_A_FILE,
+                value={
+                    'wall_config_file': [error_messages.DATA_NOT_A_FILE],
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.PROFILE_NOT_A_LIST,
+                value={
+                    'error': error_messages.profile_must_be_list_of_integers(),
+                    'error_details': {
+                        'request_params': {
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '20'
+                    }
+                },
+            ),
+            OpenApiExample(
+                name=openapi_messages.WALL_CONFIG_ALREADY_EXISTS,
+                value={
+                    'error': error_messages.wall_config_already_uploaded('test_config_1'),
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1'
@@ -208,9 +241,9 @@ wallconfig_file_upload_responses = {
                 },
             ),
             OpenApiExample(
-                name='Wall config not a list',
+                name=openapi_messages.WALL_CONFIG_NOT_A_LIST,
                 value={
-                    'error': 'Invalid wall configuration! Must be a nested list of lists of integers.',
+                    'error': error_messages.must_be_nested_list_of_lists_of_integers(),
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1'
@@ -227,13 +260,13 @@ wallconfig_file_upload_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Deletion in progress',
+                name=openapi_messages.FILE_UPLOAD_TECHNICAL_ERROR,
                 value={
-                    'error': 'Wall config file upload failed. Please contact support.',
+                    'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_UPLOAD),
                     'error_details': {
                         'request_params': {'config_id': 'valid_config_id'},
                         'error_id': '25',
-                        'tech_info': 'Exception: Unknown exception'
+                        'tech_info': openapi_messages.UNKNOWN_EXCEPTION
                     }
                 },
             ),
@@ -243,9 +276,9 @@ wallconfig_file_upload_responses = {
         response=response_serializers.wall_config_file_upload_503_response_serializer,
         examples=[
             OpenApiExample(
-                name='Try again',
+                name=openapi_messages.TRY_AGAIN,
                 value={
-                    'error': 'A deletion of an existing wall config is being processed - please try again later.',
+                    'error': error_messages.WALL_CONFIG_DELETION_BEING_PROCESSED,
                 },
             ),
         ]
@@ -261,24 +294,29 @@ wallconfig_file_delete_responses = {
         response=response_serializers.wall_config_delete_400_response_serializer,
         examples=[
             OpenApiExample(
-                name='Invalid length',
+                name=openapi_messages.INVALID_LENGTH,
                 value={
-                    'config_id_list': [(
-                        "Config IDs with invalid length: ['too_long_config_id_too_long_config_id_1', "
-                        "'too_long_config_id_too_long_config_id_2']."
+                    'config_id_list': [error_messages.config_ids_with_invalid_length(
+                        ['too_long_config_id_too_long_config_id_1', 'too_long_config_id_too_long_config_id_2']
                     )],
                 },
             ),
             OpenApiExample(
-                name='Invalid string',
+                name=openapi_messages.INVALID_CONFIG_ID_LIST_FORMAT,
                 value={
-                    'config_id_list': ['Not a valid string.'],
+                    'config_id_list': [error_messages.invalid_config_id_list_format('Exception text')],
+                }
+            ),
+            OpenApiExample(
+                name=openapi_messages.INVALID_STRING,
+                value={
+                    'config_id_list': [error_messages.INVALID_STRING],
                 },
             ),
             OpenApiExample(
-                name='Null object',
+                name=openapi_messages.NULL_OBJECT,
                 value={
-                    'config_id_list': ['This field may not be null.'],
+                    'config_id_list': [error_messages.THIS_FIELD_MAY_NOT_BE_NULL],
                 },
             ),
         ]
@@ -288,21 +326,23 @@ wallconfig_file_delete_responses = {
         response=response_serializers.wall_config_delete_404_response_serializer,
         examples=[
             OpenApiExample(
-                name='No matching files',
+                name=openapi_messages.NO_MATCHING_FILES,
                 value={
-                    'error': "No matching files for user 'testuser' exist for the provided config ID list.",
+                    'error': error_messages.no_matching_files_for_user('testuser'),
                 },
             ),
             OpenApiExample(
-                name='No files for the user',
+                name=openapi_messages.NO_FILES_FOR_USER,
                 value={
-                    'error': "No files exist for user 'testuser' in the database.",
+                    'error': error_messages.no_files_exist_for_user('testuser'),
                 },
             ),
             OpenApiExample(
-                name='Files not found',
+                name=openapi_messages.FILES_NOT_FOUND,
                 value={
-                    'error': "File(s) with config ID(s) ['test_config_2', 'test_config_3'] not found for user 'testuser'.",
+                    'error': error_messages.files_with_config_id_not_found_for_user(
+                        ['test_config_2', 'test_config_3'], 'testuser'
+                    )
                 },
             ),
         ]
@@ -312,12 +352,12 @@ wallconfig_file_delete_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Deletion in progress',
+                name=openapi_messages.TECHNICAL_ERROR_DELETION,
                 value={
-                    'error': 'Wall config file delete failed. Please contact support.',
+                    'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_DELETE),
                     'error_details': {
                         'error_id': '25',
-                        'tech_info': 'Exception: Unknown exception.'
+                        'tech_info': openapi_messages.UNKNOWN_EXCEPTION
                     }
                 },
             ),
@@ -333,8 +373,8 @@ wallconfig_file_list_responses = {
         response=response_serializers.wall_config_list_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Wall config ID list',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.SUMMARY_FILES_LIST_RESPONSE,
                 value={
                     'config_id_list': ['test_config_1', 'test_config_2'],
                 },
@@ -354,13 +394,13 @@ profiles_days_responses = {
         response=response_serializers.profiles_days_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Profile construction cost',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.SUMMARY_PROFILES_DAYS_RESPONSE,
                 value={
                     'profile_id': 1,
                     'day': 2,
                     'ice_used': 585,
-                    'details': 'Volume of ice used for profile 1 on day 2: 585 cubic yards.'
+                    'details': success_messages.profiles_days_details(1, 2, 585),
                 },
                 response_only=True,
             ),
@@ -370,9 +410,11 @@ profiles_days_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Day Out of Range',
+                name=openapi_messages.OUT_OF_RANGE_DAY,
                 value={
-                    'error': 'The day is out of range. The wall has been finished for 13 days.',
+                    'error': error_messages.out_of_range(
+                        'day', error_messages.out_of_range_finishing_message_1(13)
+                    ),
                     'error_details': {
                         'request_params': {
                             'profile_id': 1,
@@ -382,9 +424,11 @@ profiles_days_responses = {
                 },
             ),
             OpenApiExample(
-                name='Profile ID Out of Range',
+                name=openapi_messages.OUT_OF_RANGE_PROFILE_ID,
                 value={
-                    'error': 'The profile number is out of range. The wall has 3 profiles.',
+                    'error': error_messages.out_of_range(
+                        'profile number', error_messages.out_of_range_finishing_message_2(3)
+                    ),
                     'error_details': {
                         'request_params': {
                             'profile_id': 5,
@@ -403,9 +447,9 @@ profiles_days_responses = {
         examples=[
             open_api_examples.file_not_existing_for_user,
             OpenApiExample(
-                name='No work on profile',
+                name=openapi_messages.NO_WORK_ON_PROFILE,
                 value={
-                    'error': 'No crew has worked on profile 2 on day 1.',
+                    'error': error_messages.no_crew_worked_on_profile(2, 1),
                     'error_details': {
                         'request_params': {
                             'profile_id': 2,
@@ -423,9 +467,9 @@ profiles_days_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
                 value={
-                    'error': 'Wall construction simulation failed. Please contact support.',
+                    'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1',
@@ -434,7 +478,7 @@ profiles_days_responses = {
                             'num_crews': 5
                         },
                         'error_id': '1',
-                        'tech_info': 'Exception: Unknown exception.',
+                        'tech_info': openapi_messages.UNKNOWN_EXCEPTION,
                     }
                 },
             ),
@@ -449,11 +493,13 @@ profiles_overview_responses = {
         response=response_serializers.profiles_overview_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Total construction cost',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.TOTAL_CONSTRUCTION_COST,
                 value={
-                    'total_cost': '32233500',
-                    'details': 'Total construction cost: 32233500 Gold Dragon coins'
+                    'cost': '32233500',
+                    'details': success_messages.profiles_overview_details(
+                        success_messages.WALL_TOTAL_COST_RESPONSE, 32233500
+                    ),
                 },
                 response_only=True,
             ),
@@ -474,13 +520,13 @@ profiles_overview_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
                 value={
-                    'error': 'Wall construction simulation failed. Please contact support.',
+                    'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
                         'request_params': {'config_id': 'test_config_1'},
                         'error_id': '1',
-                        'tech_info': 'Exception: Unknown exception.',
+                        'tech_info': openapi_messages.UNKNOWN_EXCEPTION,
                     }
                 },
             ),
@@ -511,7 +557,9 @@ profiles_overview_profile_id_responses = {
             OpenApiExample(
                 name='Profile ID Out of Range',
                 value={
-                    'error': 'The profile number is out of range. The wall has 3 profiles.',
+                    'error': error_messages.out_of_range(
+                        'profile number', error_messages.out_of_range_finishing_message_2(3)
+                    ),
                     'error_details': {
                         'request_params': {
                             'profile_id': 5
@@ -530,9 +578,9 @@ profiles_overview_profile_id_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Simulation Data Inconsistency',
+                name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
                 value={
-                    'error': 'Wall construction simulation failed. Please contact support.',
+                    'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
                         'request_params': {
                             'config_id': 'test_config_1',
@@ -556,8 +604,8 @@ create_user_responses = {
         response=response_serializers.create_user_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Create user',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.CREATE_USER_SUMMARY,
                 value={
                     'username': 'testuser',
                     'email': 'testuser@example.com',
@@ -570,26 +618,26 @@ create_user_responses = {
         response=response_serializers.create_user_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Invalid email format',
+                name=openapi_messages.INVALID_EMAIL_FORMAT,
                 value={
-                    'email': ['Enter a valid email address.']
+                    'email': [error_messages.INVALID_EMAIL]
                 },
             ),
             OpenApiExample(
-                name='Missing required fields',
+                name=openapi_messages.MISSING_REQUIRED_FIELDS,
                 value={
-                    'username': ['This field is required.'],
-                    'password': ['This field is required.']
+                    'username': [error_messages.THIS_FIELD_IS_REQUIRED],
+                    'password': [error_messages.THIS_FIELD_IS_REQUIRED]
                 },
             ),
             OpenApiExample(
-                name='Username already exists',
+                name=openapi_messages.USERNAME_ALREADY_EXISTS,
                 value={
-                    'username': ['A user with that username already exists.']
+                    'username': [error_messages.USERNAME_EXISTS]
                 },
             ),
             OpenApiExample(
-                name='Weak password',
+                name=openapi_messages.WEAK_PASSWORD,
                 value={
                     'password': open_api_examples.weak_password_msg_list
                 },
@@ -614,9 +662,9 @@ delete_user_responses = {
         response=response_serializers.delete_user_401_response_serializer,
         examples=[
             OpenApiExample(
-                name='Current password required',
+                name=openapi_messages.CURRENT_PASSWORD_REQUIRED,
                 value={
-                    'current_password': ['This field is required.']
+                    'current_password': [error_messages.THIS_FIELD_IS_REQUIRED]
                 },
             ),
             open_api_examples.invalid_token,
@@ -635,15 +683,15 @@ set_password_responses = {
         examples=[
             open_api_examples.invalid_password,
             OpenApiExample(
-                name='Missing required fields',
+                name=openapi_messages.MISSING_REQUIRED_FIELDS,
                 value={
-                    'new_password': ['This field is required.'],
-                    'current_password': ['This field is required.']
+                    'new_password': [error_messages.THIS_FIELD_IS_REQUIRED],
+                    'current_password': [error_messages.THIS_FIELD_IS_REQUIRED]
                 },
             ),
             open_api_examples.not_authenticated,
             OpenApiExample(
-                name='Weak password',
+                name=openapi_messages.WEAK_PASSWORD,
                 value={
                     'new_password': open_api_examples.weak_password_msg_list
                 },
@@ -660,8 +708,8 @@ token_login_responses = {
         response=response_serializers.token_login_response_serializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Valid token',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.SUMMARY_TOKEN_LOGIN,
                 value={
                     'auth_token': '50b3bebe2cb047451c8201e8c3e5b3b950cfec09',
                 },
@@ -673,9 +721,9 @@ token_login_responses = {
         response=response_serializers.token_login_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Unable to log in',
+                name=openapi_messages.UNABLE_TO_LOG_IN,
                 value={
-                    'non_field_errors': ['Unable to log in with provided credentials.']
+                    'non_field_errors': [error_messages.UNABLE_TO_LOG_IN]
                 },
             ),
         ]

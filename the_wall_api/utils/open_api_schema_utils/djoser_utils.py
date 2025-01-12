@@ -4,6 +4,7 @@ from djoser.views import TokenCreateView, TokenDestroyView, UserViewSet
 from drf_spectacular.utils import extend_schema
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
 
+from the_wall_api.utils.message_themes import openapi as openapi_messages
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_examples, open_api_responses, request_serializers
 )
@@ -15,9 +16,9 @@ class CreateUserExtendSchemaViewSet(UserViewSet):
     throttle_classes = [AnonRateThrottle]
 
     @extend_schema(
-        tags=['User Management'],
-        summary='Create User',
-        description='Register a new user with email and password.',
+        tags=[openapi_messages.USER_MANAGEMENT_TAG],
+        summary=openapi_messages.CREATE_USER_SUMMARY,
+        description=openapi_messages.CREATE_USER_DESCRIPTION,
         request=request_serializers.create_user_request_serializer,
         responses=open_api_responses.create_user_responses,
         examples=[open_api_examples.create_user_request_example]
@@ -32,20 +33,9 @@ class DeleteUserExtendSchemaViewSet(UserViewSet):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['User Management'],
-        summary='Delete User',
-        description=(
-            'This endpoint requires the `current_password` parameter in the request\'s body.\n\n'
-            '<b>Example request body:</b>\n'
-            '```json\n'
-            '{\n'
-            '  "current_password": "strongpassword#123"\n'
-            '}\n'
-            '```\n'
-            '<b>Note:</b> Due to OpenAPI 3.1 limitations, request body schema '
-            'and examples cannot be included in the schema documentation for DELETE endpoints.\n\n'
-            '<i>*The "Try it out" functionality also doesn\'t work properly in Swagger UI.</i>'
-        ),
+        tags=[openapi_messages.USER_MANAGEMENT_TAG],
+        summary=openapi_messages.DELETE_USER_SUMMARY,
+        description=openapi_messages.DELETE_USER_DESCRIPTION,
         responses=open_api_responses.delete_user_responses,
     )
     def destroy(self, request, *args, **kwargs):
@@ -58,9 +48,9 @@ class SetPasswordExtendSchemaView(UserViewSet):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['User Management'],
-        summary='Update User Password',
-        description='Change/reset the user\'s current password.',
+        tags=[openapi_messages.USER_MANAGEMENT_TAG],
+        summary=openapi_messages.SET_PASSWORD_SUMMARY,
+        description=openapi_messages.SET_PASSWORD_DESCRIPTION,
         request=request_serializers.set_password_request_serializer,
         responses=open_api_responses.set_password_responses,
         examples=[open_api_examples.set_password_request_example]
@@ -75,12 +65,9 @@ class TokenCreateExtendSchemaView(TokenCreateView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
     @extend_schema(
-        tags=['User Management'],
-        summary='Obtain Authentication Token',
-        description=(
-            'Obtain an authentication token by creating a new one or '
-            'retrieving an existing valid token.'
-        ),
+        tags=[openapi_messages.USER_MANAGEMENT_TAG],
+        summary=openapi_messages.TOKEN_LOGIN_SUMMARY,
+        description=openapi_messages.TOKEN_LOGIN_DESCRIPTION,
         # Override the default request serializer to indicate the required arguments
         request=request_serializers.token_login_request_serializer,
         responses=open_api_responses.token_login_responses,
@@ -96,9 +83,9 @@ class TokenDestroyExtendSchemaView(TokenDestroyView):
     throttle_scope = 'user-management'
 
     @extend_schema(
-        tags=['User Management'],
-        summary='Revoke Authentication Token',
-        description='Revoke an existing authentication token - requires only a valid token.',
+        tags=[openapi_messages.USER_MANAGEMENT_TAG],
+        summary=openapi_messages.TOKEN_LOGOUT_SUMMARY,
+        description=openapi_messages.TOKEN_LOGOUT_DESCRIPTION,
         responses=open_api_responses.token_logout_responses,
         request=request_serializers.token_logout_request_serializer
     )

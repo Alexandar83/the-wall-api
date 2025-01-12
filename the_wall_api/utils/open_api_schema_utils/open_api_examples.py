@@ -2,49 +2,54 @@
 
 from drf_spectacular.utils import OpenApiExample
 
+from the_wall_api.models import CONFIG_ID_MAX_LENGTH
+from the_wall_api.utils.message_themes import (
+    errors as error_messages, openapi as openapi_messages
+)
+
 # = Common =
 not_authenticated = OpenApiExample(
-    name='Not authenticated',
+    name=error_messages.NOT_AUTHENTICATED,
     value={
-        'detail': 'Authentication credentials were not provided.'
+        'detail': error_messages.NOT_AUTHENTICATED_RESPONSE
     },
 )
 invalid_password = OpenApiExample(
-    name='Invalid password',
+    name=error_messages.INVALID_PASSWORD.replace('.', ''),
     value={
-        'current_password': ['Invalid password.']
+        'current_password': [error_messages.INVALID_PASSWORD]
     },
 )
 invalid_token = OpenApiExample(
-    name='Invalid token',
+    name=error_messages.INVALID_TOKEN.replace('.', ''),
     value={
-        'detail': 'Invalid token.'
+        'detail': error_messages.INVALID_TOKEN
     },
 )
 weak_password_msg_list = [
-    'This password is too short. It must contain at least 8 characters.',
-    'This password is too common.',
-    'This password is entirely numeric.',
-    'The password is too similar to the username.'
+    error_messages.PASSWORD_TOO_SHORT,
+    error_messages.PASSWORD_TOO_COMMON,
+    error_messages.PASSWORD_NUMERIC,
+    error_messages.PASSWORD_SIMILAR_TO_USERNAME
 ]
 invalid_config_id_length = OpenApiExample(
-    name='Invalid config ID length',
+    name=openapi_messages.INVALID_CONFIG_ID_LENGTH,
     value={
         'config_id': [
-            'Ensure this field has no more than 30 characters.'
+            error_messages.ensure_config_id_valid_length(CONFIG_ID_MAX_LENGTH)
         ]
     },
 )
 file_not_existing_for_user = OpenApiExample(
-    name='File not existing for user',
+    name=openapi_messages.FILE_NOT_EXISTING_FOR_USER,
     value={
-        'error': "File with config ID 'not_existing_config_id' does not exist for user 'testuser'."
+        'error': error_messages.file_does_not_exist_for_user('not_existing_config_id', 'testuser')
     },
 )
 wall_config_409_status = OpenApiExample(
-    name='Invalid wall config status',
+    name=openapi_messages.INVALID_WALL_CONFIG_STATUS,
     value={
-        'error': "The resource is not found. Wall configuration status = 'Error'",
+        'error': error_messages.resource_not_found_status('Error'),
         'error_details': {
             'request_params': {
                 'profile_id': 1,
@@ -56,15 +61,15 @@ wall_config_409_status = OpenApiExample(
     },
 )
 throttled_error_example = OpenApiExample(
-    name='Throttled',
+    name=openapi_messages.THROTTLED,
     value={
-        'detail': 'Request was throttled. Expected available in 59 seconds.'
+        'detail': error_messages.request_was_throttled(wait_seconds=59)
     },
 )
 # = Create user =
 create_user_request_example = OpenApiExample(
-    name='Create ser request',
-    summary='Valid request to create a new user',
+    name=openapi_messages.CREATE_USER_REQUEST,
+    summary=openapi_messages.CREATE_USER_REQUEST_SUMMARY,
     value={
         'username': 'testuser',
         'email': 'testuser@example.com',
@@ -74,8 +79,8 @@ create_user_request_example = OpenApiExample(
 )
 # = Change password =
 set_password_request_example = OpenApiExample(
-    name='Change password request',
-    summary='Valid request to change a user\'s password',
+    name=openapi_messages.CHANGE_PASSWORD_REQUEST,
+    summary=openapi_messages.CHANGE_PASSWORD_REQUEST_SUMMARY,
     value={
         'current_password': 'strongpassword#123',
         'new_password': 'stronger_password#123'
@@ -84,8 +89,8 @@ set_password_request_example = OpenApiExample(
 )
 # = Token login =
 token_login_request_example = OpenApiExample(
-    name='Token login request',
-    summary='Valid request to generate a token for a user',
+    name=openapi_messages.TOKEN_LOGIN_REQUEST,
+    summary=openapi_messages.TOKEN_LOGIN_REQUEST_SUMMARY,
     value={
         'username': 'testuser',
         'password': 'strongpassword#123'

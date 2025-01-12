@@ -16,7 +16,7 @@ from the_wall_api.serializers import (
 )
 from the_wall_api.utils import api_utils
 from the_wall_api.utils.message_themes import (
-    errors as error_messages, success as success_messages
+    errors as error_messages, openapi as openapi_messages, success as success_messages
 )
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_parameters, open_api_responses, open_api_schemas
@@ -34,18 +34,9 @@ class WallConfigFileUploadView(APIView):
     throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
-        tags=['File Management'],
-        summary='Upload Wall Configuration File',
-        description=(
-            'Allows users to upload wall configuration files, which are '
-            'parsed and stored as structured data in the database. \n\nThe processed data can be '
-            'accessed through the `profiles-days` and `profiles-overview` endpoints.'
-            '<br><br>'
-            '*<b><i>Swagger UI-only:</i></b> \n\n'
-            '<i>If a file upload fails due to validation errors,</i> \n\n'
-            '<i>and the file is subsequently modified to meet the validation requirements,</i> \n\n'
-            '<i>the "Try it out" functionality must be reset before attempting a second upload.</i>'
-        ),
+        tags=[openapi_messages.FILE_MANAGEMENT_TAG],
+        summary=openapi_messages.FILE_UPLOAD_SUMMARY,
+        description=openapi_messages.FILE_UPLOAD_DESCRIPTION,
         request=open_api_schemas.wallconfig_file_upload_schema,
         responses=open_api_responses.wallconfig_file_upload_responses
     )
@@ -79,9 +70,9 @@ class WallConfigFileListView(APIView):
     throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        tags=['File Management'],
-        summary='List Wall Configuration Files',
-        description='Retrieve a list of wall configuration files uploaded by the user.',
+        tags=[openapi_messages.FILE_MANAGEMENT_TAG],
+        summary=openapi_messages.FILES_LIST_SUMMARY,
+        description=openapi_messages.FILES_LIST_DESCRIPTION,
         responses=open_api_responses.wallconfig_file_list_responses
     )
     def get(self, request):
@@ -105,9 +96,9 @@ class WallConfigFileDeleteView(APIView):
     throttle_scope = 'wallconfig-files-management'
 
     @extend_schema(
-        tags=['File Management'],
-        summary='Delete Wall Configuration File',
-        description='Delete a wall configuration file uploaded by the user.',
+        tags=[openapi_messages.FILE_MANAGEMENT_TAG],
+        summary=openapi_messages.FILES_DELETE_SUMMARY,
+        description=openapi_messages.FILES_DELETE_DESCRIPTION,
         parameters=[open_api_parameters.file_delete_config_id_list_parameter],
         responses=open_api_responses.wallconfig_file_delete_responses
     )
@@ -209,10 +200,10 @@ class ProfilesBaseView(APIView):
 class ProfilesDaysView(ProfilesBaseView):
 
     @extend_schema(
-        tags=['Costs and Daily Ice Usage'],
+        tags=[openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG],
         operation_id='get_profiles_days',
-        summary='Daily Profile Construction Ice Amount',
-        description='Retrieve the amount of ice used on a specific day for a given wall profile.',
+        summary=openapi_messages.PROFILES_DAYS_SUMMARY,
+        description=openapi_messages.PROFILES_DAYS_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_responses.profiles_days_responses
     )
@@ -249,10 +240,10 @@ class ProfilesDaysView(ProfilesBaseView):
 class ProfilesOverviewView(ProfilesBaseView):
 
     @extend_schema(
-        tags=['Costs and Daily Ice Amounts'],
+        tags=[openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG],
         operation_id='get_profiles_overview',
-        summary='Total Wall Construction Cost',
-        description='Retrieve the total wall construction cost.',
+        summary=openapi_messages.PROFILES_OVERVIEW_SUMMARY,
+        description=openapi_messages.PROFILES_OVERVIEW_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_responses.profiles_overview_responses
     )
@@ -271,10 +262,10 @@ class ProfilesOverviewView(ProfilesBaseView):
 class ProfilesOverviewDayView(ProfilesBaseView):
 
     @extend_schema(
-        tags=['Costs and Daily Ice Usage'],
+        tags=[openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG],
         operation_id='get_profiles_overview_day',
-        summary='Daily Wall Construction Cost',
-        description='Retrieve the total construction cost for a specific day.',
+        summary=openapi_messages.PROFILES_OVERVIEW_DAY_SUMMARY,
+        description=openapi_messages.PROFILES_OVERVIEW_DAY_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_responses.profiles_overview_responses
     )
@@ -292,10 +283,10 @@ class ProfilesOverviewDayView(ProfilesBaseView):
 class SingleProfileOverviewDayView(ProfilesBaseView):
 
     @extend_schema(
-        tags=['Costs and Daily Ice Usage'],
+        tags=[openapi_messages.COST_AND_DAILY_ICE_AMOUNTS_TAG],
         operation_id='get_single_profile_overview_day',
-        summary='Daily Profile Construction Cost',
-        description='Retrieve the cost on a specific day for a given wall profile.',
+        summary=openapi_messages.SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY,
+        description=openapi_messages.SINGLE_PROFILE_OVERVIEW_DAY_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
         responses=open_api_responses.profiles_overview_responses
     )
