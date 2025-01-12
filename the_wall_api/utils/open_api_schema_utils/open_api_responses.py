@@ -1,5 +1,7 @@
 # Externalized responses for extend_schema
 
+from copy import copy
+
 from django.conf import settings
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse
 
@@ -27,12 +29,6 @@ profiles_404_responses = OpenApiResponse(
     response=response_serializers.profiles_404_response_serializer,
     examples=[
         open_api_examples.file_not_existing_for_user,
-    ]
-)
-profiles_409_responses = OpenApiResponse(
-    response=response_serializers.profiles_409_response_serializer,
-    examples=[
-        open_api_examples.wall_config_409_status,
     ]
 )
 throttled_429_responses = OpenApiResponse(
@@ -257,7 +253,7 @@ wallconfig_file_upload_responses = {
     401: unauthorized_401_responses,
     429: throttled_429_responses,
     500: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
             OpenApiExample(
                 name=openapi_messages.FILE_UPLOAD_TECHNICAL_ERROR,
@@ -349,7 +345,7 @@ wallconfig_file_delete_responses = {
     ),
     429: throttled_429_responses,
     500: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
             OpenApiExample(
                 name=openapi_messages.TECHNICAL_ERROR_DELETION,
@@ -391,15 +387,17 @@ wallconfig_file_list_responses = {
 # == ProfilesDaysView ==
 profiles_days_responses = {
     200: OpenApiResponse(
-        response=response_serializers.profiles_days_response_serializer,
+        response=response_serializers.ProfilesDaysResponseSerializer,
         examples=[
             OpenApiExample(
                 name=openapi_messages.VALID_RESPONSE,
-                summary=openapi_messages.SUMMARY_PROFILES_DAYS_RESPONSE,
+                summary=openapi_messages.PROFILES_DAYS_SUMMARY,
                 value={
-                    'profile_id': 1,
                     'day': 2,
-                    'ice_used': 585,
+                    'ice_amount': 585,
+                    'profile_id': 1,
+                    'num_crews': 0,
+                    'config_id': 'test_config_1',
                     'details': success_messages.profiles_days_details(1, 2, 585),
                 },
                 response_only=True,
@@ -417,8 +415,10 @@ profiles_days_responses = {
                     ),
                     'error_details': {
                         'request_params': {
+                            'day': 15,
                             'profile_id': 1,
-                            'day': 15
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
                         },
                     },
                 },
@@ -431,8 +431,10 @@ profiles_days_responses = {
                     ),
                     'error_details': {
                         'request_params': {
+                            'day': 1,
                             'profile_id': 5,
-                            'day': 1
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
                         },
                     },
                 },
@@ -443,7 +445,7 @@ profiles_days_responses = {
     ),
     401: unauthorized_401_responses,
     404: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_1,
         examples=[
             open_api_examples.file_not_existing_for_user,
             OpenApiExample(
@@ -452,19 +454,39 @@ profiles_days_responses = {
                     'error': error_messages.no_crew_worked_on_profile(2, 1),
                     'error_details': {
                         'request_params': {
-                            'profile_id': 2,
                             'day': 1,
-                            'num_crews': 1
+                            'profile_id': 2,
+                            'num_crews': 1,
+                            'config_id': 'test_config_1'
                         }
                     }
                 },
             ),
         ]
     ),
-    409: profiles_409_responses,
+    409: OpenApiResponse(
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
+        examples=[
+            OpenApiExample(
+                name=openapi_messages.INVALID_WALL_CONFIG_STATUS,
+                value={
+                    'error': error_messages.resource_not_found_status('Error'),
+                    'error_details': {
+                        'request_params': {
+                            'day': 1,
+                            'profile_id': 1,
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '1',
+                    }
+                },
+            )
+        ]
+    ),
     429: throttled_429_responses,
     500: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
             OpenApiExample(
                 name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
@@ -472,10 +494,10 @@ profiles_days_responses = {
                     'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
                         'request_params': {
-                            'config_id': 'test_config_1',
-                            'profile_id': 1,
                             'day': 14,
-                            'num_crews': 5
+                            'profile_id': 1,
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
                         },
                         'error_id': '1',
                         'tech_info': openapi_messages.UNKNOWN_EXCEPTION,
@@ -488,17 +510,22 @@ profiles_days_responses = {
 # == ProfilesDaysView (end) ==
 
 # == ProfilesOverviewView ==
-profiles_overview_responses = {
+profiles_overview_responses = copy(profiles_days_responses)
+profiles_overview_responses.update({
     200: OpenApiResponse(
-        response=response_serializers.profiles_overview_response_serializer,
+        response=response_serializers.ProfilesOverviewResponseSerializer,
         examples=[
             OpenApiExample(
                 name=openapi_messages.VALID_RESPONSE,
-                summary=openapi_messages.TOTAL_CONSTRUCTION_COST,
+                summary=openapi_messages.PROFILES_OVERVIEW_SUMMARY,
                 value={
-                    'cost': '32233500',
+                    'day': None,
+                    'cost': success_messages.format_cost(32233500),
+                    'profile_id': None,
+                    'num_crews': 0,
+                    'config_id': 'test_config_1',
                     'details': success_messages.profiles_overview_details(
-                        success_messages.WALL_TOTAL_COST_RESPONSE, 32233500
+                        openapi_messages.PROFILES_OVERVIEW_SUMMARY, 32233500
                     ),
                 },
                 response_only=True,
@@ -512,19 +539,42 @@ profiles_overview_responses = {
             open_api_examples.file_not_existing_for_user,
         ]
     ),
-    401: unauthorized_401_responses,
-    404: profiles_404_responses,
-    409: profiles_409_responses,
-    429: throttled_429_responses,
+    404: OpenApiResponse(
+        response=response_serializers.profiles_404_response_serializer,
+        examples=[
+            open_api_examples.file_not_existing_for_user,
+        ]
+    ),
+    409: OpenApiResponse(
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
+        examples=[
+            OpenApiExample(
+                name=openapi_messages.INVALID_WALL_CONFIG_STATUS,
+                value={
+                    'error': error_messages.resource_not_found_status('Error'),
+                    'error_details': {
+                        'request_params': {
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '1',
+                    }
+                },
+            )
+        ]
+    ),
     500: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
             OpenApiExample(
                 name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
                 value={
                     'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
-                        'request_params': {'config_id': 'test_config_1'},
+                        'request_params': {
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
+                        },
                         'error_id': '1',
                         'tech_info': openapi_messages.UNKNOWN_EXCEPTION,
                     }
@@ -532,20 +582,27 @@ profiles_overview_responses = {
             ),
         ]
     ),
-}
+})
+# == ProfilesOverviewView (end) ==
 
-#TODO: to merge with ProfilesOverview responses
-profiles_overview_profile_id_responses = {
+# == ProfilesOverviewDayView ==
+profiles_overview_day_responses = copy(profiles_days_responses)
+profiles_overview_day_responses.update({
     200: OpenApiResponse(
-        response=response_serializers.profiles_overview_response_serializer,
+        response=response_serializers.ProfilesOverviewDayResponseSerializer,
         examples=[
             OpenApiExample(
-                name='Valid response',
-                summary='Profile construction cost',
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.PROFILES_OVERVIEW_DAY_SUMMARY,
                 value={
-                    'profile_id': 2,
-                    'profile_cost': '8058375',
-                    'details': 'Profile 2 construction cost: 8058375 Gold Dragon coins'
+                    'day': 2,
+                    'cost': success_messages.format_cost(8058375),
+                    'profile_id': None,
+                    'num_crews': 0,
+                    'config_id': 'test_config_1',
+                    'details': success_messages.profiles_overview_details(
+                        success_messages.profiles_overview_day_cost(2), 8058375
+                    )
                 },
                 response_only=True,
             ),
@@ -555,27 +612,51 @@ profiles_overview_profile_id_responses = {
         response=response_serializers.wall_app_error_response_serializer,
         examples=[
             OpenApiExample(
-                name='Profile ID Out of Range',
+                name=openapi_messages.OUT_OF_RANGE_DAY,
                 value={
                     'error': error_messages.out_of_range(
-                        'profile number', error_messages.out_of_range_finishing_message_2(3)
+                        'day', error_messages.out_of_range_finishing_message_1(13)
                     ),
                     'error_details': {
                         'request_params': {
-                            'profile_id': 5
+                            'day': 15,
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
                         },
                     },
                 },
             ),
             open_api_examples.invalid_config_id_length,
+            open_api_examples.file_not_existing_for_user,
         ]
     ),
-    401: unauthorized_401_responses,
-    404: profiles_404_responses,
-    409: profiles_409_responses,
-    429: throttled_429_responses,
+    404: OpenApiResponse(
+        response=response_serializers.profiles_404_response_serializer,
+        examples=[
+            open_api_examples.file_not_existing_for_user,
+        ]
+    ),
+    409: OpenApiResponse(
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
+        examples=[
+            OpenApiExample(
+                name=openapi_messages.INVALID_WALL_CONFIG_STATUS,
+                value={
+                    'error': error_messages.resource_not_found_status('Error'),
+                    'error_details': {
+                        'request_params': {
+                            'day': 1,
+                            'num_crews': 5,
+                            'config_id': 'test_config_1'
+                        },
+                        'error_id': '1',
+                    }
+                },
+            )
+        ]
+    ),
     500: OpenApiResponse(
-        response=response_serializers.wall_app_error_response_serializer,
+        response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
             OpenApiExample(
                 name=openapi_messages.SIMULATION_DATA_INCONSISTENCY,
@@ -583,8 +664,9 @@ profiles_overview_profile_id_responses = {
                     'error': error_messages.wall_operation_failed(error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION),
                     'error_details': {
                         'request_params': {
+                            'day': 5,
                             'config_id': 'test_config_1',
-                            'profile_id': 5
+                            'num_crews': 5
                         },
                         'error_id': '1',
                         'tech_info': 'WallConstructionError: Invalid wall configuration.',
@@ -593,9 +675,37 @@ profiles_overview_profile_id_responses = {
             ),
         ]
     ),
-}
+})
 
-# == ProfilesOverviewView(end) ==
+
+# == ProfilesOverviewDayView (end) ==
+
+# == SingleProfileOverviewDayView ==
+single_profile_overview_day_responses = copy(profiles_days_responses)
+single_profile_overview_day_responses.update({
+    200: OpenApiResponse(
+        response=response_serializers.SingleProfileOverviewDayResponseSerializer,
+        examples=[
+            OpenApiExample(
+                name=openapi_messages.VALID_RESPONSE,
+                summary=openapi_messages.SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY,
+                value={
+                    'day': 2,
+                    'cost': success_messages.format_cost(1111500),
+                    'profile_id': 1,
+                    'num_crews': 0,
+                    'config_id': 'test_config_1',
+                    'details': success_messages.profiles_overview_details(
+                        success_messages.profile_day_cost(1, 2), 1111500
+                    )
+                },
+                response_only=True,
+            ),
+        ]
+    ),
+})
+
+# == SingleProfileOverviewDayView (end) ==
 
 # == Djoser ==
 # = Create user =

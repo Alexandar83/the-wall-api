@@ -1,7 +1,9 @@
 # Externalized response serializers for extend_schema
-
+from django.core.validators import MinValueValidator
 from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers
+
+from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 
 # == Wall app serializers ==
 
@@ -11,7 +13,14 @@ wall_app_error_response_serializer = inline_serializer(
     fields={
         'error': serializers.CharField(required=False),
         'error_details': serializers.DictField(required=False),
-        'config_id': serializers.CharField(required=False),
+        'config_id': serializers.ListField(child=serializers.CharField(), required=False),
+    }
+)
+profiles_error_and_details_response_serializer_1 = inline_serializer(
+    name='ProfilesErrorAndDetailsResponse1',
+    fields={
+        'error': serializers.CharField(),
+        'error_details': serializers.DictField(required=False),
     }
 )
 profiles_404_response_serializer = inline_serializer(
@@ -20,8 +29,8 @@ profiles_404_response_serializer = inline_serializer(
         'error': serializers.CharField(),
     }
 )
-profiles_409_response_serializer = inline_serializer(
-    name='ProfilesError409Response',
+profiles_error_and_details_response_serializer_2 = inline_serializer(
+    name='ProfilesErrorAndDetailsResponse2',
     fields={
         'error': serializers.CharField(),
         'error_details': serializers.DictField(),
@@ -30,7 +39,8 @@ profiles_409_response_serializer = inline_serializer(
 config_id_error_response_serializer = inline_serializer(
     name='ConfigIdErrorResponse',
     fields={
-        'config_id': serializers.CharField(),
+        'config_id': serializers.ListField(child=serializers.CharField(), required=False),
+        'error': serializers.CharField(required=False),
     }
 )
 unauthorized_401_response_serializer = inline_serializer(
@@ -93,28 +103,55 @@ wall_config_delete_404_response_serializer = inline_serializer(
     }
 )
 
+
+# = Profiles Views =
+# *Base Response Serializer*
+class ProfilesResponseSerializerBase(serializers.Serializer):
+    num_crews = serializers.IntegerField(validators=[MinValueValidator(0)])
+    config_id = serializers.CharField(max_length=CONFIG_ID_MAX_LENGTH)
+    details = serializers.CharField()
+
+
 # *ProfilesDaysView*
-profiles_days_response_serializer = inline_serializer(
-    name='ProfilesDaysResponse',
-    fields={
-        'profile_id': serializers.IntegerField(),
-        'day': serializers.IntegerField(),
-        'ice_used': serializers.IntegerField(),
-        'details': serializers.CharField(),
-    }
-)
+class ProfilesDaysResponseSerializer(ProfilesResponseSerializerBase):
+    day = serializers.IntegerField(validators=[MinValueValidator(1)])
+    ice_amount = serializers.IntegerField(validators=[MinValueValidator(0)])
+    profile_id = serializers.IntegerField(validators=[MinValueValidator(1)])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Reorder declared fields
+        ordered_fields = ['day', 'ice_amount', 'profile_id', 'num_crews', 'config_id', 'details']
+        self._declared_fields = {key: self._declared_fields[key] for key in ordered_fields if key in self._declared_fields}
+
+
+# *SingleProfileOverviewDayView*
+class SingleProfileOverviewDayResponseSerializer(ProfilesResponseSerializerBase):
+    day = serializers.IntegerField(validators=[MinValueValidator(1)])
+    cost = serializers.IntegerField(validators=[MinValueValidator(0)])
+    profile_id = serializers.IntegerField(validators=[MinValueValidator(1)])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Reorder declared fields
+        ordered_fields = ['day', 'cost', 'profile_id', 'num_crews', 'config_id', 'details']
+        self._declared_fields = {key: self._declared_fields[key] for key in ordered_fields if key in self._declared_fields}
+
+
+# *ProfilesOverviewDayView*
+class ProfilesOverviewDayResponseSerializer(SingleProfileOverviewDayResponseSerializer):
+    profile_id = serializers.IntegerField(allow_null=True)
+
 
 # *ProfilesOverviewView*
-profiles_overview_response_serializer = inline_serializer(
-    name='ProfilesOverviewResponse',
-    fields={
-        'profile_id': serializers.IntegerField(),
-        'profile_cost': serializers.CharField(),
-        'details': serializers.CharField(),
-    }
-)
+class ProfilesOverviewResponseSerializer(ProfilesOverviewDayResponseSerializer):
+    day = serializers.IntegerField(allow_null=True)
+
+
+# = Profiles Views (end) =
 
 # == Wall app serializers (end) ==
+
 
 # == Djoser ==
 # = Create user =

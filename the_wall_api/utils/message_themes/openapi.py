@@ -60,16 +60,16 @@ FILES_DELETE_DESCRIPTION = 'Delete a wall configuration file uploaded by the use
 COST_AND_DAILY_ICE_AMOUNTS_TAG = 'Costs and Daily Ice Amounts'
 COST_AND_DAILY_ICE_AMOUNTS_TAG_DESCRIPTION = 'Analyze construction costs and daily ice usage'
 
-PROFILES_DAYS_SUMMARY = 'Daily Profile Construction Ice Amount'
+PROFILES_DAYS_SUMMARY = 'Daily Profile Ice Amount'
 PROFILES_DAYS_DESCRIPTION = 'Retrieve the amount of ice used on a specific day for a given wall profile.'
 
-PROFILES_OVERVIEW_SUMMARY = 'Total Wall Construction Cost'
+PROFILES_OVERVIEW_SUMMARY = 'Total Wall Cost'
 PROFILES_OVERVIEW_DESCRIPTION = 'Retrieve the total wall construction cost.'
 
-PROFILES_OVERVIEW_DAY_SUMMARY = 'Daily Wall Construction Cost'
+PROFILES_OVERVIEW_DAY_SUMMARY = 'Daily Wall Cost'
 PROFILES_OVERVIEW_DAY_DESCRIPTION = 'Retrieve the total construction cost for a specific day.'
 
-SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY = 'Daily Profile Construction Cost'
+SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY = 'Daily Profile Cost'
 SINGLE_PROFILE_OVERVIEW_DAY_DESCRIPTION = 'Retrieve the cost on a specific day for a given wall profile.'
 
 # == Profiles (end) ==
@@ -171,11 +171,9 @@ PROFILE_NOT_A_LIST = 'Profile not a list'
 
 SIMULATION_DATA_INCONSISTENCY = 'Simulation Data Inconsistency'
 SUMMARY_FILES_LIST_RESPONSE = 'Wall config ID list'
-SUMMARY_PROFILES_DAYS_RESPONSE = 'Profile construction cost'
 SUMMARY_TOKEN_LOGIN = 'Valid token'
 
 TECHNICAL_ERROR_DELETION = 'Deletion technical error'
-TOTAL_CONSTRUCTION_COST = 'Total construction cost'
 TRY_AGAIN = 'Try again'
 
 UNABLE_TO_LOG_IN = 'Unable to log in'

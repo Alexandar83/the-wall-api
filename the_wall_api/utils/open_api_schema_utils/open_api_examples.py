@@ -46,20 +46,6 @@ file_not_existing_for_user = OpenApiExample(
         'error': error_messages.file_does_not_exist_for_user('not_existing_config_id', 'testuser')
     },
 )
-wall_config_409_status = OpenApiExample(
-    name=openapi_messages.INVALID_WALL_CONFIG_STATUS,
-    value={
-        'error': error_messages.resource_not_found_status('Error'),
-        'error_details': {
-            'request_params': {
-                'profile_id': 1,
-                'day': 1,
-                'config_id': 'test_config_1'
-            },
-            'error_id': '1',
-        }
-    },
-)
 throttled_error_example = OpenApiExample(
     name=openapi_messages.THROTTLED,
     value={

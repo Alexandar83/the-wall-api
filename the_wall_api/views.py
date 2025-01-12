@@ -185,12 +185,14 @@ class ProfilesBaseView(APIView):
             response_message = success_messages.profiles_overview_day_cost(day)
         else:
             cost = result_data['wall_total_cost']
-            response_message = success_messages.WALL_TOTAL_COST_RESPONSE
+            response_message = openapi_messages.PROFILES_OVERVIEW_SUMMARY
 
         response_data = {
             'day': day,
             'cost': success_messages.format_cost(cost),
             'profile_id': profile_id,
+            'num_crews': wall_data['num_crews'],
+            'config_id': wall_data['request_config_id'],
             'details': success_messages.profiles_overview_details(response_message, cost),
         }
 
@@ -228,6 +230,8 @@ class ProfilesDaysView(ProfilesBaseView):
 
         if profile_day_ice_amount and isinstance(profile_day_ice_amount, int) and profile_day_ice_amount > 0:
             response_data['ice_amount'] = profile_day_ice_amount
+            response_data['num_crews'] = wall_data['num_crews']
+            response_data['config_id'] = wall_data['request_config_id']
             response_data['details'] = success_messages.profiles_days_details(
                 profile_id, day, profile_day_ice_amount
             )
@@ -267,7 +271,7 @@ class ProfilesOverviewDayView(ProfilesBaseView):
         summary=openapi_messages.PROFILES_OVERVIEW_DAY_SUMMARY,
         description=openapi_messages.PROFILES_OVERVIEW_DAY_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_responses.profiles_overview_responses
+        responses=open_api_responses.profiles_overview_day_responses
     )
     def get(self, request: Request, day: int) -> Response:
         profile_id = None
@@ -288,7 +292,7 @@ class SingleProfileOverviewDayView(ProfilesBaseView):
         summary=openapi_messages.SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY,
         description=openapi_messages.SINGLE_PROFILE_OVERVIEW_DAY_DESCRIPTION,
         parameters=[open_api_parameters.num_crews_parameter, open_api_parameters.config_id_parameter],
-        responses=open_api_responses.profiles_overview_responses
+        responses=open_api_responses.single_profile_overview_day_responses
     )
     def get(self, request: Request, profile_id: int, day: int) -> Response:
         response, wall_data = self.process_profiles_request(

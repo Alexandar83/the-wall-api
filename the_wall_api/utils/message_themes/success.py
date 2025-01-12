@@ -1,5 +1,4 @@
-# == Views ==
-WALL_TOTAL_COST_RESPONSE = 'Total wall construction cost.'
+from the_wall_api.utils.message_themes import openapi as openapi_messages
 
 
 # = File Upload =
@@ -9,11 +8,15 @@ def file_upload_details(config_id: str) -> str:
 
 # = Profiles =
 def profile_day_cost(profile_id: int, day: int) -> str:
-    return f'Construction cost for profile {profile_id} on day {day}.'
+    return f'Construction cost for profile {profile_id} on day {day}'
 
 
 def profiles_overview_day_cost(day: int) -> str:
-    return f'Construction cost for day {day}.'
+    return f'Construction cost for day {day}'
+
+
+def profiles_overview_cost() -> str:
+    return f'{openapi_messages.PROFILES_OVERVIEW_SUMMARY}'
 
 
 def format_cost(cost: int) -> str:
@@ -21,7 +24,7 @@ def format_cost(cost: int) -> str:
 
 
 def profiles_overview_details(response_message: str, cost: int) -> str:
-    return f'{response_message}: {format_cost(cost)} Gold Dragon coins'
+    return f'{response_message}: {format_cost(cost)} Gold Dragon coins.'
 
 
 def profiles_days_details(profile_id: int, day: int, profile_day_ice_amount: int) -> str:
