@@ -1,0 +1,7 @@
+DONE = 'Done!'
+OK = 'OK'
+OK_0 = 'OK_0'
+OK_1 = 'OK_1'
+OK_2 = 'OK_2'
+NOK = 'NOK'
+N_A = 'N/A'

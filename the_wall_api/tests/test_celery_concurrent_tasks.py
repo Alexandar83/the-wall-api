@@ -21,6 +21,9 @@ from the_wall_api.tasks import (
 )
 from the_wall_api.tests.test_utils import BaseTransactionTestcase
 from the_wall_api.utils.api_utils import exposed_endpoints
+from the_wall_api.utils.message_themes import (
+    base as base_messages, errors as error_messages
+)
 from the_wall_api.utils.storage_utils import get_wall_progress_cache_key, manage_wall_config_object
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
 from the_wall_api.wall_construction import get_sections_count
@@ -208,7 +211,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         if redis_profiles_days_cache is None:
             return 'Wall Redis cache should exist after the normal GET request!'
 
-        return 'OK'
+        return base_messages.OK
 
     def check_being_processed(self, profile_id: int, day: int, normal_request_num_crews: int):
         max_attempts = 10
@@ -224,7 +227,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 
         response = self.fetch_response(profile_id, day, normal_request_num_crews)
         if response.status_code == status.HTTP_202_ACCEPTED:
-            return 'OK'
+            return base_messages.OK
 
         return f'Unexpected normal GET request response code: {response.status_code}!'
 
@@ -288,7 +291,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             return f'{test_case_source} timed out', actual_result
 
         if not deletion:
-            if normal_request_result and normal_request_result != 'OK':
+            if normal_request_result and normal_request_result != base_messages.OK:
                 return normal_request_result, []
             actual_message, actual_result = wall_config_orchestration_result.result
         elif deletion_result:
@@ -302,22 +305,22 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def check_abort_signal_processed(
         self, actual_deletion_message: str, wall_config_orchestration_result: AsyncResult, deletion: str
     ) -> str:
-        if actual_deletion_message != 'OK':
+        if actual_deletion_message != base_messages.OK:
             return actual_deletion_message
 
         actual_message, actual_result = wall_config_orchestration_result.result
-        if deletion == 'sequential' and actual_message != 'OK':
+        if deletion == 'sequential' and actual_message != base_messages.OK:
             return actual_message
         if deletion == 'concurrent':
             if (
-                actual_message != 'Interrupted by a deletion task' and
+                actual_message != error_messages.INTERRUPTED_BY_DELETION_TASK and
                 self._testMethodName != 'test_wall_config_deletion_task_concurrent'
             ):
                 return actual_message
             if {} not in actual_result:
                 return 'Abort signal not processed!'
 
-        return 'OK'
+        return base_messages.OK
 
     def evaluate_tasks_result(self, task_results: list, deletion: str | None = None) -> str:
         if deletion:
@@ -340,7 +343,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
                 return 'Wall not found.'
             # Check if all profiles are in the DB
             wall_profiles_evaluation_message = self.evaluate_wall_progress(task_result, wall)
-            if wall_profiles_evaluation_message != 'OK':
+            if wall_profiles_evaluation_message != base_messages.OK:
                 return wall_profiles_evaluation_message
 
         return self.orchstrt_wall_config_task_success_msg
@@ -380,12 +383,12 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
                 cached_ice_amount = wall_progress.ice_amount_data.get(profile_key)
                 if cached_ice_amount != ice_amount:
                     result_message = (
-                        f'Day({day}) profile({profile_key}) calculated amoumt '
+                        f'Day({day}) profile({profile_key}) calculated amount '
                         f'({ice_amount}) does not match the cached value ({cached_ice_amount}).'
                     )
                     return result_message
 
-        return 'OK'
+        return base_messages.OK
 
     def send_multiple_deletion_tasks(self, test_case_source) -> tuple[str, str]:
         deletion_task_1_kwargs = {
@@ -418,10 +421,10 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def check_deletion_tasks_results(
         self, actual_message_1: str, actual_message_2: str, expected_message: str
     ) -> tuple[bool, str]:
-        """One of the tasks should return a 'Deletion already initaiated' result"""
+        """One of the tasks should return a 'Deletion already initiated' result"""
         expected_condition_met = (
-            (actual_message_1 == 'OK' and actual_message_2 == expected_message) or
-            (actual_message_2 == 'OK' and actual_message_1 == expected_message)
+            (actual_message_1 == base_messages.OK and actual_message_2 == expected_message) or
+            (actual_message_2 == base_messages.OK and actual_message_1 == expected_message)
         )
         wall_config_absent = not WallConfig.objects.filter(wall_config_hash=self.wall_config_hash).exists()
 
@@ -430,9 +433,9 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             return True, expected_message
 
         # Condition failed, determine the appropriate failure message
-        if actual_message_1 != 'OK':
+        if actual_message_1 != base_messages.OK:
             return False, actual_message_1
-        elif actual_message_2 != 'OK':
+        elif actual_message_2 != base_messages.OK:
             return False, actual_message_2
 
         # Default failure message
@@ -452,7 +455,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             'test_case_source': test_case_source
         }
 
-        if task_result_message != 'OK':
+        if task_result_message != base_messages.OK:
             self.log_test_result(passed=False, actual_message=task_result_message, **common_result_kwargs)
             return
 
@@ -487,7 +490,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
     def test_simultaneous_wall_config_deletion_tasks(self):
         """Start two deletion tasks at the same time - one of them should skip the deletion processing."""
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        expected_message = 'Deletion already initiated by another process.'
+        expected_message = error_messages.DELETION_ALREADY_STARTED
         actual_message_1, actual_message_2 = self.send_multiple_deletion_tasks(test_case_source)
         passed, actual_message_final = self.check_deletion_tasks_results(actual_message_1, actual_message_2, expected_message)
         self.log_test_result(
@@ -520,7 +523,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             'test_case_source': test_case_source
         }
 
-        if task_result_message != 'OK':
+        if task_result_message != base_messages.OK:
             self.log_test_result(passed=False, actual_message=task_result_message, **common_result_kwargs)
             return
 
@@ -606,9 +609,9 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
                 passed=False, input_data=self.input_data, expected_message=expected_message,
                 actual_message=fail_message, test_case_source=test_case_source
             )
-            return 'NOK'
+            return base_messages.NOK
 
-        return 'OK'
+        return base_messages.OK
 
     def test_delete_task_success(self):
         """
@@ -623,14 +626,14 @@ class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):
         fail_message_1 = 'Wall config not deleted after task execution.'
         if self.process_deletion_attempt(
             1, fail_message_1, expected_message, test_case_source,
-        ) != 'OK':
+        ) != base_messages.OK:
             return
 
         self.delete_user()
         fail_message_2 = 'Wall config not deleted after reference deletion.'
         if self.process_deletion_attempt(
             2, fail_message_2, expected_message, test_case_source
-        ) != 'OK':
+        ) != base_messages.OK:
             return
 
         self.log_test_result(

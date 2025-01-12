@@ -15,6 +15,9 @@ from the_wall_api.serializers import (
     WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
 )
 from the_wall_api.utils import api_utils
+from the_wall_api.utils.message_themes import (
+    errors as error_messages, success as success_messages
+)
 from the_wall_api.utils.open_api_schema_utils import (
     open_api_parameters, open_api_responses, open_api_schemas
 )
@@ -66,7 +69,7 @@ class WallConfigFileUploadView(APIView):
     def build_upload_response(self, config_id):
         response_data = {
             'config_id': config_id,
-            'details': f'Wall config <{config_id}> uploaded successfully.'
+            'details': success_messages.file_upload_details(config_id),
         }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -185,19 +188,19 @@ class ProfilesBaseView(APIView):
 
         if profile_id and day:
             cost = result_data['profile_day_cost']
-            response_message = f'Construction cost for profile {profile_id} on day {day}'
+            response_message = success_messages.profile_day_cost(profile_id, day)
         elif day:
             cost = result_data['profiles_overview_day_cost']
-            response_message = f'Construction cost for day {day}'
+            response_message = success_messages.profiles_overview_day_cost(day)
         else:
             cost = result_data['wall_total_cost']
-            response_message = 'Total wall construction cost'
+            response_message = success_messages.WALL_TOTAL_COST_RESPONSE
 
         response_data = {
             'day': day,
-            'cost': f'{cost:,}',
+            'cost': success_messages.format_cost(cost),
             'profile_id': profile_id,
-            'details': f'{response_message}: {cost:,} Gold Dragon coins',
+            'details': success_messages.profiles_overview_details(response_message, cost),
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
@@ -234,10 +237,12 @@ class ProfilesDaysView(ProfilesBaseView):
 
         if profile_day_ice_amount and isinstance(profile_day_ice_amount, int) and profile_day_ice_amount > 0:
             response_data['ice_amount'] = profile_day_ice_amount
-            response_data['details'] = f'Volume of ice used for profile {profile_id} on day {day}: {profile_day_ice_amount} cubic yards.'
+            response_data['details'] = success_messages.profiles_days_details(
+                profile_id, day, profile_day_ice_amount
+            )
             return Response(response_data, status=status.HTTP_200_OK)
 
-        response_data['details'] = f'No crew has worked on profile {profile_id} on day {day}.'
+        response_data['details'] = error_messages.no_crew_worked_on_profile(profile_id, day)
         return Response(response_data, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -316,8 +321,8 @@ def custom_404_view(request, exception=None):
         ]
 
         response_data = {
-            'error': 'Endpoint not found',
-            'error_details': 'The requested API endpoint does not exist. Please use the available endpoints.',
+            'error': error_messages.ENDPOINT_NOT_FOUND,
+            'error_details': error_messages.ENDPOINT_NOT_FOUND_DETAILS,
             'available_endpoints': available_endpoints,
         }
         return JsonResponse(response_data, status=404)

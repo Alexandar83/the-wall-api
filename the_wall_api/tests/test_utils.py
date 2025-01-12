@@ -14,6 +14,7 @@ from rest_framework.exceptions import ErrorDetail
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.utils.api_utils import exposed_endpoints
+from the_wall_api.utils.message_themes import errors as error_messages
 from the_wall_api.utils.open_api_schema_utils.djoser_utils import (
     CreateUserExtendSchemaViewSet, DeleteUserExtendSchemaViewSet, SetPasswordExtendSchemaView,
     TokenCreateExtendSchemaView, TokenDestroyExtendSchemaView
@@ -26,82 +27,82 @@ from the_wall_api.views import (
 # Group all invalid input characters by serializer error message
 invalid_input_groups = {
     'profile_id': {
-        ErrorDetail(string='Ensure this value is greater than or equal to 1.', code='min_value'): [
+        ErrorDetail(string=error_messages.ensure_value_greater_than_or_equal_to(1), code='min_value'): [
             0, -1, -100, '0', '-1', '-100',
         ],
-        ErrorDetail(string='A valid integer is required.', code='invalid'): [
+        ErrorDetail(string=error_messages.VALID_INTEGER_REQUIRED, code='invalid'): [
             3.14, '3.14', 'string', '$', '@', '#', '!', '%', '^', '&', '*', '(', ')', '<', '>', '?', '[]', '{}', '\\', '|', ';', ':', ',', '.', '/', [], {}, '',
         ],
-        ErrorDetail(string='This field may not be null.', code='null'): [
+        ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_NULL, code='null'): [
             None,
         ],
     },
     'day': {
-        ErrorDetail(string='Ensure this value is greater than or equal to 1.', code='min_value'): [
+        ErrorDetail(string=error_messages.ensure_value_greater_than_or_equal_to(1), code='min_value'): [
             0, -1, -100, '0', '-1', '-100',
         ],
-        ErrorDetail(string='A valid integer is required.', code='invalid'): [
+        ErrorDetail(string=error_messages.VALID_INTEGER_REQUIRED, code='invalid'): [
             3.14, '3.14', 'string', '$', '@', '#', '!', '%', '^', '&', '*', '(', ')', '<', '>', '?', '[]', '{}', '\\', '|', ';', ':', ',', '.', '/', [], {}, '',
         ],
-        ErrorDetail(string='This field may not be null.', code='null'): [
+        ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_NULL, code='null'): [
             None,
         ],
     },
     'num_crews': {
-        ErrorDetail(string='Ensure this value is greater than or equal to 0.', code='min_value'): [
+        ErrorDetail(string=error_messages.ensure_value_greater_than_or_equal_to(0), code='min_value'): [
             -1, -2, -100, '-1', '-2', '-100',
         ],
-        ErrorDetail(string='A valid integer is required.', code='invalid'): [
+        ErrorDetail(string=error_messages.VALID_INTEGER_REQUIRED, code='invalid'): [
             3.14, '3.14', 'string', '$', '@', '#', '!', '%', '^', '&', '*', '(', ')', '<', '>', '?', '[]', '{}', '\\', '|', ';', ':', ',', '.', '/', [], {}, '',
         ],
     },
     'wall_config_file': {
         'invalid_extension': (
-            ErrorDetail(string='File extension “txt” is not allowed. Allowed extensions are: json.', code='invalid_extension'),
+            ErrorDetail(string=error_messages.file_extension_not_allowed('txt', 'json'), code='invalid_extension'),
             SimpleUploadedFile('wall_config.txt', b'[]', content_type='application/json'),
         ),
         'non_serializable_data': (
-            ErrorDetail(string='Invalid JSON file format.', code='invalid'),
+            ErrorDetail(string=error_messages.INVALID_JSON_FILE_FORMAT, code='invalid'),
             SimpleUploadedFile('wall_config.json', b'[[1, 2, 3], [1, 2]', content_type='application/json'),
         ),
         'empty_file': (
-            ErrorDetail(string='The submitted file is empty.', code='empty'),
+            ErrorDetail(string=error_messages.THE_FILE_IS_EMPTY, code='empty'),
             SimpleUploadedFile('wall_config.json', b'', content_type='application/json'),
         ),
         'null_object': (
-            ErrorDetail(string='This field may not be null.', code='null'),
+            ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_NULL, code='null'),
             None,
         ),
         'not_a_file_object': (
-            ErrorDetail(string='The submitted data was not a file. Check the encoding type on the form.', code='invalid'),
+            ErrorDetail(string=error_messages.DATA_NOT_A_FILE, code='invalid'),
             'not_a_file_object',
         ),
     },
     'config_id': [
         (
-            ErrorDetail(string='Ensure this field has no more than 30 characters.', code='max_length'),
+            ErrorDetail(string=error_messages.ensure_config_id_valid_length(CONFIG_ID_MAX_LENGTH), code='max_length'),
             'a' * (CONFIG_ID_MAX_LENGTH + 1),
         ),
         (
-            ErrorDetail(string='This field may not be null.', code='null'),
+            ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_NULL, code='null'),
             None,
         ),
         (
-            ErrorDetail(string='This field may not be blank.', code='blank'),
+            ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_BLANK, code='blank'),
             '',
         ),
         (
-            ErrorDetail(string='This field is required.', code='required'),
+            ErrorDetail(string=error_messages.THIS_FIELD_IS_REQUIRED, code='required'),
             'omit_config_id',
         ),
     ],
     'config_id_list': [
         (
-            ErrorDetail(string='This field may not be null.', code='null'),
+            ErrorDetail(string=error_messages.THIS_FIELD_MAY_NOT_BE_NULL, code='null'),
             None,
         ),
         (
-            ErrorDetail(string='Not a valid string.', code='invalid'),
+            ErrorDetail(string=error_messages.INVALID_STRING, code='invalid'),
             {'not_a_valid_string': 'not_a_valid_string'},
         ),
     ],

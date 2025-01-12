@@ -11,6 +11,9 @@ from typing import Callable, Union
 from django.conf import settings
 
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
+from the_wall_api.utils.message_themes import (
+    errors as error_messages
+)
 
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING = settings.MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING
@@ -30,7 +33,9 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             # -the nature of the build simulation - 1 crew (process) per section
             # -CPU limitations
             raise WallConstructionError(
-                f'Max. allowed number of sections for multiprocessing is {MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING}'
+                error_messages.multiprocessing_max_allowed_sections(
+                    self.CONCURRENT_SIMULATION_MODE, MAX_CONCURRENT_NUM_CREWS_MULTIPROCESSING
+                )
             )
         self.init_result_handler()
         if self.is_manager_required():

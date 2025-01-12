@@ -5,8 +5,9 @@ from typing import Any
 from django.conf import settings
 
 from the_wall_api.tests.test_utils import BaseTestcase
+from the_wall_api.utils.message_themes import errors as error_messages
 from the_wall_api.utils.wall_config_utils import (
-    hash_calc, INVALID_WALL_CONFIG_MSG, validate_wall_config_format, WallConstructionError
+    hash_calc, validate_wall_config_format, WallConstructionError
 )
 from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
@@ -26,12 +27,12 @@ class WallConfigFormatTest(BaseTestcase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.invalid_wall_config_msg = INVALID_WALL_CONFIG_MSG
+        cls.invalid_wall_config_msg = error_messages.INVALID_WALL_CONFIG
 
     def evaluate_wall_config_test_result(self, test_data: Any, expected_error: str, test_case_source: str) -> None:
         try:
             with self.assertRaises(WallConstructionError) as validation_error_context:
-                validate_wall_config_format(test_data, self.invalid_wall_config_msg)
+                validate_wall_config_format(test_data)
             actual_result = str(validation_error_context.exception)
         except AssertionError:
             actual_result = f'Expected Error \"{expected_error}\" was not raised!'
@@ -56,44 +57,47 @@ class WallConfigFormatTest(BaseTestcase):
     def test_invalid_wall_format_not_list(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = '[Not a list]'
-        expected_error = 'Must be a nested list of lists of integers.'
-        self.evaluate_wall_config_test_result(test_data, expected_error, test_case_source)
+        self.evaluate_wall_config_test_result(test_data, error_messages.MUST_BE_NESTED_LIST, test_case_source)
 
     def test_invalid_profile_format_not_list(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = ['[Not a list]']
-        expected_error = 'Each profile must be a list of integers.'
+        expected_error = error_messages.PROFILE_MUST_BE_LIST_OF_INTEGERS
         self.evaluate_wall_config_test_result(test_data, expected_error, test_case_source)
 
     def test_invalid_wall_section_count(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH + [[0]]
-        self.evaluate_wall_config_test_result(test_data, 'The maximum number of sections', test_case_source)
+        self.evaluate_wall_config_test_result(test_data, error_messages.MAXIMUM_NUMBER_OF_SECTIONS, test_case_source)
 
     def test_invalid_profile_section_count(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[0] * (MAX_WALL_PROFILE_SECTIONS + 1)]
-        self.evaluate_wall_config_test_result(test_data, 'Each profile must have a maximum of', test_case_source)
+        self.evaluate_wall_config_test_result(test_data, error_messages.MAXIMUM_NUMBER_OF_PROFILE_SECTIONS, test_case_source)
 
     def test_invalid_wall_length(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[0]] * (MAX_WALL_LENGTH + 1)
-        self.evaluate_wall_config_test_result(test_data, 'The maximum wall length', test_case_source)
+        self.evaluate_wall_config_test_result(test_data, error_messages.MAXIMUM_WALL_LENGTH, test_case_source)
 
     def test_invalid_section_height_format_not_int(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [['Not an int']]
-        self.evaluate_wall_config_test_result(test_data, 'must be an integer', test_case_source)
+        self.evaluate_wall_config_test_result(test_data, error_messages.SECTION_HEIGHT_MUST_BE_INTEGER, test_case_source)
 
     def test_maximum_section_height(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[MAX_SECTION_HEIGHT + 1]]
-        self.evaluate_wall_config_test_result(test_data, f'must be <= {MAX_SECTION_HEIGHT}', test_case_source)
+        self.evaluate_wall_config_test_result(
+            test_data, error_messages.section_height_must_be_less_than_limit(MAX_SECTION_HEIGHT), test_case_source
+        )
 
     def test_negative_section_height(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)                # type: ignore
         test_data = [[-1]]
-        self.evaluate_wall_config_test_result(test_data, 'must be >= 0', test_case_source)
+        self.evaluate_wall_config_test_result(
+            test_data, error_messages.SECTION_HEIGHT_MUST_BE_GREATER_THAN_ZERO, test_case_source
+        )
 
 
 class WallConstructionCreationTest(BaseTestcase):

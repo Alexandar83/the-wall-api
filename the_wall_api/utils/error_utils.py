@@ -15,6 +15,9 @@ from the_wall_api.models import (
 )
 from the_wall_api.tasks import log_error_task
 from the_wall_api.utils.api_utils import handle_being_processed
+from the_wall_api.utils.message_themes import (
+    base as base_messages, errors as error_messages
+)
 
 TASK_RESULT_RETRIES = 3
 TASK_RESULT_RETRY_DELAY = 1
@@ -28,11 +31,11 @@ def create_out_of_range_response(
     out_of_range_type: str, max_value: int | Any, request_params: Dict[str, Any], status_code: int
 ) -> Response:
     if out_of_range_type == 'day':
-        finishing_msg = f'The wall has been finished for {max_value} days.'
+        finishing_msg = error_messages.out_of_range_finishing_message_1(max_value)
     else:
-        finishing_msg = f'The wall has {max_value} profiles.'
+        finishing_msg = error_messages.out_of_range_finishing_message_2(max_value)
     response_details = {
-        'error': f'The {out_of_range_type} is out of range. {finishing_msg}',
+        'error': error_messages.out_of_range(out_of_range_type, finishing_msg),
         'error_details': {
             'request_params': request_params
         }
@@ -44,12 +47,12 @@ def create_technical_error_response(
     wall_data: Dict[str, Any], request_params: Dict[str, Any], error_id: str, error_message: str
 ) -> Response:
     if wall_data.get('request_type') == 'wallconfig-files/upload':
-        error_msg_source = 'config file upload'
+        error_msg_source = error_messages.CONSTRUCTION_ERROR_SOURCE_UPLOAD
     elif wall_data.get('request_type') == 'wallconfig-files/delete':
-        error_msg_source = 'config file delete'
+        error_msg_source = error_messages.CONSTRUCTION_ERROR_SOURCE_DELETE
     else:
-        error_msg_source = 'construction simulation'
-    error_msg = f'Wall {error_msg_source} failed. Please contact support.'
+        error_msg_source = error_messages.CONSTRUCTION_ERROR_SOURCE_SIMULATION
+    error_msg = error_messages.wall_operation_failed(error_msg_source)
 
     error_response: Dict[str, Any] = {'error': error_msg}
 
@@ -128,7 +131,7 @@ def extract_error_traceback(error: Exception) -> list[str]:
 
 
 def get_error_id_from_task_result(task_result) -> str:
-    error_id = 'N/A'
+    error_id = base_messages.N_A
 
     retries = 0
     while retries < TASK_RESULT_RETRIES:
@@ -182,7 +185,7 @@ def send_log_error_async(
     return error_message_out
 
 
-def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[str, Any], profile_id):
+def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[str, Any], profile_id: int) -> None:
     """
     In CONCURRENT mode there are days without wall progress,
     because there was no crew assigned on the profile.
@@ -192,7 +195,7 @@ def check_wall_construction_days(wall_construction_days: int, wall_data: Dict[st
     request_params = get_request_params(wall_data)
     if wall_data['request_day'] <= wall_construction_days:
         response_details = {
-            'error': f'No crew has worked on profile {profile_id} on day {wall_data["request_day"]}.',
+            'error': error_messages.no_crew_worked_on_profile(profile_id, wall_data['request_day']),
             'error_details': {
                 'request_params': request_params
             }
@@ -244,7 +247,7 @@ def get_request_params(wall_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def handle_wall_config_deletion_in_progress(wall_data: Dict[str, Any]) -> None:
     error_response_data = {
-        'error': 'A deletion of an existing wall config is being processed - please try again later.'
+        'error': error_messages.WALL_CONFIG_DELETION_BEING_PROCESSED
     }
     wall_data['error_response'] = Response(
         error_response_data,
@@ -268,7 +271,7 @@ def handle_not_existing_file_references(wall_data: Dict[str, Any]) -> None:
     else:
         # Profiles endpoints
         config_id = wall_data['request_config_id']
-        error_message = f"File with config ID '{config_id}' does not exist for user '{user.username}'."
+        error_message = error_messages.file_does_not_exist_for_user(config_id, user.username)
         wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -283,9 +286,9 @@ def handle_not_existing_file_references_delete(
     if not validated_ids:
         # No wall config references exist for the user
         error_message = (
-            f"No files exist for user '{user.username}' in the database."
+            error_messages.no_files_exist_for_user(user.username)
             if not config_id_list
-            else f"No matching files for user '{user.username}' exist for the provided config ID list."
+            else error_messages.no_matching_files_for_user(user.username)
         )
         wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
         return
@@ -296,8 +299,9 @@ def handle_not_existing_file_references_delete(
         ]
         if not_found_ids:
             # Some of the provided config IDs do not exist
-            plrl_suffix = 's' if len(not_found_ids) > 1 else ''
-            error_message = f"File{plrl_suffix} with config ID{plrl_suffix} {str(not_found_ids)} not found for user '{user.username}'."
+            error_message = error_messages.files_with_config_id_not_found_for_user(
+                not_found_ids, user.username
+            )
             wall_data['error_response'] = Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -311,12 +315,14 @@ def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
 
     if wall_data['wall_config_object_status'] == WallConfigStatusEnum.CELERY_CALCULATION:
         # Must not be entered
-        raise Exception('Must be handled in error_utils.verify_no_other_user_tasks_in_progress()!')
+        raise Exception(
+            error_messages.must_be_handled_in('error_utils.verify_no_other_user_tasks_in_progress()')
+        )
 
     # Statuses: CALCULATED, ERROR, READY_FOR_DELETION
     # Conflicting case
     status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
-    error_message = f"The resource is not found. Wall configuration status = '{status_label}'"
+    error_message = error_messages.resource_not_found_status(status_label)
     handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)
 
 
@@ -329,13 +335,15 @@ def handle_wall_config_object_already_exists(wall_data: Dict[str, Any], wall_con
             WallConfigStatusEnum.ERROR, WallConfigStatusEnum.READY_FOR_DELETION
         ]:
             status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
-            error_message_suffix = f" Wall configuration status = '{status_label}'"
+            error_message_suffix = error_messages.wall_config_already_uploaded_suffix(status_label)
 
         reference = WallConfigReference.objects.filter(
             user=wall_data['request_user'], wall_config=wall_config_object
         ).first()
         if reference is not None:
-            error_message = f"This wall configuration is already uploaded with config_id = '{reference.config_id}'.{error_message_suffix}"
+            error_message = error_messages.wall_config_already_uploaded(
+                reference.config_id, error_message_suffix
+            )
             handle_known_error(
                 wall_data, 'caching', error_message, status.HTTP_400_BAD_REQUEST
             )
@@ -363,8 +371,8 @@ def handle_user_task_in_progress_exists(user_tasks_in_progress: list[str], wall_
 
     else:
         # User task for another config_id
-        error_message = (
-            'The following config IDs have calculations in progress for this user: '
-            f'{user_tasks_in_progress}. Please wait until they are completed.'
+        handle_known_error(
+            wall_data, 'caching',
+            error_messages.user_tasks_in_progress(user_tasks_in_progress),
+            status.HTTP_409_CONFLICT
         )
-        handle_known_error(wall_data, 'caching', error_message, status.HTTP_409_CONFLICT)

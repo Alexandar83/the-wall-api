@@ -8,6 +8,9 @@ from typing import Callable
 from django.conf import settings
 
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
+from the_wall_api.utils.message_themes import (
+    errors as error_messages
+)
 
 MAX_CONCURRENT_NUM_CREWS_THREADING = settings.MAX_CONCURRENT_NUM_CREWS_THREADING
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
@@ -24,7 +27,9 @@ class ThreadingWallBuilder(BaseWallBuilder):
             # Threading limitations, due to:
             # -the nature of the build simulation - 1 crew (thread) per section
             raise WallConstructionError(
-                f'Max. allowed number of sections for multi-threading is {MAX_CONCURRENT_NUM_CREWS_THREADING}'
+                error_messages.multiprocessing_max_allowed_sections(
+                    self.CONCURRENT_SIMULATION_MODE, MAX_CONCURRENT_NUM_CREWS_THREADING
+                )
             )
         self.init_concurrent_config()
         self.logger = BaseWallBuilder.setup_logger(self.filename, self.log_stream, source_name='threadName')

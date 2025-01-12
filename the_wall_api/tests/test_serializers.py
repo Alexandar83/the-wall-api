@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ListSerializer, Serializer, ValidationError
 from rest_framework.test import APIRequestFactory
 
+from the_wall_api.utils.message_themes import errors as error_messages
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH
 from the_wall_api.serializers import (
     ProfilesDaysSerializer, WallConfigFileDeleteSerializer, WallConfigFileUploadSerializer
@@ -283,7 +284,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
     def test_no_file_supplied(self):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
-        expected_errors = {'wall_config_file': 'No file was submitted.'}
+        expected_errors = {'wall_config_file': error_messages.NO_FILE_SUBMITTED}
         input_data = {'config_id': self.valid_config_id}
 
         self.validate_and_log(
@@ -311,7 +312,7 @@ class WallConfigFileUploadSerializerTest(WallConfigFileSerializerTestBase):
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
 
         input_data = {'wall_config_file': self.valid_wall_config_file}
-        expected_errors = {'config_id': 'This field is required.'}
+        expected_errors = {'config_id': error_messages.THIS_FIELD_IS_REQUIRED}
 
         self.validate_and_log(
             self.serializer_class, input_data, expected_errors,
@@ -380,7 +381,7 @@ class WallConfigFileDeleteSerializerTest(WallConfigFileSerializerTestBase):
         config_id_list = invalid_config_id_list.split(',')
 
         invalid_input_data = {'config_id_list': invalid_config_id_list}
-        expected_errors = {'config_id_list': f'Config IDs with invalid length: {str(config_id_list)}.'}
+        expected_errors = {'config_id_list': error_messages.config_ids_with_invalid_length(config_id_list)}
         self.validate_and_log(
             self.serializer_class, invalid_input_data, expected_errors,
             test_case_source, serializer_params={'data': invalid_input_data, 'context': self.test_context}

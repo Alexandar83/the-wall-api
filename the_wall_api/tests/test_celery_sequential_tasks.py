@@ -7,6 +7,7 @@ from django.conf import settings
 
 from the_wall_api.utils.celery_task_utils import BUILD_SIM_LOGS_DIR, get_test_log_archive_details
 from the_wall_api.utils.error_utils import get_error_id_from_task_result, extract_error_traceback
+from the_wall_api.utils.message_themes import base as base_messages
 from the_wall_api.tasks import archive_logs_task, clean_old_archives_task, log_error_task
 from the_wall_api.tests.test_utils import BaseTestcase
 
@@ -133,7 +134,7 @@ class LogErrorTaskTest(BaseTestcase):
 
         # Retrieve the global error counter value, returned from the log error task
         error_id = get_error_id_from_task_result(task_result)
-        if error_id == 'N/A':
+        if error_id == base_messages.N_A:
             actual_message = f'Global error counter not incremented successfully: {task_result.result}!'
             return actual_message
 
@@ -145,7 +146,7 @@ class LogErrorTaskTest(BaseTestcase):
 
         # Check logged error details
         check_log_file_result = self.check_logged_error_details(error_log_file, error_id, error_message)
-        if check_log_file_result != 'OK':
+        if check_log_file_result != base_messages.OK:
             actual_message = f'Logged error details inconsistency: {check_log_file_result}!'
             return actual_message
 
@@ -168,7 +169,7 @@ class LogErrorTaskTest(BaseTestcase):
                         f'does not match expected error message: {error_message}'
                     )
 
-                return 'OK'
+                return base_messages.OK
 
         return f'Test error log not found in file {error_log_file}!'
 

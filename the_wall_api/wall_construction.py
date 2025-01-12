@@ -18,6 +18,7 @@ from the_wall_api.utils import error_utils
 from the_wall_api.utils.concurrency_utils.base_concurrency_utils import BaseWallBuilder
 from the_wall_api.utils.concurrency_utils.multiprocessing_utils import MultiprocessingWallBuilder
 from the_wall_api.utils.concurrency_utils.threading_utils import ThreadingWallBuilder
+from the_wall_api.utils.message_themes import base as base_messages
 from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc, SEQUENTIAL
 
 MAX_SECTION_HEIGHT = settings.MAX_SECTION_HEIGHT
@@ -283,7 +284,7 @@ def run_simulation(wall_data: Dict[str, Any]) -> None:
     wall_data['wall_construction'] = wall_construction
     store_simulation_result(wall_data)
     if wall_construction.celery_task_aborted:
-        wall_data['celery_task_aborted'] = 'OK_2'   # Aborted during the simulation
+        wall_data['celery_task_aborted'] = base_messages.OK_2   # Aborted during the simulation
 
 
 def store_simulation_result(wall_data):

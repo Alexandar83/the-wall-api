@@ -51,6 +51,7 @@ def get_archive_logs_details(
     input_params: dict | None = None, test_input_params: dict | None = None
 ) -> tuple[datetime, str, str]:
     now = datetime.now()
+    from the_wall_api.utils.message_themes import errors as error_messages
 
     if input_params and input_params['logs_type'] == 'build_sim':
         log_retention_date = now - timedelta(days=BUILD_SIM_LOGS_RETENTION_DAYS)
@@ -63,7 +64,7 @@ def get_archive_logs_details(
         )
         return log_retention_date, logs_dir, logs_archive_dir
 
-    raise ValueError('Invalid or missing logs type')
+    raise ValueError(error_messages.INVALID_LOGS_TYPE)
 
 
 def get_test_log_archive_details(root_dir: str, test_file_name: str) -> tuple[str, str, str]:
@@ -106,6 +107,7 @@ def get_clean_old_archives_details(
     input_params: dict | None = None, test_input_params: dict | None = None
 ) -> tuple[datetime, str]:
     now = datetime.now()
+    from the_wall_api.utils.message_themes import errors as error_messages
 
     if input_params and input_params['logs_type'] == 'build_sim':
         archive_retention_date = now - timedelta(days=BUILD_SIM_LOGS_ARCHIVE_RETENTION_DAYS)
@@ -118,10 +120,12 @@ def get_clean_old_archives_details(
         )
         return archive_retention_date, logs_archive_dir
 
-    raise ValueError('Invalid or missing logs type')
+    raise ValueError(error_messages.INVALID_LOGS_TYPE)
 
 
 def remove_file(file_path: str) -> None:
+    from the_wall_api.utils.message_themes import errors as error_messages
+
     if os.path.exists(file_path):
         retries = 0
         deletion_retry_delay = 0
@@ -132,7 +136,7 @@ def remove_file(file_path: str) -> None:
             except PermissionError:
                 retries += 1
                 deletion_retry_delay += 2
-                print(f'Failed to delete {file_path} - access denied. Retrying...')
+                print(error_messages.failed_to_delete_file(file_path))
                 sleep(deletion_retry_delay)
 
 
@@ -226,6 +230,7 @@ def create_task_group(
         WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum
     )
     from the_wall_api.tasks import log_error_task
+    from the_wall_api.utils.message_themes import errors as error_messages
     create_wall_task = import_wall_task(active_testing)
 
     CELERY_TASK_PRIORITY = settings.CELERY_TASK_PRIORITY
@@ -246,12 +251,12 @@ def create_task_group(
             WallConfigStatusEnum.INITIALIZED,
             WallConfigStatusEnum.PARTIALLY_CALCULATED
         ]:
-            error_message = f'Not processed, current status: {wall_config_object.status}.'
+            error_message = error_messages.wall_config_not_processed(wall_config_object.status)
             log_error_task.delay('celery_tasks', error_message, error_traceback=[])  # type: ignore
             return error_message, []
 
         if wall_config_object.deletion_initiated:
-            return 'Not processed, deletion initiated by another process.', []
+            return error_messages.WALL_CONFIG_NOT_PROCESSED_DELETION_STARTED, []
 
         wall_config_object.status = WallConfigStatusEnum.CELERY_CALCULATION
         wall_config_object.save()
@@ -295,8 +300,13 @@ def monitor_task_group(
     wall_config_object, task_group_result, num_crews_range: int | str, username: str, config_id: str
 ) -> tuple[str, list]:
     """Monitor for task group completion or abort if deletion is initiated."""
+    from the_wall_api.utils.message_themes import errors as error_messages
+
     if not task_group_result:
-        result = wall_config_object if isinstance(wall_config_object, str) else 'Task group initialization error.'
+        if isinstance(wall_config_object, str):
+            result = wall_config_object
+        else:
+            result = error_messages.WALL_CREATION_TASK_GROUP_INIT_ERROR
         return result, []
 
     while True:
@@ -323,6 +333,9 @@ def finalize_wall_config(
     """Evaluate and set the final status for the wall config object, based on the task group results."""
     from the_wall_api.models import WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async
+    from the_wall_api.utils.message_themes import (
+        base as base_messages, errors as error_messages
+    )
 
     task_group_result_value_list = []
     try:
@@ -337,18 +350,18 @@ def finalize_wall_config(
 
         if wall_config_object_status == WallConfigStatusEnum.ERROR:
             error_result = send_log_error_async(
-                'celery_tasks', error_message='Wall creation task group failed - check error logs.'
+                'celery_tasks', error_message=error_messages.WALL_CREATION_TASK_GROUP_FAILED
             )
             return error_result, task_group_result_value_list
 
         if wall_config_object_status == WallConfigStatusEnum.READY_FOR_DELETION:
-            return 'Interrupted by a deletion task', task_group_result_value_list
+            return error_messages.INTERRUPTED_BY_DELETION_TASK, task_group_result_value_list
 
     except Exception as unknwn_err:
         error_result = send_log_error_async('celery_tasks', error=unknwn_err)
         return error_result, task_group_result_value_list
 
-    return 'OK', task_group_result_value_list
+    return base_messages.OK, task_group_result_value_list
 
 
 def collect_task_group_results(task_group_result, task_group_result_value_list) -> list:
@@ -375,6 +388,7 @@ def process_wall_config_object_status(
     from the_wall_api.models import (
         WallConfig, WallConfigStatusEnum
     )
+    from the_wall_api.utils.message_themes import base as base_messages
 
     with transaction.atomic():
         # Lock the wall config object for a final status set
@@ -386,7 +400,7 @@ def process_wall_config_object_status(
             final_status = WallConfigStatusEnum.ERROR
             if wall_config_object.status == WallConfigStatusEnum.CELERY_CALCULATION and task_group_result.successful():
                 # All wall creation task results are consistent
-                if all(result_message == 'OK' for result_message in task_group_result_message_list):
+                if all(result_message == base_messages.OK for result_message in task_group_result_message_list):
                     if num_crews_range == 'full-range':
                         final_status = WallConfigStatusEnum.CALCULATED
                     else:
@@ -426,11 +440,9 @@ def abort_task_group(task_group_result) -> None:
 
 
 def raise_timeout_error() -> None:
-    error_message = (
-        f'Revocation of create wall tasks due to deletion '
-        f'initiation takes more than {ABORT_WAIT_PERIOD} seconds.'
-    )
-    raise TimeoutError(error_message)
+    from the_wall_api.utils.message_themes import errors as error_messages
+
+    raise TimeoutError(error_messages.abort_task_group_timeout_error(ABORT_WAIT_PERIOD))
 
 
 def import_wall_task(active_testing: bool):
@@ -462,6 +474,7 @@ def create_wall(
     sections_count: int, active_testing: bool = False, cncrrncy_test_sleep_period: float = 0
 ) -> tuple[str, dict]:
     from the_wall_api.utils.error_utils import send_log_error_async
+    from the_wall_api.utils.message_themes import base as base_messages
     from the_wall_api.utils.storage_utils import fetch_wall_data
     from the_wall_api.wall_construction import initialize_wall_data
 
@@ -498,7 +511,7 @@ def create_wall(
                 'celery_sim_calc_details': celery_sim_calc_details,
             }
 
-    return 'OK', result_wall_data
+    return base_messages.OK, result_wall_data
 
 
 def wall_config_deletion(wall_config_hash: str, active_testing: bool = False) -> tuple[str, list]:
@@ -518,11 +531,12 @@ def init_wall_config_deletion(wall_config_hash: str, active_testing: bool):
     from time import sleep
     from django.db import transaction
     from the_wall_api.models import WallConfig
+    from the_wall_api.utils.message_themes import errors as error_messages
 
     with transaction.atomic():
         wall_config_object = WallConfig.objects.select_for_update().get(wall_config_hash=wall_config_hash)
         if wall_config_object.deletion_initiated:
-            return 'Deletion already initiated by another process.'
+            return error_messages.DELETION_ALREADY_STARTED
         wall_config_object.deletion_initiated = True
         wall_config_object.save()
         if active_testing:
@@ -537,6 +551,7 @@ def wall_config_delete(wall_config_object) -> tuple[str, list]:
     from django.db import transaction
     from the_wall_api.models import WallConfig, WallConfigStatusEnum
     from the_wall_api.utils.error_utils import send_log_error_async
+    from the_wall_api.utils.message_themes import base as base_messages
 
     abort_started_time = time()
     while True:
@@ -562,4 +577,4 @@ def wall_config_delete(wall_config_object) -> tuple[str, list]:
 
         sleep(1)
 
-    return 'OK', []
+    return base_messages.OK, []

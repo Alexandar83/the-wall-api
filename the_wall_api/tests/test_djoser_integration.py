@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from the_wall_api.tests.test_utils import BaseTestcase
 from the_wall_api.utils.api_utils import exposed_endpoints
+from the_wall_api.utils.message_themes import errors as error_messages
 
 
 class DjoserIntegrationTestBase(BaseTestcase):
@@ -234,7 +235,7 @@ class DjoserIntegrationTest(DjoserIntegrationTestBase):
             response_data = response.json()
             assertions.append(
                 lambda: self.assertEqual(
-                    'Authentication credentials were not provided.',
+                    error_messages.NOT_AUTHENTICATED_RESPONSE,
                     response_data['detail'],
                     'Not authenticated message not found in response!'
                 )

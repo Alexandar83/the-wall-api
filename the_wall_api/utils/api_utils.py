@@ -7,6 +7,8 @@ from django.conf import settings
 from rest_framework.response import Response
 from rest_framework import status
 
+from the_wall_api.utils.message_themes import info as info_messages
+
 # API ENDPOINTS SECTION - only for exposed endpoints
 # Changes here are reflected automatically throughout the project:
 endpoint_prefix = f'api/{settings.API_VERSION}'
@@ -87,5 +89,6 @@ def get_request_num_crews(request):
 
 
 def handle_being_processed(wall_data: dict[str, Any]) -> None:
-    info_message = 'Your request is being processed. Check back later.'
-    wall_data['info_response'] = Response({'info': info_message}, status=status.HTTP_202_ACCEPTED)
+    wall_data['info_response'] = Response(
+        {'info': info_messages.REQUEST_BEING_PROCESSED}, status=status.HTTP_202_ACCEPTED
+    )

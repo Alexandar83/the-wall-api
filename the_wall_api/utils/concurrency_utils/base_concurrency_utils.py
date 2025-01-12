@@ -13,6 +13,10 @@ from typing import Union
 
 from django.conf import settings
 
+from the_wall_api.utils.message_themes import (
+    base as base_messages, errors as error_messages, info as info_messages
+)
+
 BUILD_SIM_LOGS_DIR = settings.BUILD_SIM_LOGS_DIR
 ICE_PER_FOOT = settings.ICE_PER_FOOT
 
@@ -50,15 +54,14 @@ class BaseWallBuilder(ABC):
         # Write the log stream to the log file without any formatting
 
         if self.celery_task_aborted:
-            message = 'Work interrupted by a celery task abort signal.'
-            self.log_stream.write(message)
+            self.log_stream.write(info_messages.INTERRUPTED_BY_ABORT_SIGNAL)
 
         with open(self.filename, 'w') as log_file:
             log_file.write(self.log_stream.getvalue())
 
         if self.proxy_wall_creation_call:
-            print('Done!')
-            print(f'The results are stored in {self.filename}')
+            print(base_messages.DONE)
+            print(info_messages.proxy_wall_results(self.filename))
 
     @staticmethod
     def setup_logger(
@@ -83,7 +86,7 @@ class BaseWallBuilder(ABC):
             handler = logging.handlers.QueueHandler(queue)
         else:
             if log_stream is None:
-                raise ValueError('Log stream is required when queue is not provided!')
+                raise ValueError(error_messages.LOG_STREAM_REQUIRED_WHEN_NO_QUEUE)
             handler = logging.StreamHandler(log_stream)
         handler.setLevel(logging.DEBUG)
 

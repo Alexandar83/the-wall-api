@@ -7,6 +7,7 @@ from the_wall_api.utils.celery_task_utils import (
     archive_logs, clean_old_archives, create_wall, log_error, delete_unused_wall_configs,
     orchestrate_wall_config_processing, wall_config_deletion
 )
+from the_wall_api.utils.message_themes import base as base_messages
 
 
 # Helper Functions
@@ -66,7 +67,7 @@ def create_wall_task(self, *args, test_task: AbortableTask | None = None, **kwar
     else:
         task = test_task
     if task.is_aborted(task_id=task.request.id):
-        return 'OK_0', []       # Aborted before task start
+        return base_messages.OK_0, []       # Aborted before task start
     return execute_task_with_error_handling(create_wall, task, *args, **kwargs)
 
 

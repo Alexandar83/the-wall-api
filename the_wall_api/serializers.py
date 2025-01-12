@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, FileExtensionValidator
 from rest_framework import serializers
 
 from the_wall_api.models import CONFIG_ID_MAX_LENGTH, WallConfigReference
+from the_wall_api.utils.message_themes import errors as error_messages
 
 
 class ProfilesOverviewSerializer(serializers.Serializer):
@@ -39,12 +40,12 @@ class WallConfigFileUploadSerializer(serializers.Serializer):
 
         if user_configs_count >= MAX_USER_WALL_CONFIGS:
             raise serializers.ValidationError(
-                f'File limit of {MAX_USER_WALL_CONFIGS} per user reached.'
+                error_messages.file_limit_per_user_reached(MAX_USER_WALL_CONFIGS)
             )
 
         if WallConfigReference.objects.filter(config_id=attrs['config_id'], user=user).exists():
             raise serializers.ValidationError(
-                f"Wall config '{attrs['config_id']}' already exists for user '{user.username}'."
+                error_messages.wall_config_exists(attrs['config_id'], user.username)
             )
 
         try:
@@ -53,7 +54,7 @@ class WallConfigFileUploadSerializer(serializers.Serializer):
             wall_config_file_data = json.loads(file_content)
             self.context['wall_config_file_data'] = wall_config_file_data
         except json.JSONDecodeError:
-            raise serializers.ValidationError('Invalid JSON file format.')
+            raise serializers.ValidationError(error_messages.INVALID_JSON_FILE_FORMAT)
 
         return attrs
 
@@ -68,10 +69,11 @@ class WallConfigFileDeleteSerializer(serializers.Serializer):
         try:
             config_id_list = [config_id.strip() for config_id in config_id_list_str.split(',')] if config_id_list_str else []
         except Exception as id_lst_splt_err:
-            raise serializers.ValidationError(f'Invalid config_id_list format: {id_lst_splt_err}.')
+            raise serializers.ValidationError(error_messages.invalid_config_id_list_format(id_lst_splt_err))
 
         invalid_length_list = [config_id for config_id in config_id_list if len(config_id) > CONFIG_ID_MAX_LENGTH]
         if invalid_length_list:
-            raise serializers.ValidationError(f'Config IDs with invalid length: {str(invalid_length_list)}.')
+            raise serializers.ValidationError(
+                error_messages.config_ids_with_invalid_length(invalid_length_list))
 
         return config_id_list

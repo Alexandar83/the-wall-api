@@ -19,6 +19,9 @@ from the_wall_api.tasks import (
 )
 from the_wall_api.utils import error_utils, wall_config_utils
 from the_wall_api.utils.api_utils import handle_being_processed
+from the_wall_api.utils.message_themes import (
+    base as base_messages, errors as error_messages
+)
 from the_wall_api.wall_construction import (
     get_sections_count, run_simulation, set_simulation_params
 )
@@ -89,7 +92,7 @@ def get_or_create_cache(wall_data, request_type) -> None:
     if isinstance(wall_config_object, WallConfig):
         if wall_config_object.deletion_initiated:
             # Celery task is aborted before the simulation is started
-            wall_data['celery_task_aborted'] = 'OK_1'
+            wall_data['celery_task_aborted'] = base_messages.OK_1
             return
         # Successful creation/fetch of the wall config object
         wall_data['wall_config_object'] = wall_config_object
@@ -145,7 +148,7 @@ def collect_cached_data(wall_data: Dict[str, Any], request_type: str) -> None:
         elif request_type == 'profiles-days':
             fetch_profile_day_ice_amount(wall_data, cached_result)
         else:
-            raise Exception(f'Unknown request type: {request_type}')
+            raise Exception(error_messages.unknown_request_type(request_type))
     except (Wall.DoesNotExist, WallProgress.DoesNotExist):
         return
 
@@ -484,7 +487,7 @@ def manage_wall_config_object(wall_data: Dict[str, Any]) -> WallConfig | str:
         wall_config_object = WallConfig.objects.get(wall_config_hash=wall_config_hash)
         error_utils.handle_wall_config_object_already_exists(wall_data, wall_config_object)
         if wall_data['error_response']:
-            return 'Already uploaded for this user.'
+            return error_messages.MANAGE_WALL_CONFIG_OBJECT_ERROR_RESULT
     except WallConfig.DoesNotExist:
         # Only possible for wallconfig-files/upload.
         # The other endpoints must be blocked at the wall config reference fetch
@@ -501,7 +504,7 @@ def create_new_wall_config(wall_data: Dict[str, Any], wall_config_hash: str) -> 
     try:
         db_lock_acquired = acquire_db_lock(wall_config_db_lock_key)
         if not db_lock_acquired:
-            return 'Being initialized in another process'
+            return error_messages.CREATE_NEW_WALL_CONFIG_ERROR_RESULT
 
         with transaction.atomic():
             # Create a new object with status INITIALIZED (default value)
