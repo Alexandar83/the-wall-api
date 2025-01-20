@@ -25,7 +25,7 @@ unauthorized_401_responses = OpenApiResponse(
         open_api_examples.not_authenticated,
     ]
 )
-profiles_404_responses = OpenApiResponse(
+file_not_existing_404_response = OpenApiResponse(
     response=response_serializers.profiles_404_response_serializer,
     examples=[
         open_api_examples.file_not_existing_for_user,
@@ -322,9 +322,11 @@ wallconfig_file_delete_responses = {
         response=response_serializers.wall_config_delete_404_response_serializer,
         examples=[
             OpenApiExample(
-                name=openapi_messages.NO_MATCHING_FILES,
+                name=openapi_messages.FILES_NOT_FOUND,
                 value={
-                    'error': error_messages.no_matching_files_for_user('testuser'),
+                    'error': error_messages.files_with_config_id_not_found_for_user(
+                        ['test_config_2', 'test_config_3'], 'testuser'
+                    )
                 },
             ),
             OpenApiExample(
@@ -334,11 +336,9 @@ wallconfig_file_delete_responses = {
                 },
             ),
             OpenApiExample(
-                name=openapi_messages.FILES_NOT_FOUND,
+                name=openapi_messages.NO_MATCHING_FILES,
                 value={
-                    'error': error_messages.files_with_config_id_not_found_for_user(
-                        ['test_config_2', 'test_config_3'], 'testuser'
-                    )
+                    'error': error_messages.no_matching_files_for_user('testuser'),
                 },
             ),
         ]
@@ -440,7 +440,6 @@ profiles_days_responses = {
                 },
             ),
             open_api_examples.invalid_config_id_length,
-            open_api_examples.file_not_existing_for_user,
         ]
     ),
     401: unauthorized_401_responses,
@@ -536,15 +535,9 @@ profiles_overview_responses.update({
         response=response_serializers.config_id_error_response_serializer,
         examples=[
             open_api_examples.invalid_config_id_length,
-            open_api_examples.file_not_existing_for_user,
         ]
     ),
-    404: OpenApiResponse(
-        response=response_serializers.profiles_404_response_serializer,
-        examples=[
-            open_api_examples.file_not_existing_for_user,
-        ]
-    ),
+    404: file_not_existing_404_response,
     409: OpenApiResponse(
         response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
@@ -627,15 +620,9 @@ profiles_overview_day_responses.update({
                 },
             ),
             open_api_examples.invalid_config_id_length,
-            open_api_examples.file_not_existing_for_user,
         ]
     ),
-    404: OpenApiResponse(
-        response=response_serializers.profiles_404_response_serializer,
-        examples=[
-            open_api_examples.file_not_existing_for_user,
-        ]
-    ),
+    404: file_not_existing_404_response,
     409: OpenApiResponse(
         response=response_serializers.profiles_error_and_details_response_serializer_2,
         examples=[
@@ -754,7 +741,6 @@ create_user_responses = {
             ),
         ]
     ),
-    404: profiles_404_responses,
     429: throttled_429_responses,
 }
 # = Create user (end)
