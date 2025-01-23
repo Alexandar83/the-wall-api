@@ -128,9 +128,6 @@ class ThreadingWallBuilder(BaseWallBuilder):
             # Daily progress
             self.log_daily_progress(profile_id, section_id, thread, height)
 
-            # Test data
-            self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
-
             # Section finalization
             self.log_section_completion(
                 height, log_message_prefx, profile_id, section_id, thread

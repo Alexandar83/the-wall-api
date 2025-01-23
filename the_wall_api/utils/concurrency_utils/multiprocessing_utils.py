@@ -111,11 +111,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             self.build_kwargs['day_event'] = self.manager.Event()
             self.build_kwargs['day_event_lock'] = self.manager.Lock()
 
-        if settings.ACTIVE_TESTING:
-            self.build_kwargs['testing_wall_construction_config_mprcss'] = self.convert_list(
-                self.testing_wall_construction_config
-            )
-
     def result_handler(self, result_queue: Union[Queue, mprcss_Queue]) -> None:
         """
         Dedicated thread for handling logging and accumulating results.
@@ -133,13 +128,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             if isinstance(record, LogRecord):
                 # Logging
                 self.logger.handle(record)
-
-            elif record.get('type') == 'daily_progress_test_data':
-                # Test data
-                profile_id = record['profile_id']
-                section_id = record['section_id']
-                height = record['height']
-                self.testing_wall_construction_config[profile_id - 1][section_id - 1] = height
 
             elif record.get('type') == 'wall_profile_data':
                 # Build progress data
@@ -178,12 +166,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
         if self.is_manager_required():
             self.qlistener.stop()
             self.result_queue_with_manager.put(None)
-            testing_wall_construction_config = self.build_kwargs.get('testing_wall_construction_config_mprcss')
-            if testing_wall_construction_config is not None:
-                self.testing_wall_construction_config.clear()
-                self.testing_wall_construction_config.extend(
-                    self.convert_list(testing_wall_construction_config)
-                )
 
         # Raise any exceptions from the ProcessPoolExecutor
         for future in futures:
@@ -276,7 +258,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
     def process_section(
         profile_id: int, section_id: int, height: int, current_process_day: int,
         logger: Logger, process_name: str, CONCURRENT_SIMULATION_MODE: str,
-        testing_wall_construction_config_mprcss: list | None = None, **build_kwargs
+        **build_kwargs
     ) -> int:
         cncrrncy_test_sleep_period = build_kwargs['cncrrncy_test_sleep_period']
         while height < MAX_SECTION_HEIGHT:
@@ -286,7 +268,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             # Daily progress
             MultiprocessingWallBuilder.log_daily_progress(
                 profile_id, section_id, current_process_day, height,
-                logger, process_name, build_kwargs['result_queue'], testing_wall_construction_config_mprcss
+                logger, process_name, build_kwargs['result_queue']
             )
 
             # Section finalization
@@ -313,7 +295,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
     def log_daily_progress(
         profile_id: int, section_id: int, current_process_day: int, height: int,
         logger: Logger, process_name: str, result_queue: Union[Queue, mprcss_Queue],
-        testing_wall_construction_config_mprcss: list[list[int]] | None
     ) -> None:
         if VERBOSE_MULTIPROCESSING_LOGGING:
             section_progress_msg = BaseWallBuilder.get_section_progress_msg(
@@ -324,17 +305,6 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             # they're generated at the correct time
             sleep(uniform(0.01, 0.02))
             logger.debug(section_progress_msg, extra={'source_name': process_name})
-
-        if settings.ACTIVE_TESTING:
-            if testing_wall_construction_config_mprcss is None:
-                result_queue.put_nowait({
-                    'type': 'daily_progress_test_data',
-                    'profile_id': profile_id,
-                    'section_id': section_id,
-                    'height': height,
-                })
-            else:
-                testing_wall_construction_config_mprcss[profile_id - 1][section_id - 1] = height
 
     @staticmethod
     def log_section_completion(

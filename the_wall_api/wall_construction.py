@@ -41,7 +41,6 @@ class WallConstruction:
     ):
         self.CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
         self.wall_construction_config = wall_construction_config
-        self.testing_wall_construction_config = deepcopy(wall_construction_config)     # For unit testing purposes
         self.sections_count = sections_count
         self.num_crews = num_crews
         self.wall_config_hash = wall_config_hash
@@ -132,9 +131,6 @@ class WallConstruction:
 
                     # Daily progress
                     BaseWallBuilder.update_wall_profile_data(self.wall_profile_data, day, profile_index)
-
-                    # Test data
-                    self.testing_wall_construction_config[profile_index - 1][i] = profile[i]
 
                     # Manage number of crews, if provided
                     work_done_today = True
