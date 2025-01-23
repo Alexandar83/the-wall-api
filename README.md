@@ -253,9 +253,13 @@ The Wall is a massive fortification being built along the northern border of the
 - **d.** Start a virtual environment:
 
   ```bash
-  poetry shell
+  source config/scripts/common/poetry_shell.sh
 
   ```
+  ℹ️ ***`poetry_shell.sh`** script information:*  
+    
+    - *In Poetry 2.0+, the `poetry shell` command was removed. This script restores the convenience of activating the Poetry virtual environment directly in your current shell session, with a cross-platform command.*
+    <br><br>
 
 - **e.** Run the proxy wall creation simulation:
 
@@ -326,14 +330,18 @@ The Wall is a massive fortification being built along the northern border of the
   *1.* Start a virtual environment:
 
     ```bash
-    poetry shell
+    source config/scripts/common/poetry_shell.sh
 
     ```
+    ℹ️ ***`poetry_shell.sh`** script information:*  
+    
+    - *In Poetry 2.0+, the `poetry shell` command was removed. This script restores the convenience of activating the Poetry virtual environment directly in your current shell session, with a cross-platform command.*
+    <br><br>
     
   *2.* Start all dockerized services:  
 
     ```bash
-    config/docker/scripts/docker-compose-dev+migrations.sh
+    config/scripts/docker/docker-compose-dev+migrations.sh
 
     ```  
     ℹ️ ***`docker-compose-dev+migrations.sh`** script information:*  
@@ -682,7 +690,7 @@ The Wall is a massive fortification being built along the northern border of the
 - **b.** Install system dependencies:
 
   ```bash
-  config/linux/linux_install_prerequisites.sh --deployment_mode=demo
+  config/scripts/linux/linux_install_prerequisites.sh --deployment_mode=demo
 
   ```
   ℹ️ ***`linux_install_prerequisites.sh`** script information:*  
@@ -704,9 +712,13 @@ The Wall is a massive fortification being built along the northern border of the
 - **d.** Start a virtual environment:
 
   ```bash
-  poetry shell
+  source config/scripts/common/poetry_shell.sh
 
   ```
+  ℹ️ ***`poetry_shell.sh`** script information:*  
+    
+    - *In Poetry 2.0+, the `poetry shell` command was removed. This script restores the convenience of activating the Poetry virtual environment directly in your current shell session, with a cross-platform command.*
+    <br><br>
 
 - **e.** Run the proxy wall creation simulation:
 
@@ -759,7 +771,7 @@ The Wall is a massive fortification being built along the northern border of the
 
 - **c.** Install system dependencies:
   ```bash
-  config/linux/linux_install_prerequisites.sh
+  config/scripts/linux/linux_install_prerequisites.sh
 
   ```
   ℹ️ ***`linux_install_prerequisites.sh`** script information:*  
@@ -789,14 +801,18 @@ The Wall is a massive fortification being built along the northern border of the
   *1.* Start a virtual environment:
 
     ```bash
-    poetry shell
+    source config/scripts/common/poetry_shell.sh
 
     ```
+    ℹ️ ***`poetry_shell.sh`** script information:*  
+    
+    - *In Poetry 2.0+, the `poetry shell` command was removed. This script restores the convenience of activating the Poetry virtual environment directly in your current shell session, with a cross-platform command.*
+    <br><br>
     
   *2.* Start all dockerized services:  
 
     ```bash
-    config/docker/scripts/docker-compose-dev+migrations.sh
+    config/scripts/docker/docker-compose-dev+migrations.sh
 
     ```  
 
@@ -819,7 +835,7 @@ The Wall is a massive fortification being built along the northern border of the
   *3.* Start a local Django development server:
 
     ```bash
-    config/linux/refresh_allowed_hosts_wsl2.sh --deployment_mode=dev
+    config/scripts/linux/refresh_allowed_hosts_wsl2.sh --deployment_mode=dev
     python manage.py runserver 0.0.0.0:8000
 
     ```
@@ -926,14 +942,14 @@ The Wall is a massive fortification being built along the northern border of the
 
     *2.* Linux scripts files:
     
-      - ***`config/linux/refresh_allowed_hosts_wsl2.sh`***
-      - ***`config/linux/common_utils.sh`***  
+      - ***`config/scripts/linux/refresh_allowed_hosts_wsl2.sh`***
+      - ***`config/scripts/linux/common_utils.sh`***  
   
     💡 *If the files were manually copied or downloaded instead of using git clone, ensure that they have executable permissions:*
 
       ```bash
-      chmod +x config/linux/refresh_allowed_hosts_wsl2.sh
-      chmod +x config/linux/common_utils.sh
+      chmod +x config/scripts/linux/refresh_allowed_hosts_wsl2.sh
+      chmod +x config/scripts/linux/common_utils.sh
 
       ```
     <br>
@@ -989,7 +1005,7 @@ The Wall is a massive fortification being built along the northern border of the
   *1.* Start the app, the Redis and PostgreSQL services, the Celery workers and the Celery beat service by deploying the prod_stack:
 
     ```bash
-    config/linux/refresh_allowed_hosts_wsl2.sh --deployment_mode=prod_v2
+    config/scripts/linux/refresh_allowed_hosts_wsl2.sh --deployment_mode=prod_v2
     docker stack deploy -c config/docker/docker-compose-prod-v2.yml prod_stack --detach=true
 
     ```
@@ -1000,7 +1016,8 @@ The Wall is a massive fortification being built along the northern border of the
   💡 *Verify that all containers in the stack are running:*  
 
     ```bash
-    docker stack ps prod_stack  
+    docker stack ps prod_stack
+    
     ```  
     <br>
 

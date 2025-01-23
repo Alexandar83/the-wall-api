@@ -47,7 +47,7 @@ services:
   celery_worker_1:
     image: ghcr.io/alexandar83/the-wall-api-demo:latest
     container_name: celery_worker_1_demo
-    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
+    command: sh -c "/app/config/scripts/docker/start_celery_computation_worker.sh"
     environment:
       - PROJECT_MODE=demo
       - CONCURRENT_SIMULATION_MODE=threading_v1

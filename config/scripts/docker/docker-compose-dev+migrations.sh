@@ -31,7 +31,7 @@ echo "=== STAGE 4 ==="
 echo "Migrations complete, setting up logs directory..."
 echo
 
-source "$(dirname "$0")/../../linux/common_utils.sh"
+source "$(dirname "$0")/../linux/common_utils.sh"
 create_and_setup_logs_directory
 return_code=$?
 if [[ $return_code -eq 1 ]]; then
@@ -48,7 +48,7 @@ echo
 echo "=== STAGE 5 ==="
 echo "Logs directory configured, building the Celery services' images..."
 echo
-docker compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml build celery_beat celery_worker_1 --no-cache
+docker compose -p the-wall-api-dev -f config/docker/docker-compose-dev.yml build celery_beat celery_worker_1
 echo
 
 # Start the Celery services

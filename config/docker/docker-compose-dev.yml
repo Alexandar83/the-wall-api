@@ -46,7 +46,7 @@ services:
         APP_USER_ID: ${APP_USER_ID:-5678}
         APP_GROUP_ID: ${APP_GROUP_ID:-5678}
         APP_GROUP_NAME: ${APP_GROUP_NAME:-wall_app_group}
-    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
+    command: sh -c "/app/config/scripts/docker/start_celery_computation_worker.sh"
     volumes:
       - ../..:/app
     env_file:

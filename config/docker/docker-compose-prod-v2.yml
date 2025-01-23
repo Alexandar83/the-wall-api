@@ -2,7 +2,7 @@ services:
   the_wall_api:
     image: ghcr.io/alexandar83/the-wall-api:latest
     command: >
-      sh -c "python /app/config/docker/scripts/wait_for_postgres.py && \
+      sh -c "python /app/config/scripts/docker/wait_for_postgres.py && \
              python manage.py makemigrations the_wall_api && \
              python manage.py migrate && \
              exec gunicorn --bind 0.0.0.0:8000 config.wsgi"
@@ -50,7 +50,7 @@ services:
 
   celery_worker_1:
     image: ghcr.io/alexandar83/the-wall-api:latest
-    command: sh -c "/app/config/docker/scripts/start_celery_computation_worker.sh"
+    command: sh -c "/app/config/scripts/docker/start_celery_computation_worker.sh"
     env_file:
       - ../../config/envs/prod/the_wall_api_prod.env
     environment:
@@ -90,7 +90,7 @@ services:
     image: ghcr.io/alexandar83/celery-lightweight:latest
     # Start Celery beat and generate the schedule outside the mounted /app folder, to avoid local creation
     # Persist the schedule in a docker volume
-    command: sh -c "python /app/config/docker/scripts/wait_for_celery_worker.py && \
+    command: sh -c "python /app/config/scripts/docker/wait_for_celery_worker.py && \
                     celery -A config beat --loglevel=info -s /var/lib/celery/data/celerybeat-schedule"
     volumes:
       - celery_beat_schedule:/var/lib/celery/data

@@ -113,9 +113,9 @@ main() {
     echo "Next steps:"
     echo "1. If Poetry is freshly installed, run 'source ~/.bashrc' or restart your shell."
     echo "2. Run 'poetry install' to install Python dependencies."
-    echo "3. Run 'poetry shell' to start a virtual environment."
+    echo "3. Run 'source config/scripts/common/poetry_shell.sh' to start a virtual environment."
     if [[ "$DEPLOYMENT_MODE" != "demo" ]]; then
-        echo "4. Run script 'config/docker/scripts/docker-compose-dev+migrations.sh' to start the app in PROJECT_MODE='dev'."
+        echo "4. Run script 'config/scripts/docker/docker-compose-dev+migrations.sh' to start the app in PROJECT_MODE='dev'."
     fi
     echo
 }

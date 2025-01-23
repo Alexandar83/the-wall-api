@@ -5,7 +5,7 @@ celery_command="celery -A config worker --loglevel=info --queues=concurrent_task
 
 # If multiprocessing mode, use explicit concurrency config
 if [[ "$CONCURRENT_SIMULATION_MODE" == *"multiprocessing"* ]]; then
-  celery_command="$celery_command --pool=threads --concurrency=3"
+  celery_command="$celery_command --pool=threads --concurrency=4"
 fi
 
 # Execute the final Celery command
