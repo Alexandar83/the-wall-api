@@ -7,4 +7,4 @@ def proxy_wall_results(filename: str) -> str:
 
 
 # == API Requests Flow ==
-REQUEST_BEING_PROCESSED = 'Your request is being processed. Check back later.'
+REQUEST_BEING_PROCESSED = 'We\'re processing your request. Please check back shortly.'

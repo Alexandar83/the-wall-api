@@ -6,11 +6,8 @@ from config.celery import app as celery_app
 from celery.contrib.testing.worker import start_worker
 from celery.result import AsyncResult
 from django.conf import settings
-from django.core.cache import cache
-from django.http import HttpResponse
 from django.urls import reverse
 from redis import Redis
-from rest_framework import status
 
 from the_wall_api.models import (
     Wall, WallConfig, WallConfigReference, WallConfigStatusEnum, WallProgress
@@ -24,8 +21,8 @@ from the_wall_api.utils.api_utils import exposed_endpoints
 from the_wall_api.utils.message_themes import (
     base as base_messages, errors as error_messages
 )
-from the_wall_api.utils.storage_utils import get_wall_progress_cache_key, manage_wall_config_object
-from the_wall_api.utils.wall_config_utils import CONCURRENT, hash_calc
+from the_wall_api.utils.storage_utils import manage_wall_config_object
+from the_wall_api.utils.wall_config_utils import hash_calc
 from the_wall_api.wall_construction import get_sections_count
 
 CONCURRENT_SIMULATION_MODE = settings.CONCURRENT_SIMULATION_MODE
@@ -100,7 +97,7 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         self.cncrrncy_test_sleep_period = 0
 
     def init_test_data(self):
-        raise NotImplementedError
+        pass
 
 
 class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
@@ -130,8 +127,7 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         sleep(1)    # Grace period to ensure objects are properly created in postgres
 
     def process_tasks(
-        self, test_case_source: str, deletion: str | None = None,
-        normal_request_num_crews: int | None = None
+        self, test_case_source: str, deletion: str | None = None
     ) -> tuple[str, list]:
         """
         Send the wall config processing task to the celery worker alone or
@@ -140,9 +136,8 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
         actual_result = []
         if isinstance(self.wall_config_object, WallConfig):
             wall_config_orchestration_result, deletion_result = self.send_celery_tasks(deletion)
-            normal_request_result = self.process_normal_request(normal_request_num_crews)
             actual_message, actual_result = self.get_results(
-                wall_config_orchestration_result, normal_request_result, deletion, deletion_result, test_case_source
+                wall_config_orchestration_result, deletion, deletion_result, test_case_source
             )
         else:
             actual_message = self.wall_config_object
@@ -184,101 +179,8 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
 
         return wall_config_orchestration_result, deletion_result
 
-    def process_normal_request(self, normal_request_num_crews: int | None) -> str | None:
-        if not normal_request_num_crews:
-            return None
-
-        day = 1
-        profile_id = 1
-
-        if normal_request_num_crews != 1:
-            return self.check_being_processed(profile_id, day, normal_request_num_crews)
-
-        wall_exists = self.check_wall_exists(normal_request_num_crews)
-
-        if normal_request_num_crews == 1 and not wall_exists:
-            return 'The wall is not created from the orchestration task yet!'
-
-        redis_profiles_days_cache, redis_cache_key = self.get_redis_cache_details(normal_request_num_crews, profile_id, day)
-        if redis_profiles_days_cache:
-            return 'The wall Redis cache should not exist before the normal GET request!'
-
-        response = self.fetch_response(profile_id, day, normal_request_num_crews)
-        if response.status_code != status.HTTP_200_OK:
-            return f'Unexpected normal GET request response code: {response.status_code}!'
-
-        redis_profiles_days_cache = cache.get(redis_cache_key)
-        if redis_profiles_days_cache is None:
-            return 'Wall Redis cache should exist after the normal GET request!'
-
-        return base_messages.OK
-
-    def check_being_processed(self, profile_id: int, day: int, normal_request_num_crews: int):
-        max_attempts = 10
-        attempts = 0
-        while not WallConfig.objects.filter(
-            wall_config_hash=self.wall_config_hash,
-            status=WallConfigStatusEnum.CELERY_CALCULATION
-        ).exists():
-            attempts += 1
-            if attempts == max_attempts:
-                return 'The wall config is not being processed!'
-            sleep(0.05)
-
-        response = self.fetch_response(profile_id, day, normal_request_num_crews)
-        if response.status_code == status.HTTP_202_ACCEPTED:
-            return base_messages.OK
-
-        return f'Unexpected normal GET request response code: {response.status_code}!'
-
-    def check_wall_exists(self, normal_request_num_crews: int) -> bool:
-        if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
-            # Grace period for the normal request to finish its calculations
-            sleep(5)
-            retries, wait_time = 5, 3
-        else:
-            # Late normal request - the orchestration task finishes slower in multiprocessing mode
-            retries, wait_time = 10, 5
-            sleep(10)
-
-        wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
-
-        if not wall_exists and normal_request_num_crews == 1:
-            for _ in range(retries):
-                wall_exists = Wall.objects.filter(wall_config_hash=self.wall_config_hash, num_crews=normal_request_num_crews).exists()
-                if wall_exists:
-                    break
-                sleep(wait_time)
-
-        return wall_exists
-
-    def get_redis_cache_details(self, normal_request_num_crews: int, profile_id: int, day: int) -> tuple[str, str]:
-        wall_data = {
-            'wall_config_hash': self.wall_config_hash,
-            'num_crews': normal_request_num_crews,
-            'request_type': 'create_wall_task',
-            'simulation_type': CONCURRENT
-        }
-        redis_cache_key = get_wall_progress_cache_key(wall_data, day, profile_id)
-        redis_profiles_days_cache = cache.get(redis_cache_key)
-
-        return redis_profiles_days_cache, redis_cache_key
-
-    def fetch_response(self, profile_id: int, day: int, normal_request_num_crews: int) -> HttpResponse:
-        url_name = exposed_endpoints['profiles-days']['name']
-        url = reverse(url_name, kwargs={'profile_id': profile_id, 'day': day})
-        request_params = {
-            'query_params': {'num_crews': normal_request_num_crews, 'config_id': self.valid_config_id},
-            'headers': {
-                'Authorization': f'Token {self.valid_token}'
-            }
-        }
-        response = self.client.get(url, **request_params)
-
-        return response
-
     def get_results(
-        self, wall_config_orchestration_result: AsyncResult, normal_request_result: str | None, deletion: str | None,
+        self, wall_config_orchestration_result: AsyncResult, deletion: str | None,
         deletion_result: AsyncResult | None, test_case_source: str
     ) -> tuple[str, list]:
         """Extract the results from the celery tasks, according to the test case"""
@@ -291,8 +193,6 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             return f'{test_case_source} timed out', actual_result
 
         if not deletion:
-            if normal_request_result and normal_request_result != base_messages.OK:
-                return normal_request_result, []
             actual_message, actual_result = wall_config_orchestration_result.result
         elif deletion_result:
             actual_deletion_message, actual_result = deletion_result.result
@@ -334,9 +234,6 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             return 'Wall config processing failed.'
 
         for task_result in task_results:
-            if task_result['celery_sim_calc_details'] == 'cached_result':
-                # A simultaneous normal API request has created the cache
-                continue
             # Check if the wall is in the DB
             wall = self.evaluate_wall_result(task_result)
             if not isinstance(wall, Wall):
@@ -500,47 +397,6 @@ class OrchestrateWallConfigTaskTest(ConcurrentCeleryTasksTestBase):
             actual_message=actual_message_final,
             test_case_source=test_case_source
         )
-
-    def test_simultaneous_orchestration_task_and_normal_request(
-        self, normal_request_num_crews: int | None = None, test_case_source: str = ''
-    ):
-        """
-        Send a 'profiles-days' get request shortly after an orchestration task has started.
-        The request's wall build simulation is expected to already be processed by the orchestration task.
-        The expected result is that the Redis cache will be created after the get request is processed.
-        """
-        if not normal_request_num_crews:
-            normal_request_num_crews = 1
-        if not test_case_source:
-            test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        task_result_message, task_results = self.process_tasks(
-            test_case_source, normal_request_num_crews=normal_request_num_crews
-        )
-        expected_message = self.orchstrt_wall_config_task_success_msg
-        common_result_kwargs = {
-            'input_data': self.input_data,
-            'expected_message': expected_message,
-            'test_case_source': test_case_source
-        }
-
-        if task_result_message != base_messages.OK:
-            self.log_test_result(passed=False, actual_message=task_result_message, **common_result_kwargs)
-            return
-
-        actual_message = self.evaluate_tasks_result(task_results, deletion=None)
-
-        passed = actual_message == expected_message
-        self.log_test_result(passed=passed, actual_message=actual_message, **common_result_kwargs)
-
-    def test_simultaneous_orchestration_task_and_early_normal_request(self):
-        """
-        Send a 'profiles-days' get request shortly after an orchestration task has started.
-        The request's wall build simulation is expected to not be processed by the orchestration task yet.
-        A 202 build in progress response is expected.
-        """
-        test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)  # type: ignore
-        normal_request_num_crews = self.sections_count - 1
-        self.test_simultaneous_orchestration_task_and_normal_request(normal_request_num_crews, test_case_source)
 
 
 class DeleteUnusedWallConfigsTaskTest(ConcurrentCeleryTasksTestBase):

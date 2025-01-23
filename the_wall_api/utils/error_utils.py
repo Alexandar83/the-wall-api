@@ -315,7 +315,7 @@ def handle_cache_not_found(wall_data: Dict[str, Any]) -> None:
 
     if wall_data['wall_config_object_status'] == WallConfigStatusEnum.CELERY_CALCULATION:
         # Must not be entered
-        raise Exception(
+        raise NotImplementedError(
             error_messages.must_be_handled_in('error_utils.verify_no_other_user_tasks_in_progress()')
         )
 
@@ -334,7 +334,7 @@ def handle_wall_config_object_already_exists(wall_data: Dict[str, Any], wall_con
         if wall_config_object.status in [
             WallConfigStatusEnum.ERROR, WallConfigStatusEnum.READY_FOR_DELETION
         ]:
-            status_label = WallConfigStatusEnum(wall_data['wall_config_object_status']).label
+            status_label = WallConfigStatusEnum(wall_config_object.status).label
             error_message_suffix = error_messages.wall_config_already_uploaded_suffix(status_label)
 
         reference = WallConfigReference.objects.filter(

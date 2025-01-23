@@ -14,9 +14,7 @@ from the_wall_api.models import (
     Wall, WallConfig, WallConfigReference, WallConfigReferenceStatusEnum, WallConfigStatusEnum,
     WallProgress
 )
-from the_wall_api.tasks import (
-    delete_unused_wall_configs_task, orchestrate_wall_config_processing_task
-)
+from the_wall_api.tasks import delete_unused_wall_configs_task
 from the_wall_api.utils import error_utils, wall_config_utils
 from the_wall_api.utils.api_utils import handle_being_processed
 from the_wall_api.utils.message_themes import (
@@ -54,7 +52,7 @@ def fetch_wall_data(
 
     # Check for other user tasks in progress
     error_utils.verify_no_other_user_tasks_in_progress(wall_data)
-    if wall_data['error_response']:
+    if wall_data['error_response'] or wall_data.get('info_response'):
         return
 
     get_or_create_cache(wall_data, request_type)
@@ -382,7 +380,7 @@ def manage_wall_config_file_upload(wall_data: Dict[str, Any]) -> None:
 
     # Uploaded config data validation
     wall_config_utils.validate_wall_config_file_data(wall_data)
-    if wall_data['error_response']:
+    if wall_data['error_response'] or wall_data.get('info_response'):
         return
 
     # Prepare final data
@@ -523,8 +521,11 @@ def create_new_wall_config(wall_data: Dict[str, Any], wall_config_hash: str) -> 
 
 
 def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[str, Any]) -> None:
-    if wall_data['request_type'] == 'create_wall_task' or settings.ACTIVE_TESTING:
+    if wall_data['request_type'] == 'create_wall_task':
         # Skip during Celery task creation and testing
+        return
+
+    if settings.ACTIVE_TESTING and not test_requests_flow(wall_data):
         return
 
     sections_count = wall_data['sections_count']
@@ -535,6 +536,8 @@ def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[st
         'sections_count': sections_count,
         'username': wall_data['request_user'].username,
         'config_id': wall_data['wall_config_reference'].config_id,
+        'active_testing': settings.ACTIVE_TESTING,
+        'cncrrncy_test_sleep_period': wall_data.get('test_data', {}).get('cncrrncy_test_sleep_period', 0),
     }
 
     if wall_data['request_type'] == 'wallconfig-files/upload':
@@ -545,6 +548,10 @@ def handle_wall_config_status(wall_config_object: WallConfig, wall_data: Dict[st
         # Cost and usage API requests - Send to Celery only if not in the synchronous processing case
         # WallConfig.status in [INITIALIZED, PARTIALLY_CALCULATED]
         handle_async_single_num_crews_request(task_kwargs, wall_data)
+
+
+def test_requests_flow(wall_data: Dict[str, Any]) -> bool:
+    return wall_data.get('test_data', {}).get('test_source') == 'test_requests_flow'
 
 
 def handle_file_upload_request(
@@ -558,15 +565,29 @@ def handle_file_upload_request(
         wall_config_object.status == WallConfigStatusEnum.INITIALIZED and
         sections_count <= settings.MAX_SECTIONS_COUNT_FULL_RANGE_CACHING
     ):
+        orchestrate_wall_config_processing_task = import_orchestrate_wall_config_processing_task()
+
         task_kwargs['num_crews_range'] = 'full-range'
         orchestrate_wall_config_processing_task.apply_async(
             kwargs=task_kwargs, priority=CELERY_TASK_PRIORITY['MEDIUM']
         )  # type: ignore
 
 
+def import_orchestrate_wall_config_processing_task():
+    if not settings.ACTIVE_TESTING:
+        from the_wall_api.tasks import orchestrate_wall_config_processing_task
+    else:
+        from the_wall_api.tasks import orchestrate_wall_config_processing_task_test as orchestrate_wall_config_processing_task
+
+    return orchestrate_wall_config_processing_task
+
+
 def handle_async_single_num_crews_request(task_kwargs: Dict[str, Any], wall_data: Dict[str, Any]) -> None:
     """Send to Celery for single num_crews processing"""
     task_kwargs['num_crews_range'] = wall_data['num_crews']
+
+    orchestrate_wall_config_processing_task = import_orchestrate_wall_config_processing_task()
+
     orchestrate_wall_config_processing_task.apply_async(
         kwargs=task_kwargs, priority=CELERY_TASK_PRIORITY['MEDIUM']
     )  # type: ignore
