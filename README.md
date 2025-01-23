@@ -11,8 +11,10 @@ The Wall is a massive fortification being built along the northern border of the
 
 ---
 
+🗒️ ***Audience Note:*** *This documentation assumes a technical background and is intended for **developers** and **architects** experienced in containerized workflows and API-based system designs.*
+
 # Table of Contents
-[**1. Project overview**](#1-project-overview)
+[**1. Project Overview**](#1-project-overview)
 
 [**2. Features**](#2-features)
 
@@ -21,13 +23,13 @@ The Wall is a massive fortification being built along the northern border of the
 [**4. Installation Instructions**](#4-installation-instructions)  
 
 &emsp;[***4.1 Windows + Docker Desktop***](#41-windows--docker-desktop)  
-&emsp;&emsp;[4.1.1 Fast-Track Demo Setup](#411-fast-track-demo-setup)  
+&emsp;&emsp;[4.1.1 Quick start - Fast-Track Demo Setup](#411-quick-start---fast-track-demo-setup)  
 &emsp;&emsp;[4.1.2 Local Development Setup](#412-local-development-setup)  
 &emsp;&emsp;[4.1.3 Production Setup (v1)](#413-production-setup-v1)  
 &emsp;&emsp;[4.1.4 Production Setup (v2)](#414-production-setup-v2)  
 
 &emsp;[***4.2 Linux + Docker + Docker Compose***](#42-linux--docker--docker-compose)  
-&emsp;&emsp;[4.2.1 Fast-Track Demo Setup](#421-fast-track-demo-setup)  
+&emsp;&emsp;[4.2.1 Quick start - Fast-Track Demo Setup](#421-quick-start---fast-track-demo-setup)  
 &emsp;&emsp;[4.2.2 Local Development Setup](#422-local-development-setup)  
 &emsp;&emsp;[4.2.3 Production Setup (v1)](#423-production-setup-v1)  
 &emsp;&emsp;[4.2.4 Production Setup (v2)](#424-production-setup-v2)  
@@ -42,8 +44,9 @@ The Wall is a massive fortification being built along the northern border of the
 &emsp;&emsp;[6.2.1 Wall characteristics](#621-wall-characteristics)  
 &emsp;&emsp;[6.2.2 User Management](#622-user-management)  
 &emsp;&emsp;[6.2.3 Configuration File Management](#623-configuration-file-management)  
-&emsp;&emsp;[6.2.4 Number of crews parameter](#624-number-of-crews-parameter)  
-&emsp;&emsp;[6.2.5 Cost and ice usage calculations](#625-cost-and-ice-usage-calculations)
+&emsp;&emsp;[6.2.4 Number of Crews Parameter](#624-number-of-crews-parameter)  
+&emsp;&emsp;[6.2.5 Cost and Ice Usage Calculations](#625-cost-and-ice-usage-calculations)  
+&emsp;&emsp;[6.2.6 Config ID Parameter](#626-config-id-parameter)
 
 
 &emsp;[***6.3 Operational Limitations***](#63-operational-limitations)  
@@ -56,14 +59,13 @@ The Wall is a massive fortification being built along the northern border of the
 
 ---
 
-## 1. Project overview
+## 1. Project Overview
 
 
 - The **Wall API** is a **Django REST Framework (DRF)** portfolio project that demonstrates the integration of various containerized services within a complex multiprocessing workflow. The API simulates the construction of a massive wall in a fictional world, tracking material quantities and costs across multiple profiles and sections.  
 - If the number of construction crews is not specified in the API request, the simulation runs **sequentially**. In this mode, each wall section is assigned to its own designated crew, and the calculations are performed in the main thread.  
 - When the number of crews is specified, the simulation runs in **concurrent mode**, in which the application starts a separate thread (or process) for each crew. Once a crew finishes its assigned section, it is dynamically reassigned to the next unfinished section until all sections are completed.  
 - In both modes, the heights of all unfinished sections are incremented by one before the build continues to the next simulated day, emulating a realistic construction progress. 
-- **The construction progress in concurrent mode is intentionally stored in a logfile in real-time, instead of being calculated in-memory, emulating the synchronization between crews at the end of each day**.
 
 
 ## 2. Features
@@ -123,7 +125,7 @@ The Wall is a massive fortification being built along the northern border of the
 | **Celery**                          | Asynchronous task processing                |              5.4.0               |
 | **Djoser**                          | User authentication                         |              2.3.1               |
 | **DRF Spectacular**                 | API schema & docs generation                |              0.27.2              |
-| **Poetry**                          | Dependency management and<br>virtualization |              1.8.3               |
+| **Poetry**                          | Dependency management and<br>virtualization |              2.0.1               |
 | **Docker**<br>*Engine*<br>*Compose* | Containerization tools                      |    4.37.1<br>27.4.1<br>2.32.1    |
 
 <br>
@@ -155,12 +157,12 @@ The Wall is a massive fortification being built along the northern border of the
 
 ---
 
-#### 4.1.1 **Fast-Track Demo Setup**
+#### 4.1.1 **Quick start - Fast-Track Demo Setup**
 
 <details>
 <summary></summary>
 
-#### 4.1.1.1 Quick app setup  
+#### 4.1.1.1 Quick App Setup  
 
   - **a.** Download ***`docker-compose-demo.yml`***, located in the ***`config/docker/`*** folder of the repository.  
   - **b.** Pull the app and directly start it with all of its services:
@@ -223,7 +225,7 @@ The Wall is a massive fortification being built along the northern border of the
 💡 *If on **Linux**, return to **Linux + Docker + Docker Compose** - [4.2.1.2 Instructions for proxy wall creation (no Docker dependency)](#4212-instructions-for-proxy-wall-creation-no-docker-dependency).*  
 <br>
 
-#### 4.1.1.2 Instructions for proxy wall creation (no Docker dependency)  
+#### 4.1.1.2 Instructions for Proxy Wall Creation (no Docker dependency)  
 - **a.** Clone the repository in a folder of your choice:
 
   ```bash
@@ -664,16 +666,16 @@ The Wall is a massive fortification being built along the northern border of the
 
 ---
 
-#### 4.2.1 **Fast-Track Demo Setup**
+#### 4.2.1 **Quick start - Fast-Track Demo Setup**
 
 <details>
 <summary></summary>
 
-#### 4.2.1.1 Quick app setup
-💡 *Refer to **Windows + Docker Desktop instuructions** - [4.1.1.1 Quick app setup](#4111-quick-app-setup).*  
+#### 4.2.1.1 Quick App Setup
+💡 *Refer to **Windows + Docker Desktop instructions** - [4.1.1.1 Quick App Setup](#4111-quick-app-setup).*  
 <br>
 
-#### 4.2.1.2 Instructions for proxy wall creation (no Docker dependency)  
+#### 4.2.1.2 Instructions for Proxy Wall Creation (no Docker dependency)  
 
 - **a.** Clone the repository in a folder of your choice:
 
@@ -915,7 +917,7 @@ The Wall is a massive fortification being built along the northern border of the
 ---
 
 #### 4.2.3 **Production Setup (v1)**
-💡 *Refer to **Windows + Docker Desktop instuructions** - [4.1.3 Production Setup (v1)](#413-production-setup-v1).*  
+💡 *Refer to **Windows + Docker Desktop instructions** - [4.1.3 Production Setup (v1)](#413-production-setup-v1).*  
 
 ---
 
@@ -1099,20 +1101,20 @@ The Wall is a massive fortification being built along the northern border of the
 
 ### Endpoints
 
-| Endpoint                | URL                                                     | Requires token authentication |            Rate limit scopes            |
-| ----------------------- | ------------------------------------------------------- | :---------------------------: | :-------------------------------------: |
-| Create User             | `/api/v1/auth/users/`                                   |              No               |             Unauthenticated             |
-| Set Password            | `/api/v1/auth/users/set_password/`                      |              Yes              |             User management             |
-| Login (authenticate)    | `/api/v1/auth/token/login/`                             |              No               |  Authenticated + <br>Unauthenticated 🗒️  |
-| Logout (revoke token)   | `/api/v1/auth/token/logout/`                            |              Yes              |             User management             |
-| Delete User             | `/api/v1/auth/users/me/{username}/`                     |              Yes              | User management + <br>Unauthenticated 🗒️ |
-| Upload File             | `/api/v1/wallconfig-files/upload/`                      |              Yes              |             File management             |
-| List Files              | `/api/v1/wallconfig-files/list/`                        |              Yes              |              Authenticated              |
-| Delete File             | `/api/v1/wallconfig-files/delete/`                      |              Yes              |             File management             |
-| Profile Daily Overview  | `/api/v1/profiles/<int:profile_id>/overview/<int:day>/` |              Yes              |              Authenticated              |
-| Profiles Daily Overview | `/api/v1/profiles/overview/<int:day>/`                  |              Yes              |              Authenticated              |
-| Profiles Overview       | `/api/v1/profiles/overview/`                            |              Yes              |              Authenticated              |
-| Profile Daily Ice Usage | `/api/v1/profiles/<int:profile_id>/days/<int:day>/`     |              Yes              |              Authenticated              |
+| Endpoint                  | URL                                                     | Requires token authentication |            Rate limit scopes            |
+| ------------------------- | ------------------------------------------------------- | :---------------------------: | :-------------------------------------: |
+| Create User               | `/api/v1/auth/users/`                                   |              No               |             Unauthenticated             |
+| Set Password              | `/api/v1/auth/users/set_password/`                      |              Yes              |             User management             |
+| Login (authenticate)      | `/api/v1/auth/token/login/`                             |              No               |  Authenticated + <br>Unauthenticated 🗒️ |
+| Logout (revoke token)     | `/api/v1/auth/token/logout/`                            |              Yes              |             User management             |
+| Delete User               | `/api/v1/auth/users/me/{username}/`                     |              Yes              | User management + <br>Unauthenticated 🗒️|
+| Upload File               | `/api/v1/wallconfig-files/upload/`                      |              Yes              |             File management             |
+| List Files                | `/api/v1/wallconfig-files/list/`                        |              Yes              |              Authenticated              |
+| Delete File               | `/api/v1/wallconfig-files/delete/`                      |              Yes              |             File management             |
+| Daily Profile Cost        | `/api/v1/profiles/<int:profile_id>/overview/<int:day>/` |              Yes              |              Authenticated              |
+| Daily Wall Cost           | `/api/v1/profiles/overview/<int:day>/`                  |              Yes              |              Authenticated              |
+| Total Wall Cost           | `/api/v1/profiles/overview/`                            |              Yes              |              Authenticated              |
+| Daily Profile Ice Amount  | `/api/v1/profiles/<int:profile_id>/days/<int:day>/`     |              Yes              |              Authenticated              |
 
 <br>
 
@@ -1121,7 +1123,7 @@ The Wall is a massive fortification being built along the northern border of the
 🗒️ ***Note:**  **Deleting a user** requires authentication at the start of the request. However, once the user account is deleted, the session token is invalidated, and the user becomes unauthenticated. Any subsequent requests to this endpoint will fall under the "Unauthenticated" rate limit scope.*  
 <br>
 
-### Rate limit scopes
+### Rate Limit Scopes
 
 | Scope                                                    |   Limit   |
 | -------------------------------------------------------- | :-------: |
@@ -1130,7 +1132,7 @@ The Wall is a massive fortification being built along the northern border of the
 | File management                                          |  5 / min  |
 | User management                                          | 10 / min  |
 
-### Detailed API documentation
+### Detailed API Documentation
 
 | Endpoint   | URL                   |
 | ---------- | --------------------- |
@@ -1166,7 +1168,7 @@ graph TD
 <details>
 <summary></summary>
 
-#### 6.2.1 Wall characteristics
+#### 6.2.1 Wall Characteristics
 
 <details>
 <summary></summary>
@@ -1177,7 +1179,7 @@ graph TD
 
   - **c.** Each additional foot of height for a section requires 195 cubic yards of ice.
 
-  - **d.** Processing one cubic yard of ice costs 1 900 Gold Dragon coins.
+  - **d.** Processing one cubic yard of ice costs 1,900 Gold Dragon coins.
 
 </details><!--/6.2.1-->
 
@@ -1233,14 +1235,13 @@ graph TD
 <details>
 <summary></summary>
 
-  - **a.** The **`num_crews`** parameter is optional and impacts only the behavior of the **`profiles-days`** endpoint.
+  - **a.** The **`num_crews`** parameter is optional and impacts the behavior of the **`profiles`** endpoints.
 
   - **b.** Default behavior - **`num_crews`** is not provided in the request:
     - Each wall section has its own designated construction crew  
-    ℹ️ *This default behavior is also applied if the provided **`num_crews`** parameter is:  
+    ℹ️ *This default behavior is also applied if the provided* **`num_crews`** *parameter is:  
       -Set to **`0`**  
-      -Greater than or equal to the number of wall sections*  
-      <br>
+      -Greater than or equal to the number of wall sections*
 
   - **c.** If the user provides the **`num_crews`** query parameter, the calculations follow these rules:
     - Each crew is assigned to an unfinished section of the wall.
@@ -1252,93 +1253,158 @@ graph TD
 
 </details><!--/6.2.4-->
 
-#### 6.2.5 **Cost and ice usage calculations**
+#### 6.2.5 **Cost and Ice Usage Calculations**
 
 <details>
 <summary></summary>
 
-  - **a.** API Endpoints are available to query ice usage and construction costs for each wall section.
+  - **a.** API Endpoints are available to query ice amounts and construction costs for the wall build process.
 
-  - **b.** The ***Profiles Overview*** endpoint provides the total cost of the wall in Gold Dragon coins.
+  - **b.** The ***Total Wall Cost*** `/profiles/overview/` endpoint provides the total construction cost of the wall in Gold Dragon coins.
 
-  - **c.** The ***Profile Daily Ice Usage*** endpoint provides the ice usage for a specific wall profile on a specific day in cubic yards.
+  - **c.** The ***Daily Wall Cost*** `/profiles/overview/<int:day>/` endpoint provides the total construction cost on a specific day in Gold Dragon coins.
+  
+  - **d.** The ***Daily Profile Cost*** `/profiles/<int:profile_id>/overview/<int:day>/` endpoint provides the amount of ice used on a specific day for a given wall profile in Gold Dragon coins.
 
-  - **d.** Example use cases:
+  - **e.** The ***Daily Profile Ice Amount*** `/profiles/<int:profile_id>/days/<int:day>/`endpoint provides the amount of ice used on a specific day for a given wall profile in cubic yards.
+
+  - **f.** Example use cases:
     <i>
-    - A wall configuration file is uploaded:  
+    1. A wall configuration file is uploaded:  
 
-      ```json
-      [
-        [27],
-        [27, 27],
-        [28, 29, 30]
-      ]
-      ```
-    - **`num_crews`** is not specified - 5 crews are assigned to each unfinished section.
-      - Construction process:
-        - Profile **`1`** total progress: 30 - 27 = **3 feet**
-        - Profile **`2`** total progress: (30 - 27) + (30 - 27) = **6 feet**
-        - Profile **`3`** total progress: (30 - 28) + (30 - 29) = **3 feet**
-        - Wall total progress = 3 + 6 + 3 = **12 feet** constructed
-      - **`profiles-overview`** calculates the total cost of the wall:        
-        - Total cost = **12**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = ***4 446 000 Gold Dragon coins***
-      - **`profiles-overview/2`** calculates the cost for profile **`2`**:
-        - **6**(feet) \* **195**(cubic yards of ice) \* **1 900**(Gold Dragon coins) = **2 223 000 Gold Dragon coins**
-      - **`profiles/2/days/2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
-        - **2**(total feet raised on profile **`2`** on the **`2nd`** day) \* **195**(cubic yards of ice) = **390 cubic yards of ice**
-    - **`num_crews`** = **`2`**:
-      - Construction process:
-          - **Crew `I`** raises profile **`1`** - section **`1`** by **3 feet**.
-          - **Crew `II`** raises profile **`2`** - section **`1`** by **3 feet**.
-          - At the end of the **`3rd`** day:
-            - **Crew `I`** is assigned to work on profile **`2`** - section **`2`**.
-              - Raises it by **3 feet**.
-            - **Crew `II`** is assigned to work on profile **`3`** - section **`1`**.
-              - Raises it by **2 feet**.
-          - At the end of the **`5th`** day:
-            - **Crew `II`** is assigned to work on profile **`3`** - section **`2`**.
-              - Raises it by **1 foot**.
-          - At the end of the **`6th`** day:
-            - **Crew `I`** is relieved.
-            - **Crew `II`** is relieved.
-          - Wall total progress = 3 + 3 + 3 + 2 + 1 = **12 feet** constructed.
-      
-      ℹ️ Only the **`profiles-days`** endpoint supports the `num_crews` parameter.
+        ```json
+        [
+          [27],
+          [27, 27],
+          [28, 29, 30]
+        ]
+        ```
+    2. **`num_crews`** is not specified - 5 crews are assigned to each unfinished section.<br>*profile 3 - section 3 is finished  
 
-      - **`profiles/2/days/2?num_crews=2`** calculates the total amount of ice used for profile **`2`** on the **`2nd`** day of the construction:
-        - **1**(total feet raised on profile **`2`** on the **`2nd`** day) \* **195**(cubic yards of ice) = **195 cubic yards of ice**.
+         - **Construction process:**
+           - Profile **`1`** total progress: 30 - 27 = **3 feet**
+           - Profile **`2`** total progress: (30 - 27) + (30 - 27) = **6 feet**
+           - Profile **`3`** total progress: (30 - 28) + (30 - 29) = **3 feet**
+           - Wall total progress = 3 + 6 + 3 = **12 feet** constructed  
+          <br>
+
+         - **`profiles/overview/`** returns the total construction cost of the wall:  
+
+           - **Cost** = **12**(total feet raised) \* **195**(cubic yards of ice) \* **1,900**(Gold Dragon coins) = ***4,446,000 Gold Dragon coins***  
+          <br>
+
+         - **`profiles/overview/3`** returns the total construction cost on day **`3`**:
+           - Sections raised by 1 foot on day **`3`**:
+             - Profile **`1`**:
+               - section **`1`**: **29 feet** -> **30 feet**
+             - Profile **`2`**:
+               - section **`1`**: **29 feet** -> **30 feet**
+               - section **`2`**: **29 feet** -> **30 feet**
+           - **Cost** = **3**(total feet raised) \* **195**(cubic yards of ice) \* **1,900**(Gold Dragon coins) = **1,111,500 Gold Dragon coins**  
+           <br>
+
+         - **`profiles/3/overview/1`** returns the total construction cost of profile **`3`** on day **`1`**:
+            - Sections raised by 1 foot on profile **`3`** on day **`1`**:
+               - section **`1`**: **28 feet** -> **29 feet**
+               - section **`2`**: **29 feet** -> **30 feet**
+            - **Cost** = **2**(total feet raised) \* **195**(cubic yards of ice) \* **1,900**(Gold Dragon coins) = **741,000 Gold Dragon coins**  
+            <br>
+
+         - **`profiles/2/days/2`** returns the total amount of ice used for profile **`2`** on day **`2`**:
+            - **Ice amount** = **2**(total feet raised) \* **195**(cubic yards of ice) = **390 cubic yards of ice** 
+            <br>
+
+
+    3. **`num_crews`** = **`2`**:  
+
+         - **Construction process:**
+             - **Crew `I`** raises profile **`1`** - section **`1`** by **3 feet**.
+             - **Crew `II`** raises profile **`2`** - section **`1`** by **3 feet**.
+             - At the end of the **`3rd`** day:
+               - **Crew `I`** is assigned to work on profile **`2`** - section **`2`**.
+                 - Raises it by **3 feet**.
+               - **Crew `II`** is assigned to work on profile **`3`** - section **`1`**.
+                 - Raises it by **2 feet**.
+             - At the end of the **`5th`** day:
+               - **Crew `II`** is assigned to work on profile **`3`** - section **`2`**.
+                 - Raises it by **1 foot**.
+             - At the end of the **`6th`** day:
+               - **Crew `I`** is relieved.
+               - **Crew `II`** is relieved.
+             - Wall total progress = 3 + 3 + 3 + 2 + 1 = **12 feet** constructed  
+             <br>
+
+         - **`profiles/overview/`** returns the total construction cost of the wall:  
+
+           - **Cost** = **12**(total feet raised) \* **195**(cubic yards of ice) \* **1,900**(Gold Dragon coins) = ***4,446,000 Gold Dragon coins***  
+           <br>
+
+         - **`profiles/overview/3`** returns the total construction cost on day **`3`**:
+           - Sections raised by 1 foot on day **`3`**:
+             - Profile **`1`**:
+                  - section **`1`**: **29 feet** -> **30 feet** (**Crew `I`**)
+              - Profile **`2`**:
+                - section **`1`**: **29 feet** -> **30 feet** (**Crew `II`**)
+           - **Cost** = **2**(total feet raised) \* **195**(cubic yards of ice) \* **1,900**(Gold Dragon coins) = **741,000 Gold Dragon coins**  
+           <br>
+
+         - **`profiles/3/overview/1`** returns the total construction cost of profile **`3`** on day **`1`**:
+           - **404:** No crew has worked on profile **`3`** on day **`1`**.
+           <br>
+
+         - **`profiles/2/days/2`** returns the total amount of ice used for profile **`2`** on day **`2`**:
+           - **1**(total feet raised) \* **195**(cubic yards of ice) = **195 cubic yards of ice**.  
+           <br>
     </i>
-
-💡 *A valid **`config_id`** for an uploaded wall configuration must be provided for each request.*
-
-ℹ️ *A **`config_id`** serves as a reference to a specific build simulation. This allows for several users to have references to the same simulation, avoiding unnecessary data duplication.*
-
-💡 *Refer to the **`swagger-ui`** and **`redoc`** documentation for detailed description of each endpoint's associated parameters and usage.*
 
 </details><!--/6.2.5-->
 
+#### 6.2.6 **Config ID Parameter**
+
+<details>
+<summary></summary>
+
+  - **a.** A valid **`config_id`** for an uploaded wall configuration must be provided for each request.
+
+  - **b.** A **`config_id`** serves as a reference to a specific build simulation. This allows for several users to have references to the same simulation, avoiding unnecessary data duplication.
+
+</details><!--6.2.6-->
+
+<br>
+
+💡 *Refer to the **`swagger-ui`** and **`redoc`** documentation for a detailed description of each endpoint's associated parameters and usage.*  
+<br><br>
+
 </details><!--/6.2-->
 
-### 6.3 Operational limitations
+### 6.3 Operational Limitations
 
 <details>
 <summary></summary>
 
 - Password:
-  - Password must not be too similar to personal information (like username or email)
-  - Password must meet the minimum length requirement (default: 8 characters)
-  - Password must not be a commonly used password
-  - Password must not be entirely numeric
+  - Must not resemble personal information (e.g., username, email).
+  - Must be at least 8 characters long.
+  - Cannot be a commonly used password.
+  - Cannot consist entirely of numbers.
 
 - Uploaded files:
-  - Uploaded file format requirements are described in section [6.2.3 Configuration File Management](#623-configuration-file-management)
-  - Maximum file uploads per account: 5
-  - All config_id-s uploaded by a user must be unique
-  - Maximum allowed length of a config_id: 30
+  - Files must comply with [6.2.3 Configuration File Management](#623-configuration-file-management).
+  - Max file uploads per account: 5.
+  - Each config_id must be unique (max length: 30 characters).
 
 - Wall configurations:
-  - Maximum allowed sections in a wall configuration: 2000
-  - Starting height for each section is within range [0...30]
+  - Max sections per wall profile: 2,000.
+  - Max profiles per wall: 300.
+  - Section starting height: 0 to 30.
+
+- Deferred calculation:
+  - For walls with more than 10,000 sections, the system will calculate the results in the background. The user needs to send another request later to get the results.
+
+<br>
+
+💡 *For a comprehensive list of limitations for each API endpoint, refer to the **`swagger-ui`**, **`redoc`**, and the **`OpenAPI schema`**.*  
+<br><br>
 
 </details><!--/6.3-->
 

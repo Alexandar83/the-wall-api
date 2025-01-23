@@ -67,7 +67,7 @@ PROFILES_OVERVIEW_SUMMARY = 'Total Wall Cost'
 PROFILES_OVERVIEW_DESCRIPTION = 'Retrieve the total wall construction cost.'
 
 PROFILES_OVERVIEW_DAY_SUMMARY = 'Daily Wall Cost'
-PROFILES_OVERVIEW_DAY_DESCRIPTION = 'Retrieve the total construction cost for a specific day.'
+PROFILES_OVERVIEW_DAY_DESCRIPTION = 'Retrieve the total construction cost on a specific day.'
 
 SINGLE_PROFILE_OVERVIEW_DAY_SUMMARY = 'Daily Profile Cost'
 SINGLE_PROFILE_OVERVIEW_DAY_DESCRIPTION = 'Retrieve the cost on a specific day for a given wall profile.'
