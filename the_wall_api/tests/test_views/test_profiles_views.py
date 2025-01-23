@@ -374,7 +374,8 @@ class AbnormalCasesProfilesDaysViewTest(ProfilesViewTestBase):
 
         self.execute_test_case(
             self.client_get_method, status.HTTP_409_CONFLICT, test_case_source,
-            profile_id=self.profile_id, day=self.day, num_crews=self.num_crews, error_id_prefix=f'{test_case_source}_'
+            profile_id=self.profile_id, day=self.day, num_crews=self.num_crews,
+            error_id_prefix=f'expected test suite error for {test_case_source}_'
         )
 
     def test_invalid_token(self):

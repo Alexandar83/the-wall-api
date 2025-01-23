@@ -144,6 +144,7 @@ def log_error(
     error_type: str, error_message: str, error_traceback: str, request_info: dict = {}, error_id_prefix: str = ''
 ) -> str:
     """Log unexpected app errors sequentially, avoiding race conditions during log files updates."""
+    from django.conf import settings
     from redis import Redis
 
     # Redis DB2 is used for persistent data
@@ -151,10 +152,11 @@ def log_error(
     error_id = str(redis_connection.incr('unknown_errors_counter'))
     error_id_log = error_id_prefix + error_id
 
-    logger = logging.getLogger(error_type)
-    logger.error(
-        error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id_log}
-    )
+    if 'expected test suite error' not in error_id_prefix or settings.SEND_EXPECTED_TEST_SUITE_ERRORS_TO_CELERY:
+        logger = logging.getLogger(error_type)
+        logger.error(
+            error_message, extra={'traceback': error_traceback, 'request_info': request_info, 'error_id': error_id_log}
+        )
 
     return error_id
 

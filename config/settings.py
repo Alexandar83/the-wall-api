@@ -369,6 +369,9 @@ LOGGING = {
 # Controls if daily logging is enabled
 VERBOSE_MULTIPROCESSING_LOGGING = os.getenv('VERBOSE_MULTIPROCESSING_LOGGING', 'False') == 'True'
 
+# Controls if the expected errors from the test suite are sent to celery_worker_2
+SEND_EXPECTED_TEST_SUITE_ERRORS_TO_CELERY = os.getenv('SEND_EXPECTED_TEST_SUITE_ERRORS_TO_CELERY', 'False') == 'True'
+
 # == Loging end ==
 
 # === Filesystem configuration end ===

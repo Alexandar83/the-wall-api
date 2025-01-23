@@ -125,7 +125,10 @@ class LogErrorTaskTest(BaseTestcase):
         input_data['error_message'] = error_message
 
         # Log the error
-        task_result = log_error_task.delay(error_type, error_message, error_traceback, error_id_prefix=f'{test_case_source}_')      # type: ignore
+        task_result = log_error_task.delay(
+            error_type, error_message, error_traceback,
+            error_id_prefix=f'error for {test_case_source}_'
+        )      # type: ignore
         task_result.get(timeout=5)  # Blocks until the task is done
 
         # Check log error task success

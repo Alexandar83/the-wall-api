@@ -110,7 +110,8 @@ class WallConfigFileUploadViewTest(WallConfigFileUploadViewTestBase):
         self.prepare_initial_test_data(1)
         self.execute_test_case(
             self.client_post_method, status.HTTP_400_BAD_REQUEST, test_case_source,
-            wall_config_file=self.valid_wall_config_file, token=self.valid_token, error_id_prefix=f'{test_case_source}_'
+            wall_config_file=self.valid_wall_config_file, token=self.valid_token,
+            error_id_prefix=f'expected test suite error for {test_case_source}_'
         )
 
     def test_wallconfig_file_upload_with_invalid_file(self):
