@@ -280,6 +280,10 @@ wall_creation_errors_dir = os.path.join(ERROR_LOGS_DIR, 'wall_creation')
 os.makedirs(wall_creation_errors_dir, exist_ok=True)
 ERROR_LOG_FILES_CONFIG['wall_creation'] = os.path.join(wall_creation_errors_dir, 'wall_creation_errors.log')
 
+TEST_SUITE_LOGS_DIR = os.path.join(LOGS_DIR_NAME, 'test_suite')
+os.makedirs(TEST_SUITE_LOGS_DIR, exist_ok=True)
+TEST_SUITE_LOGS_FILE = os.path.join(TEST_SUITE_LOGS_DIR, 'test_suite.log')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -293,6 +297,9 @@ LOGGING = {
             'format': '%(asctime)s %(message)s %(levelname)s %(traceback)s %(request_info)s %(error_id)s',
             'json_indent': 4,
         },
+        'test_suite': {
+            'format': '%(message)s'
+        }
     },
     'handlers': {
         # Handler for caching errors
@@ -341,6 +348,12 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'json_stdout',
         },
+        # Console logging test suite
+        'test_suite_console_logger': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'test_suite',
+        },
     },
     'loggers': {
         'caching': {
@@ -363,6 +376,11 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
+        'test_suite': {
+            'handlers': ['test_suite_console_logger'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
@@ -372,6 +390,8 @@ VERBOSE_MULTIPROCESSING_LOGGING = os.getenv('VERBOSE_MULTIPROCESSING_LOGGING', '
 # Controls if the expected errors from the test suite are sent to celery_worker_2
 SEND_EXPECTED_TEST_SUITE_ERRORS_TO_CELERY = os.getenv('SEND_EXPECTED_TEST_SUITE_ERRORS_TO_CELERY', 'False') == 'True'
 
+# Test suite
+TEST_SUITE_FILE_LOGGING_ENABLED = os.getenv('TEST_SUITE_FILE_LOGGING_ENABLED', 'False') == 'True'
 # == Loging end ==
 
 # === Filesystem configuration end ===

@@ -1,4 +1,6 @@
+from datetime import datetime
 import logging
+from logging.handlers import RotatingFileHandler
 from typing import Any, Callable
 
 from django.conf import settings
@@ -117,15 +119,28 @@ def generate_valid_values() -> list:
     ]
 
 
-def configure_test_logger():
-    """Configure a simple logger for test results."""
-    logger = logging.getLogger('test_logger')
-    logger.setLevel(logging.DEBUG)
+def get_test_logger():
+    """
+    Console logging is always enabled.
+    File logging is conditional.
+    """
+    logger = logging.getLogger('test_suite')
 
-    if not logger.hasHandlers():
-        ch = logging.StreamHandler()
-        ch.setFormatter(logging.Formatter('%(message)s'))
-        logger.addHandler(ch)
+    if (
+        settings.TEST_SUITE_FILE_LOGGING_ENABLED and
+        not any(isinstance(handler, logging.FileHandler) for handler in logger.handlers)
+    ):
+        file_handler = RotatingFileHandler(
+            filename=settings.TEST_SUITE_LOGS_FILE,
+            maxBytes=1024 * 1024 * 5,
+            backupCount=1,
+            delay=True
+        )
+        file_handler.setLevel(logging.INFO)
+        file_handler_format = settings.LOGGING['formatters']['test_suite']['format']
+        file_handler_formatter = logging.Formatter(file_handler_format)
+        file_handler.setFormatter(file_handler_formatter)
+        logger.addHandler(file_handler)
 
     return logger
 
@@ -138,7 +153,6 @@ def configure_test_logger():
 # NO-LOGGING - disable logging
 # SUMMARY - only log tests summary
 TEST_LOGGING_LEVEL: str = settings.TEST_LOGGING_LEVEL
-logger = configure_test_logger()
 
 
 view_classes_throttling_details = [
@@ -156,8 +170,14 @@ view_classes_throttling_details = [
 
 
 class CustomTestRunner(DiscoverRunner):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = get_test_logger()
+
     def setup_test_environment(self, **kwargs):
         """Called at the start of the entire test suite."""
+        self.logger.info(f'\n{settings.CONCURRENT_SIMULATION_MODE}')
         cache.clear()   # Ensure cache is cleared at the start of the test suite
         super().setup_test_environment(**kwargs)
 
@@ -166,10 +186,10 @@ class CustomTestRunner(DiscoverRunner):
         cache.clear()   # Ensure cache is cleared at the end of the test suite
         super().teardown_test_environment(**kwargs)
         # Log the total PASSED and FAILED across all modules
-        logger.info('--------------------------------------------')
-        logger.info(f'Total PASSED in all tests: {BaseTestMixin.total_passed}')
-        logger.info(f'Total FAILED in all tests: {BaseTestMixin.total_failed}')
-        logger.info(f'Total ERRORS in all tests: {BaseTestMixin.total_errors}')
+        self.logger.info('--------------------------------------------')
+        self.logger.info(f'Total PASSED in all tests: {BaseTestMixin.total_passed}')
+        self.logger.info(f'Total FAILED in all tests: {BaseTestMixin.total_failed}')
+        self.logger.info(f'Total ERRORS in all tests: {BaseTestMixin.total_errors}')
 
 
 class BaseTestMixin:
@@ -193,18 +213,19 @@ class BaseTestMixin:
 
     @classmethod
     def setUpClass(cls, bypass_throttling: bool = True):
+        cls.logger = get_test_logger()
         # Track passed/failed tests on module level
         cls.module_passed = 0
         cls.module_failed = 0
         cls.module_errors = 0
-        if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
-            logger.info(' ')
+        if settings.TEST_LOGGING_LEVEL not in ['NO-LOGGING', 'SUMMARY']:
+            cls.logger.info(' ')
             BaseTestMixin.test_group_counter += 1
             cls.test_case_group_description = getattr(cls, 'description', cls.__name__)
             test_module = cls.__module__.upper().rpartition('.')[-1]
-            logger.info(f'{"=" * 14} {test_module} -  START OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
-            logger.info(f'{cls.test_case_group_description.upper()}')
-            logger.info(' ')
+            cls.logger.info(f'{"=" * 14} {test_module} -  START OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
+            cls.logger.info(f'{cls.test_case_group_description.upper()}')
+            cls.logger.info(' ')
 
         if bypass_throttling:
             cls.bypass_throttling()
@@ -218,13 +239,13 @@ class BaseTestMixin:
     @classmethod
     def tearDownClass(cls):
         # At the end of each module, log the results for that module
-        if settings.TEST_LOGGING_LEVEL != 'NO-LOGGING':
-            logger.info(' ')
-            logger.info(f'Total PASSED: {cls.module_passed}')
-            logger.info(f'Total FAILED: {cls.module_failed}')
-            logger.info(f'Total ERRORS: {cls.module_errors}')
-            logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
-            logger.info(' ')
+        if settings.TEST_LOGGING_LEVEL not in ['NO-LOGGING', 'SUMMARY']:
+            cls.logger.info(' ')
+            cls.logger.info(f'Total PASSED: {cls.module_passed}')
+            cls.logger.info(f'Total FAILED: {cls.module_failed}')
+            cls.logger.info(f'Total ERRORS: {cls.module_errors}')
+            cls.logger.info(f'{"=" * 14} END OF TEST GROUP #{cls.test_group_counter} {"=" * 14}')
+            cls.logger.info(' ')
 
         cls.revert_throttling_bypass()
 
@@ -289,19 +310,20 @@ class BaseTestMixin:
         if (
             TEST_LOGGING_LEVEL == 'ALL' or
             (TEST_LOGGING_LEVEL == 'PASSED' and passed) or
-            (TEST_LOGGING_LEVEL == 'FAILED' and not passed) or  # Log both FAILED and ERROR
-            (TEST_LOGGING_LEVEL == 'ERROR' and error_occurred)  # Log only ERROR
+            (TEST_LOGGING_LEVEL in ['FAILED', 'SUMMARY'] and not passed) or  # Log both FAILED and ERROR
+            (TEST_LOGGING_LEVEL in ['ERROR', 'SUMMARY'] and error_occurred)  # Log only ERROR
         ):
-            logger.info('')
+            self.logger.info('')
             test_number = BaseTestMixin.test_counter
-            logger.info(f'{"TEST #" + str(test_number) + ":":<{self.padding}}{status}')
-            logger.info(f'{"Test method:":<{self.padding}}{test_case_source}')
-            logger.info(f'{"Input values:":<{self.padding}}{input_data}')
-            logger.info(f'{"Expected result:":<{self.padding}}{expected_message}')
-            logger.info(f'{"Actual result:":<{self.padding}}{actual_message}')
+            self.logger.info(f'{"TEST #" + str(test_number) + ":":<{self.padding}}{status}')
+            self.logger.info(f'{"Timestamp:":<{self.padding}}{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+            self.logger.info(f'{"Test method:":<{self.padding}}{test_case_source}')
+            self.logger.info(f'{"Input values:":<{self.padding}}{input_data}')
+            self.logger.info(f'{"Expected result:":<{self.padding}}{expected_message}')
+            self.logger.info(f'{"Actual result:":<{self.padding}}{actual_message}')
 
             BaseTestMixin.test_counter += 1
-            for handler in logger.handlers:
+            for handler in self.logger.handlers:
                 handler.flush()
 
     def pre_request_hook(self, *args, **kwargs) -> None:
