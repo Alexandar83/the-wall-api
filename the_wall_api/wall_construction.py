@@ -98,6 +98,17 @@ class WallConstruction:
             abort_thread_check.start()
 
     def calc_wall_profile_data(self):
+        """Calls the appropriate calculation method based on the simulation type"""
+        if not self.wall_construction_config:
+            self.simulation_finished = True
+            return
+
+        if self.simulation_type == f'{SEQUENTIAL}-legacy':
+            # Used for backward compatibility testing
+            self.calc_wall_profile_data_sequential_legacy()
+            self.simulation_finished = True
+            return
+
         if self.simulation_type == SEQUENTIAL:
             self.calc_wall_profile_data_sequential()
         elif 'threading' in self.CONCURRENT_SIMULATION_MODE:
@@ -107,7 +118,77 @@ class WallConstruction:
         self.simulation_finished = True
 
     def calc_wall_profile_data_sequential(self) -> None:
+        import numpy as np
+
+        day = 1
+        # If no crews are provided, assume infinite number of crews (one for each section)
+        num_crews = self.num_crews if self.num_crews else float('inf')
+        # Pad the profiles to uniform lengths and convert the wall config to numpy array
+        wall_config = np.array(self.pad_wall_construction_config(self.wall_construction_config))
+
+        # Mask for unfinished sections
+        unfinished_mask = (wall_config < MAX_SECTION_HEIGHT) & (wall_config != -1)
+
+        while np.any(unfinished_mask):  # Stop when no unfinished sections remain
+            # Find indices of unfinished sections
+            unfinished_indices = np.argwhere(unfinished_mask)
+            # Determine the number of sections to process, limited
+            # by the available crews (if num_crews is provided)
+            sections_to_process = min(len(unfinished_indices), num_crews)
+
+            # Select sections to process
+            selected_indices = unfinished_indices[:sections_to_process]
+            # Daily section height incrementation
+            wall_config[selected_indices[:, 0], selected_indices[:, 1]] += 1
+
+            # Mark processed sections as completed (False) if they reach or exceed the MAX_SECTION_HEIGHT
+            unfinished_mask[selected_indices[:, 0], selected_indices[:, 1]] = (
+                wall_config[selected_indices[:, 0], selected_indices[:, 1]] < MAX_SECTION_HEIGHT
+            )
+
+            # Aggregate the number of sections processed per profile
+            profile_updates = np.bincount(selected_indices[:, 0] + 1, minlength=wall_config.shape[0] + 1) * settings.ICE_PER_FOOT
+            # Batch update daily progress
+            BaseWallBuilder.update_wall_profile_data_batch(
+                self.wall_profile_data, day, {i: val for i, val in enumerate(profile_updates) if val > 0}
+            )
+
+            if self.cncrrncy_test_sleep_period:
+                # Ensure proper conditions for abort signal during tests
+                sleep(self.cncrrncy_test_sleep_period)
+
+            if self.celery_task_aborted:
+                # Celery task abort signal is sent - stop the simulation
+                return
+
+            day += 1
+
+        self.convert_to_int_values(day)
+
+    @classmethod
+    def pad_wall_construction_config(cls, config, padding_value=-1):
         """
+        Pad a nested list with a specified padding value to make shapes homogeneous.
+        """
+        max_length = max(len(profile) for profile in config)
+        return [
+            profile + [padding_value] * (max_length - len(profile)) for profile in config
+        ]
+
+    def convert_to_int_values(self, day):
+        """Convert to int values for compatibility with the rest of the app"""
+        self.wall_profile_data['profiles_overview']['construction_days'] = int(day) - 1
+        self.wall_profile_data['profiles_overview']['total_ice_amount'] = int(
+            self.wall_profile_data['profiles_overview']['total_ice_amount']
+        )
+        for day, ice_amount_data in self.wall_profile_data['profiles_overview']['daily_details'].items():
+            self.wall_profile_data['profiles_overview']['daily_details'][day] = {
+                profile: int(amount) for profile, amount in ice_amount_data.items()
+            }
+
+    def calc_wall_profile_data_sequential_legacy(self) -> None:
+        """
+        Obsolete - keep for correctness comparison tests.
         Sequential construction process simulation.
         All unfinished sections have a designated crew.
         Increment the heights of all sections, before proceeding to the next day.
@@ -143,6 +224,9 @@ class WallConstruction:
                     # Ensure proper conditions for abort signal during tests
                     if self.cncrrncy_test_sleep_period:
                         sleep(self.cncrrncy_test_sleep_period)
+
+                    if self.celery_task_aborted:
+                        return
 
                 # All crews are finished - proceed to the next day
                 if all_crews_finished_work_for_the_day:

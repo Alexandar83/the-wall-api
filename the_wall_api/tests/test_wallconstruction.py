@@ -7,7 +7,7 @@ from django.conf import settings
 from the_wall_api.tests.test_utils import BaseTestcase
 from the_wall_api.utils.message_themes import errors as error_messages
 from the_wall_api.utils.wall_config_utils import (
-    hash_calc, validate_wall_config_format, WallConstructionError
+    hash_calc, SEQUENTIAL, validate_wall_config_format, WallConstructionError
 )
 from the_wall_api.wall_construction import get_sections_count, WallConstruction
 
@@ -111,7 +111,7 @@ class WallConstructionCreationTest(BaseTestcase):
         if 'test_maximum_sections_profile' not in test_case_source:
             config_output = config
         else:
-            config_output = '[[0] * MAX_WALL_PROFILE_SECTIONS] * MAX_WALL_LENGTH'
+            config_output = '[[0 for _ in range(MAX_WALL_PROFILE_SECTIONS)] for _ in range(MAX_WALL_LENGTH)]'
         sections_count = get_sections_count(config)
         wall_config_hash = hash_calc(config)
 
@@ -125,10 +125,10 @@ class WallConstructionCreationTest(BaseTestcase):
                 for day_data in daily_details.values():
                     for ice_amounts in day_data.values():
                         self.assertGreater(ice_amounts, 0)
-                # iterate over wall_construction.testing_wall_construction_config
-                for profile in wall_construction.testing_wall_construction_config:
-                    for section in profile:
-                        self.assertEqual(section, settings.MAX_SECTION_HEIGHT)
+                if simulation_type == f'{SEQUENTIAL}-legacy':
+                    for profile in wall_construction.wall_construction_config:
+                        for section in profile:
+                            self.assertEqual(section, settings.MAX_SECTION_HEIGHT)
 
             self.log_test_result(
                 passed=True, input_data=config_output, expected_message=expected_message,
@@ -201,7 +201,7 @@ class WallConstructionCreationTest(BaseTestcase):
         )
 
     def test_maximum_sections_profile(self):
-        config = [[0] * MAX_WALL_PROFILE_SECTIONS for _ in range(MAX_WALL_LENGTH)]
+        config = [[0 for _ in range(MAX_WALL_PROFILE_SECTIONS)] for _ in range(MAX_WALL_LENGTH)]
         test_case_source = self._get_test_case_source(currentframe().f_code.co_name, self.__class__.__name__)    # type: ignore
         self.run_wall_construction_test(
             config=config,

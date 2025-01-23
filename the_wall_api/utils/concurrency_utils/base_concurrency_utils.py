@@ -137,3 +137,29 @@ class BaseWallBuilder(ABC):
         daily_details['dly_ttl'] += settings.ICE_PER_FOOT
         # Wall total overview
         wall_profile_data['profiles_overview']['total_ice_amount'] += settings.ICE_PER_FOOT
+
+    @staticmethod
+    def update_wall_profile_data_batch(wall_profile_data: dict, day: int, profile_updates: dict) -> None:
+        """
+        Updates wall profile data in batches, reducing function call overhead,
+        minimizing repetitive dictionary operations, and improving scalability for large simulations.
+        """
+
+        daily_details = wall_profile_data['profiles_overview']['daily_details'].setdefault(day, {})
+
+        daily_total = 0
+
+        for profile_id, ice_amount in profile_updates.items():
+            # Update daily amount for each profile
+            daily_details.setdefault(profile_id, 0)
+            daily_details[profile_id] += int(ice_amount)
+
+            # Track daily total
+            daily_total += int(ice_amount)
+
+        # Update daily total for all profiles
+        daily_details.setdefault('dly_ttl', 0)
+        daily_details['dly_ttl'] += daily_total
+
+        # Update wall total overview
+        wall_profile_data['profiles_overview']['total_ice_amount'] += daily_total
