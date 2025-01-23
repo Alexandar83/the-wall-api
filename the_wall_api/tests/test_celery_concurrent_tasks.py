@@ -42,7 +42,7 @@ class ConcurrentCeleryTasksTestBase(BaseTransactionTestcase):
         if 'multiprocessing' not in CONCURRENT_SIMULATION_MODE:
             cls.concurrency = 8
         else:
-            cls.concurrency = 3    # 1 for each type of computation Celery task
+            cls.concurrency = 4
         cls.setup_celery_workers()
         super().setUpClass()
 

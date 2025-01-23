@@ -184,9 +184,12 @@ class ThreadingWallBuilder(BaseWallBuilder):
             # Wake up all waiting threads
             if self.CONCURRENT_SIMULATION_MODE == 'threading_v2':
                 # Event
-                self.day_event.set()        # Wake up all waiting threads
-                sleep(0.05)                 # Grace period to ensure the other threads register the event set
-                self.day_event.clear()      # Reset the event for the next day
+                # Wake up all waiting threads
+                self.day_event.set()
+                # Grace period to ensure the other threads register the event set
+                sleep(SECTION_COMPLETION_GRACE_PERIOD_THREADING / 2)
+                # Reset the event for the next day
+                self.day_event.clear()
             else:
                 # default - Condition
                 self.day_condition.notify_all()
@@ -236,7 +239,6 @@ class ThreadingWallBuilder(BaseWallBuilder):
         if not other_crews_notified:
             # In rare occasions the waiting crews may not be notified
             # for the set event in threading_v2
-            wait_period = None if self.CONCURRENT_SIMULATION_MODE == 'threading_v1' else 1.0
-            self.day_event.wait(wait_period)
+            self.day_event.wait(1.0)
 
 # === v2 Event sync. (end) ===

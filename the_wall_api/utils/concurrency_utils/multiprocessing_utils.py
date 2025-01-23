@@ -284,7 +284,7 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
 
             # Ensure proper conditions for abort signal during tests
             if cncrrncy_test_sleep_period:
-                sleep(cncrrncy_test_sleep_period)
+                sleep(uniform(cncrrncy_test_sleep_period, cncrrncy_test_sleep_period * 4))
 
             if build_kwargs['celery_task_aborted_mprcss'].value:
                 return current_process_day
@@ -343,9 +343,12 @@ class MultiprocessingWallBuilder(BaseWallBuilder):
             finished_crews_for_the_day.value = 0
 
             if day_event:
-                day_event.set()         # Wake up all waiting processes
-                sleep(0.01)             # Grace period to ensure the other processes register the event set
-                day_event.clear()       # Reset the event for the next day
+                # Wake up all waiting processes
+                day_event.set()
+                # Grace period to ensure the other processes register the event set
+                sleep(SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING / 2)
+                # Reset the event for the next day
+                day_event.clear()
             elif day_condition:
                 day_condition.notify_all()
 

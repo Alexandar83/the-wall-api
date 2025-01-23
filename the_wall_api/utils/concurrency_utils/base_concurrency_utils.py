@@ -9,6 +9,7 @@ from multiprocessing import Queue as mprcss_Queue
 import os
 from queue import Queue
 from secrets import token_hex
+from time import sleep
 from typing import Union
 
 from django.conf import settings
@@ -48,6 +49,11 @@ class BaseWallBuilder(ABC):
         for profile_id, profile in enumerate(self.wall_construction_config, 1):
             for section_id, height in enumerate(profile, 1):
                 queue.put((profile_id, section_id, height))
+
+        if self.CONCURRENT_SIMULATION_MODE == 'multiprocessing_v1':
+            # Grace period to ensure the queue is properly populated
+            sleep(1)
+
         return queue
 
     def extract_log_data(self) -> None:
