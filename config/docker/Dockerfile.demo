@@ -19,7 +19,7 @@ ENV POSTGRES_PASSWORD=db_password_demo
 
 # Common
 ENV LOGS_DIR_NAME=logs
-ENV API_VERSION=v1
+ENV API_VERSION=v2
 
 # Set the working directory of the container to “app”
 WORKDIR /app

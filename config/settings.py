@@ -197,8 +197,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
-    'DEFAULT_VERSION': 'v1',
-    'ALLOWED_VERSIONS': ['v1'],
+    'DEFAULT_VERSION': 'v2',
+    'ALLOWED_VERSIONS': ['v2'],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
     ],
@@ -467,4 +467,4 @@ SECTION_COMPLETION_GRACE_PERIOD_MULTIPROCESSING = float(
 MAX_USER_WALL_CONFIGS = int(os.getenv('MAX_USER_WALL_CONFIGS', 5))                      # Maximum number of wall configurations per user
 
 # Common settings
-API_VERSION = os.getenv('API_VERSION', 'v1')
+API_VERSION = os.getenv('API_VERSION', 'v2')

@@ -177,8 +177,8 @@ The Wall is a massive fortification being built along the northern border of the
 
   - **c.** Send requests to the API endpoints:
 
-    - *http://localhost:8000/api/v1/*
-    - *http://localhost:8000/api/v1/swagger-ui/*
+    - *http://localhost:8000/api/v2/*
+    - *http://localhost:8000/api/v2/swagger-ui/*
   
   - **d.** To stop the app:
 
@@ -365,8 +365,8 @@ The Wall is a massive fortification being built along the northern border of the
 
   *4.* Send requests to the API endpoints:
   
-    - *http://localhost:8000/api/v1/*
-    - *http://localhost:8000/api/v1/swagger-ui/*
+    - *http://localhost:8000/api/v2/*
+    - *http://localhost:8000/api/v2/swagger-ui/*
 
   *5.* Create a super user:
 
@@ -463,7 +463,7 @@ The Wall is a massive fortification being built along the northern border of the
 
   *2.* Send requests to the API endpoints:
 
-    - *http://localhost:8000/api/v1/swagger-ui/*
+    - *http://localhost:8000/api/v2/swagger-ui/*
     
   *3.* To stop the app:
 
@@ -591,7 +591,7 @@ The Wall is a massive fortification being built along the northern border of the
 
   *2.* Send requests to the API endpoints:
 
-    - *http://localhost:8000/api/v1/swagger-ui/*
+    - *http://localhost:8000/api/v2/swagger-ui/*
 
   *3.* To stop the app:
 
@@ -857,8 +857,8 @@ The Wall is a massive fortification being built along the northern border of the
 
   *4.* Send requests to the API endpoints, using the current ***`WSL2 IP`*** address:
 
-    - *http://**`WSL2 IP`**:8000/api/v1/*
-    - *http://**`WSL2 IP`**:8000/api/v1/swagger-ui/*
+    - *http://**`WSL2 IP`**:8000/api/v2/*
+    - *http://**`WSL2 IP`**:8000/api/v2/swagger-ui/*
 
   *5.* Create a super user:
 
@@ -1026,7 +1026,7 @@ The Wall is a massive fortification being built along the northern border of the
   
   *2.* Send requests to the API endpoints:
 
-    - *http://**`WSL2 IP`**:8000/api/v1/swagger-ui/*  
+    - *http://**`WSL2 IP`**:8000/api/v2/swagger-ui/*  
 
       💡 *Refer to **`refresh_allowed_hosts_wsl2.sh`** [*script information*](#ℹ️-refresh_allowed_hosts_wsl2sh-script-information) for **`WSL2 IP`** details.*  
     <br>
@@ -1103,18 +1103,18 @@ The Wall is a massive fortification being built along the northern border of the
 
 | Endpoint                  | URL                                                     | Requires token authentication |            Rate limit scopes            |
 | ------------------------- | ------------------------------------------------------- | :---------------------------: | :-------------------------------------: |
-| Create User               | `/api/v1/auth/users/`                                   |              No               |             Unauthenticated             |
-| Set Password              | `/api/v1/auth/users/set_password/`                      |              Yes              |             User management             |
-| Login (authenticate)      | `/api/v1/auth/token/login/`                             |              No               |  Authenticated + <br>Unauthenticated 🗒️ |
-| Logout (revoke token)     | `/api/v1/auth/token/logout/`                            |              Yes              |             User management             |
-| Delete User               | `/api/v1/auth/users/me/{username}/`                     |              Yes              | User management + <br>Unauthenticated 🗒️|
-| Upload File               | `/api/v1/wallconfig-files/upload/`                      |              Yes              |             File management             |
-| List Files                | `/api/v1/wallconfig-files/list/`                        |              Yes              |              Authenticated              |
-| Delete File               | `/api/v1/wallconfig-files/delete/`                      |              Yes              |             File management             |
-| Daily Profile Cost        | `/api/v1/profiles/<int:profile_id>/overview/<int:day>/` |              Yes              |              Authenticated              |
-| Daily Wall Cost           | `/api/v1/profiles/overview/<int:day>/`                  |              Yes              |              Authenticated              |
-| Total Wall Cost           | `/api/v1/profiles/overview/`                            |              Yes              |              Authenticated              |
-| Daily Profile Ice Amount  | `/api/v1/profiles/<int:profile_id>/days/<int:day>/`     |              Yes              |              Authenticated              |
+| Create User               | `/api/v2/auth/users/`                                   |              No               |             Unauthenticated             |
+| Set Password              | `/api/v2/auth/users/set_password/`                      |              Yes              |             User management             |
+| Login (authenticate)      | `/api/v2/auth/token/login/`                             |              No               |  Authenticated + <br>Unauthenticated 🗒️ |
+| Logout (revoke token)     | `/api/v2/auth/token/logout/`                            |              Yes              |             User management             |
+| Delete User               | `/api/v2/auth/users/me/{username}/`                     |              Yes              | User management + <br>Unauthenticated 🗒️|
+| Upload File               | `/api/v2/wallconfig-files/upload/`                      |              Yes              |             File management             |
+| List Files                | `/api/v2/wallconfig-files/list/`                        |              Yes              |              Authenticated              |
+| Delete File               | `/api/v2/wallconfig-files/delete/`                      |              Yes              |             File management             |
+| Daily Profile Cost        | `/api/v2/profiles/<int:profile_id>/overview/<int:day>/` |              Yes              |              Authenticated              |
+| Daily Wall Cost           | `/api/v2/profiles/overview/<int:day>/`                  |              Yes              |              Authenticated              |
+| Total Wall Cost           | `/api/v2/profiles/overview/`                            |              Yes              |              Authenticated              |
+| Daily Profile Ice Amount  | `/api/v2/profiles/<int:profile_id>/days/<int:day>/`     |              Yes              |              Authenticated              |
 
 <br>
 
@@ -1136,9 +1136,9 @@ The Wall is a massive fortification being built along the northern border of the
 
 | Endpoint   | URL                   |
 | ---------- | --------------------- |
-| Swagger UI | `/api/v1/swagger-ui/` |
-| ReDoc      | `/api/v1/redoc/`      |
-| Schema     | `/api/v1/schema/`     |
+| Swagger UI | `/api/v2/swagger-ui/` |
+| ReDoc      | `/api/v2/redoc/`      |
+| Schema     | `/api/v2/schema/`     |
 
 </details>
 
@@ -1419,4 +1419,4 @@ graph TD
 
 ## 8. Status
 
-#### Working on version 2.0
+#### The Readme is currently being migrated to a comprehensive GitHub Wiki for better organization and ease of navigation.
