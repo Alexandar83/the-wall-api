@@ -7,6 +7,7 @@ import os
 import django
 from django.test.utils import override_settings
 
+os.environ['SECRET_KEY'] = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
