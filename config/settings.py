@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from the_wall_api.utils.env_utils import ACTIVE_TESTING, configure_connections_settings, PROJECT_MODE  # noqa: F401
@@ -29,7 +30,15 @@ if PROJECT_MODE == 'dev':
     # PostgreSQL DEV env. settings
     load_dotenv(dotenv_path=BASE_DIR / 'config' / 'envs' / 'dev' / 'postgres_dev.env', override=True)
 
-SECRET_KEY = 'django-insecure-*x!p!3#xxluj9i+v6anb!laycbax0rbkefg7$wf06xj2-my63f'
+if PROJECT_MODE in ['dev', 'prod_v1', 'demo']:
+    SECRET_KEY = os.getenv('SECRET_KEY')
+elif PROJECT_MODE == 'prod_v2':
+    SECRET_KEY = open(os.environ['DJANGO_SECRET_KEY_FILE']).read().strip()
+else:
+    SECRET_KEY = ''
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured('The SECRET_KEY setting must not be empty. Set it in your environment variables.')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 

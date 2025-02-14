@@ -18,11 +18,13 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DJANGO_SECRET_KEY_FILE=/run/secrets/django_secret_key
     secrets:
       - redis_password
       - postgres_db
       - postgres_user
       - postgres_password
+      - django_secret_key
 
   redis:
     image: redis:7.4.1
@@ -59,11 +61,13 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DJANGO_SECRET_KEY_FILE=/run/secrets/django_secret_key
     secrets:
       - redis_password
       - postgres_db
       - postgres_user
       - postgres_password
+      - django_secret_key
     volumes:
       - shared_sim_logs:/app/logs
 
@@ -78,11 +82,13 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DJANGO_SECRET_KEY_FILE=/run/secrets/django_secret_key
     secrets:
       - redis_password
       - postgres_db
       - postgres_user
       - postgres_password
+      - django_secret_key
     volumes:
       - shared_sim_logs:/app/logs
   
@@ -103,11 +109,13 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DJANGO_SECRET_KEY_FILE=/run/secrets/django_secret_key
     secrets:
       - redis_password
       - postgres_db
       - postgres_user
       - postgres_password
+      - django_secret_key
 
 volumes:
   the_wall_api_redis_data_prod:
@@ -127,4 +135,6 @@ secrets:
   postgres_user:
     external: true
   postgres_password:
+    external: true
+  django_secret_key:
     external: true

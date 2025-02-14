@@ -12,6 +12,7 @@ services:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
       - ../../config/envs/prod/postgres_prod.env
+      - ../../config/envs/prod/django_secret_key_prod.env
     environment:
       - PROJECT_MODE=prod_v1
     depends_on:
@@ -51,6 +52,7 @@ services:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
       - ../../config/envs/prod/postgres_prod.env
+      - ../../config/envs/prod/django_secret_key_prod.env
     environment:
       - PROJECT_MODE=prod_v1
     healthcheck:
@@ -70,6 +72,7 @@ services:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
       - ../../config/envs/prod/postgres_prod.env
+      - ../../config/envs/prod/django_secret_key_prod.env
     environment:
       - PROJECT_MODE=prod_v1
     healthcheck:
@@ -93,6 +96,7 @@ services:
       - ../../config/envs/prod/the_wall_api_prod.env
       - ../../config/envs/prod/redis_prod.env
       - ../../config/envs/prod/postgres_prod.env
+      - ../../config/envs/prod/django_secret_key_prod.env
     environment:
       - LIGHT_CELERY_CONFIG=True
       - PROJECT_MODE=prod_v1
